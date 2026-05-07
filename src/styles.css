@@ -49,6 +49,7 @@ body {
   background: #fff;
   border-right: 1px solid #dbe2ea;
   padding: 14px;
+  overflow: auto;
 }
 
 .groupTitle {
