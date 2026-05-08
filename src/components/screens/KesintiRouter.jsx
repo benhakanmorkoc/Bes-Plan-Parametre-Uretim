@@ -1,4 +1,7 @@
 import KesintiList from './KesintiList'
+import EgpGenelParametreleri from './EgpGenelParametreleri'
+import EgpGeriOdemeTipleri from './EgpGeriOdemeTipleri'
+import EgpAraOdemeParametresi from './EgpAraOdemeParametresi'
 import * as data from '../../data/mockData'
 
 const REGISTRY = {
@@ -141,6 +144,9 @@ const REGISTRY = {
 }
 
 export default function KesintiRouter({ id }) {
+  if (id === 'egpGenel') return <EgpGenelParametreleri />
+  if (id === 'egpGeriOdeme') return <EgpGeriOdemeTipleri />
+  if (id === 'egpAraOdeme') return <EgpAraOdemeParametresi />
   const cfg = REGISTRY[id]
   if (!cfg) return null
   return <KesintiList {...cfg} />
