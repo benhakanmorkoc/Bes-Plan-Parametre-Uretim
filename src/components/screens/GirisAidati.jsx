@@ -2,11 +2,22 @@ import { useMemo, useState } from 'react'
 import { Plus, Search, Link as LinkIcon } from 'lucide-react'
 import { girisAidati } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
+import RowActions from '../ui/RowActions'
+import Modal from '../ui/Modal'
 
 export default function GirisAidati() {
   const [search, setSearch] = useState('')
   const [tipFilter, setTipFilter] = useState('')
   const [selected, setSelected] = useState([])
+  const [createOpen, setCreateOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [actionInfo, setActionInfo] = useState(null)
+  const [form, setForm] = useState({ gaKodu: '', versiyon: '1', tarih: '', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Ardisik', taksitAdedi: '12', pesinat: '0', taksit: '0', erteleme: '0', toplam: '0' })
+
+  const handleAction = (key, row) => {
+    const labelMap = { view: 'Goruntule', edit: 'Duzenle', copy: 'Kopyala', version: 'Yeni Versiyon', history: 'Versiyon Gecmisi', delete: 'Sil' }
+    setActionInfo({ key, label: labelMap[key] || key, row })
+  }
 
   const filtered = useMemo(() => {
     return girisAidati.filter((row) => {
@@ -30,10 +41,10 @@ export default function GirisAidati() {
         description="Katilimcidan sisteme giriste veya erken cikiste alinacak giris aidatinin tahsilat stratejisini belirler."
         right={
           <>
-            <OutlineButton disabled={selected.length === 0}>
-              <LinkIcon className="w-4 h-4" /> Planlara Bagla
+            <OutlineButton disabled={selected.length === 0} onClick={() => setLinkOpen(true)}>
+              <LinkIcon className="w-4 h-4" /> Planlara Bagla {selected.length > 0 && <span className="ml-1 inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white text-[10px] rounded-full">{selected.length}</span>}
             </OutlineButton>
-            <PrimaryButton><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
+            <PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
           </>
         }
       />
@@ -75,6 +86,7 @@ export default function GirisAidati() {
               <th>Taksit</th>
               <th>Erteleme</th>
               <th>Toplam</th>
+              <th className="w-12 text-right">Aksiyon</th>
             </tr>
           </thead>
           <tbody>
@@ -92,14 +104,63 @@ export default function GirisAidati() {
                 <td>{row.taksit}</td>
                 <td>{row.erteleme}</td>
                 <td className="font-semibold text-slate-800">{row.toplam}</td>
+                <td className="text-right"><RowActions row={row} onAction={handleAction} /></td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={12} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
+              <tr><td colSpan={13} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Yeni Giris Aidati"
+        size="lg"
+        footer={<>
+          <OutlineButton onClick={() => setCreateOpen(false)}>Vazgec</OutlineButton>
+          <PrimaryButton onClick={() => { setCreateOpen(false); setActionInfo({ key: 'created', label: 'Yeni Giris Aidati Olusturuldu (mock)', row: form }) }}>Kaydet</PrimaryButton>
+        </>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { k: 'gaKodu', l: 'GA Kodu' },{ k: 'versiyon', l: 'Versiyon' },{ k: 'tarih', l: 'Tarih' },
+            { k: 'doviz', l: 'Doviz' },{ k: 'tip', l: 'GA Tipi' },{ k: 'taksitTipi', l: 'Taksit Tipi' },
+            { k: 'taksitAdedi', l: 'Taksit Adedi' },{ k: 'pesinat', l: 'Pesinat' },{ k: 'taksit', l: 'Taksit' },
+            { k: 'erteleme', l: 'Erteleme' },{ k: 'toplam', l: 'Toplam' },
+          ].map((f) => (
+            <label key={f.k} className="block">
+              <span className="block text-xs font-semibold text-slate-600 mb-1">{f.l}</span>
+              <input className="form-input" value={form[f.k]} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />
+            </label>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        title="Planlara Bagla"
+        description={`${selected.length} adet giris aidati secildi. Plan secimi mock prototip ekraninda yapilir.`}
+        footer={<>
+          <OutlineButton onClick={() => setLinkOpen(false)}>Vazgec</OutlineButton>
+          <PrimaryButton onClick={() => { setLinkOpen(false); setActionInfo({ key: 'linked', label: 'Planlara Baglandi (mock)', row: { kayitlar: selected } }) }}>Bagla</PrimaryButton>
+        </>}
+      >
+        <p className="text-sm text-slate-600">Bu islem mock'tur. Gercek ortamda urun-plan secim modali ile entegre olacaktir.</p>
+      </Modal>
+
+      <Modal
+        open={!!actionInfo}
+        onClose={() => setActionInfo(null)}
+        title={actionInfo?.label}
+        description="Mock prototip - bu islem henuz aktif degildir"
+        footer={<PrimaryButton onClick={() => setActionInfo(null)}>Tamam</PrimaryButton>}
+      >
+        <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(actionInfo?.row || {}, null, 2)}</pre>
+      </Modal>
     </div>
   )
 }

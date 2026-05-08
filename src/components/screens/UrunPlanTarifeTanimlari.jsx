@@ -2,6 +2,25 @@ import { useMemo, useState } from 'react'
 import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
+import RowActions from '../ui/RowActions'
+import Modal from '../ui/Modal'
+
+const PLAN_ACTIONS = [
+  { key: 'view', label: 'Goruntule', icon: 'view' },
+  { key: 'edit', label: 'Plan Tanimi', icon: 'edit' },
+  { key: 'copy', label: 'Plani Kopyala', icon: 'copy' },
+  { key: 'version', label: 'Yeni Versiyon', icon: 'version' },
+  { key: 'history', label: 'Versiyon Gecmisi', icon: 'history' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+const URUN_ACTIONS = [
+  { key: 'view', label: 'Planlarini Goruntule', icon: 'view' },
+  { key: 'edit', label: 'Urun Tanimi', icon: 'edit' },
+  { key: 'copy', label: 'Urun Kopyala', icon: 'copy' },
+  { key: 'history', label: 'Versiyon Gecmisi', icon: 'history' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
 
 function ProductCard({ urun, onOpen }) {
   return (
@@ -39,12 +58,21 @@ function ProductCard({ urun, onOpen }) {
 function PlanList({ urun, onBack }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [actionInfo, setActionInfo] = useState(null)
+  const [form, setForm] = useState({ id: '', ad: '', durum: 'Taslak', oran: 30, tarih: '' })
+
   const planlar = urunPlanlari[urun.id] || []
   const filtered = planlar.filter((p) => {
     const matchSearch = !search || p.ad.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase())
     const matchStatus = !statusFilter || p.durum === statusFilter
     return matchSearch && matchStatus
   })
+
+  const handleAction = (key, row) => {
+    const labelMap = Object.fromEntries(PLAN_ACTIONS.map((a) => [a.key, a.label]))
+    setActionInfo({ key, label: labelMap[key] || key, row })
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col h-full">
@@ -58,7 +86,7 @@ function PlanList({ urun, onBack }) {
             <div className="text-xs text-slate-500">{urun.tipler}</div>
           </div>
         </div>
-        <PrimaryButton><Plus className="w-4 h-4" /> Yeni Plan</PrimaryButton>
+        <PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Yeni Plan</PrimaryButton>
       </div>
 
       <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-3 items-end">
@@ -94,6 +122,7 @@ function PlanList({ urun, onBack }) {
               <th>Durum</th>
               <th>Tamamlanma</th>
               <th>Tarih</th>
+              <th className="w-12 text-right">Aksiyon</th>
             </tr>
           </thead>
           <tbody>
@@ -111,14 +140,48 @@ function PlanList({ urun, onBack }) {
                   </div>
                 </td>
                 <td>{p.tarih}</td>
+                <td className="text-right"><RowActions row={p} actions={PLAN_ACTIONS} onAction={handleAction} /></td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
+              <tr><td colSpan={6} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title={`Yeni Plan - ${urun.ad}`}
+        size="lg"
+        footer={<>
+          <OutlineButton onClick={() => setCreateOpen(false)}>Vazgec</OutlineButton>
+          <PrimaryButton onClick={() => { setCreateOpen(false); setActionInfo({ key: 'created', label: 'Yeni Plan Olusturuldu (mock)', row: { ...form, urun: urun.id } }) }}>Kaydet</PrimaryButton>
+        </>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { k: 'id', l: 'Plan No' },{ k: 'ad', l: 'Plan Adi' },{ k: 'durum', l: 'Durum' },
+            { k: 'oran', l: 'Tamamlanma %' },{ k: 'tarih', l: 'Tarih' },
+          ].map((f) => (
+            <label key={f.k} className="block">
+              <span className="block text-xs font-semibold text-slate-600 mb-1">{f.l}</span>
+              <input className="form-input" value={form[f.k]} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />
+            </label>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!actionInfo}
+        onClose={() => setActionInfo(null)}
+        title={actionInfo?.label}
+        description="Mock prototip - bu islem henuz aktif degildir"
+        footer={<PrimaryButton onClick={() => setActionInfo(null)}>Tamam</PrimaryButton>}
+      >
+        <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(actionInfo?.row || {}, null, 2)}</pre>
+      </Modal>
     </div>
   )
 }
@@ -127,11 +190,20 @@ export default function UrunPlanTarifeTanimlari() {
   const [view, setView] = useState('grid')
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [actionInfo, setActionInfo] = useState(null)
+  const [form, setForm] = useState({ id: '', ad: '', tipler: 'Bireysel  ·  Bireysel Emeklilik', sozlesmeTipi: 'Ferdi', tarih: '' })
 
   const filtered = useMemo(() => {
     if (!search) return urunPlanTarifeKartlari
     return urunPlanTarifeKartlari.filter((u) => u.ad.toLowerCase().includes(search.toLowerCase()) || u.id.toLowerCase().includes(search.toLowerCase()))
   }, [search])
+
+  const handleUrunAction = (key, row) => {
+    if (key === 'view') { setSelected(row); return }
+    const labelMap = Object.fromEntries(URUN_ACTIONS.map((a) => [a.key, a.label]))
+    setActionInfo({ key, label: labelMap[key] || key, row })
+  }
 
   if (selected) {
     return <PlanList urun={selected} onBack={() => setSelected(null)} />
@@ -150,7 +222,7 @@ export default function UrunPlanTarifeTanimlari() {
             <OutlineButton onClick={() => setView('list')} className={view === 'list' ? 'border-blue-300 text-blue-700' : ''}>
               <ListIcon className="w-4 h-4" /> Liste
             </OutlineButton>
-            <PrimaryButton><Plus className="w-4 h-4" /> Yeni Urun</PrimaryButton>
+            <PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Yeni Urun</PrimaryButton>
           </>
         }
       />
@@ -183,6 +255,7 @@ export default function UrunPlanTarifeTanimlari() {
                 <th>Aktif Plan</th>
                 <th>Toplam Plan</th>
                 <th>Tarih</th>
+                <th className="w-12 text-right">Aksiyon</th>
               </tr>
             </thead>
             <tbody>
@@ -194,12 +267,49 @@ export default function UrunPlanTarifeTanimlari() {
                   <td>{u.aktif}</td>
                   <td>{u.toplam}</td>
                   <td>{u.tarih}</td>
+                  <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <RowActions row={u} actions={URUN_ACTIONS} onAction={handleUrunAction} />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Yeni Urun"
+        size="lg"
+        footer={<>
+          <OutlineButton onClick={() => setCreateOpen(false)}>Vazgec</OutlineButton>
+          <PrimaryButton onClick={() => { setCreateOpen(false); setActionInfo({ key: 'created', label: 'Yeni Urun Olusturuldu (mock)', row: form }) }}>Kaydet</PrimaryButton>
+        </>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { k: 'id', l: 'Urun Kodu' },{ k: 'ad', l: 'Urun Adi' },
+            { k: 'tipler', l: 'Tipler' },{ k: 'sozlesmeTipi', l: 'Sozlesme Tipi' },
+            { k: 'tarih', l: 'Tarih' },
+          ].map((f) => (
+            <label key={f.k} className="block">
+              <span className="block text-xs font-semibold text-slate-600 mb-1">{f.l}</span>
+              <input className="form-input" value={form[f.k]} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />
+            </label>
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!actionInfo}
+        onClose={() => setActionInfo(null)}
+        title={actionInfo?.label}
+        description="Mock prototip - bu islem henuz aktif degildir"
+        footer={<PrimaryButton onClick={() => setActionInfo(null)}>Tamam</PrimaryButton>}
+      >
+        <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(actionInfo?.row || {}, null, 2)}</pre>
+      </Modal>
     </div>
   )
 }

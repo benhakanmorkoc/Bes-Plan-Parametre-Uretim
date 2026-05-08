@@ -121,7 +121,7 @@ const Placeholder = ({ label }) => (
 
 function App() {
   const [activeTab, setActiveTab] = useState('')
-  const [expandedGroups, setExpandedGroups] = useState(() => Object.fromEntries(menu.map((m) => [m.id, true])))
+  const [expandedGroups, setExpandedGroups] = useState(() => Object.fromEntries(menu.map((m) => [m.id, false])))
   const [search, setSearch] = useState('')
 
   const labelMap = useMemo(() => {
