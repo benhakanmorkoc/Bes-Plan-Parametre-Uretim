@@ -21,6 +21,7 @@ const PLAN_OPTIONS = [
 ]
 
 function normalizeTip(raw) {
+  if (raw === 'Tutar Bazlı Ödeme' || raw === 'Süre Bazlı Ödeme' || raw === 'Mevduat' || raw === 'Kira Geliri') return raw
   if (raw === 'Sabit') return 'Tutar Bazlı Ödeme'
   if (raw === 'Bakiyeye Orantili') return 'Süre Bazlı Ödeme'
   if (raw === 'Bakiyeye Orantılı') return 'Süre Bazlı Ödeme'
@@ -183,6 +184,7 @@ export default function EgpGeriOdemeTipleri() {
                 <select className="form-select" value={form.tip} onChange={(e) => setForm((f) => ({ ...f, tip: e.target.value, sureAlt: '', sureUst: '', tutarAlt: '', tutarUst: '', oranUst: '', faiz: '' }))}>
                   <option value="">Seçiniz</option>
                   {GERI_ODEME_TIPLERI.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {!GERI_ODEME_TIPLERI.includes(form.tip) && form.tip ? <option value={form.tip}>{form.tip}</option> : null}
                 </select>
               </label>
             </div>

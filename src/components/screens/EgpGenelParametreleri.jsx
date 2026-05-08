@@ -4,7 +4,7 @@ import { egpGenel as seedRows } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import Modal from '../ui/Modal'
 
-const CURRENCY_OPTIONS = ['TL', 'USD', 'EUR']
+const CURRENCY_OPTIONS = ['TRY', 'USD', 'EUR']
 const BIREY_TIPI_OPTIONS = ['Fert', 'Personel', 'Çocuk', 'Eş', 'Anne Baba', 'Kardeş', 'Personel Eş', 'Diğer']
 const ENDEKS_ARALIK_OPTIONS = Array.from({ length: 20 }, (_, i) => String(i + 1))
 const ENDEKS_TIP_OPTIONS = ['Tefe', 'Tüfe', 'Artışsız', 'Sabit Oran']
@@ -21,10 +21,10 @@ function emptyForm() {
     kod: '',
     ad: '',
     versiyon: '1',
-    doviz: 'TL',
+    doviz: '',
     bireyTipi: '',
     minBirikim: '',
-    kacYil: '',
+    frekans: '',
     endeksTipi: '',
   }
 }
@@ -33,8 +33,9 @@ export default function EgpGenelParametreleri() {
   const [rows, setRows] = useState(() =>
     seedRows.map((x) => ({
       ...x,
-      doviz: x.doviz === 'TRY' ? 'TL' : x.doviz,
+      doviz: x.doviz === 'TL' ? 'TRY' : x.doviz,
       bireyTipi: BIREY_TIPI_OPTIONS.includes(x.bireyTipi) ? x.bireyTipi : 'Fert',
+      frekans: x.kacYil || '',
     })),
   )
   const [selected, setSelected] = useState([])
@@ -73,11 +74,15 @@ export default function EgpGenelParametreleri() {
   }
 
   const submit = () => {
-    if (!form.kod.trim() || !form.ad.trim() || !form.doviz || !form.bireyTipi || !form.minBirikim || !form.kacYil || !form.endeksTipi) {
+    if (!form.kod.trim() || !form.ad.trim() || !form.doviz || !form.bireyTipi || !form.minBirikim || !form.frekans || !form.endeksTipi) {
       alert('Zorunlu alanları doldurun.')
       return
     }
-    const payload = { ...form, minBirikim: String(form.minBirikim) }
+    const payload = {
+      ...form,
+      minBirikim: String(form.minBirikim),
+      kacYil: String(form.frekans),
+    }
     if (editingId) {
       setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...payload } : r)))
     } else {
@@ -151,7 +156,7 @@ export default function EgpGenelParametreleri() {
               <th>Döviz Kodu</th>
               <th>Birey Tipi</th>
               <th>Minimum Birikim Tutarı</th>
-              <th>Endeksleme Frekansı (Yıl)</th>
+              <th>Endekslem Frekansı</th>
               <th className="w-12 text-center">İşlemler</th>
             </tr>
           </thead>
@@ -165,7 +170,7 @@ export default function EgpGenelParametreleri() {
                 <td>{row.doviz}</td>
                 <td>{row.bireyTipi}</td>
                 <td>{row.minBirikim}</td>
-                <td>{row.kacYil}</td>
+                <td>{row.frekans || row.kacYil}</td>
                 <td className="relative text-center">
                   <button type="button" className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:bg-slate-100" onClick={() => setMenuId((prev) => (prev === row.id ? null : row.id))}>...</button>
                   {menuId === row.id && (
@@ -186,28 +191,27 @@ export default function EgpGenelParametreleri() {
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        title="Yeni Parametre Ekle"
+        title="Genel EGP Parametreleri Ekle"
         size="lg"
-        footer={<><OutlineButton onClick={() => setFormOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={submit}>Kaydet</PrimaryButton></>}
+        footer={
+          <>
+            <OutlineButton onClick={() => setFormOpen(false)}>İptal</OutlineButton>
+            <OutlineButton onClick={() => setForm((f) => ({ ...emptyForm(), versiyon: f.versiyon || '1' }))}>Temizle</OutlineButton>
+            <PrimaryButton onClick={submit}>Kaydet</PrimaryButton>
+          </>
+        }
       >
-        <div className="space-y-4">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Ana Tanımlar</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">EGP Parametre Kodu *</span><input className="form-input" value={form.kod} onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))} /></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">EGP Parametre Adı *</span><input className="form-input" value={form.ad} onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))} /></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Döviz Kodu *</span><select className="form-select" value={form.doviz} onChange={(e) => setForm((f) => ({ ...f, doviz: e.target.value }))}>{CURRENCY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Birey Tipi *</span><select className="form-select" value={form.bireyTipi} onChange={(e) => setForm((f) => ({ ...f, bireyTipi: e.target.value }))}><option value="">Seçiniz</option>{BIREY_TIPI_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Versiyon</span><input className="form-input bg-slate-100" disabled value={form.versiyon || '1'} /></label>
-            </div>
-          </div>
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Minimum Birikim Bilgileri</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Minimum Birikim Tutarı *</span><input className="form-input" value={form.minBirikim} onChange={(e) => setForm((f) => ({ ...f, minBirikim: e.target.value.replace(/[^0-9.,]/g, '') }))} /></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Endeksleme Aralığı (Yıl) *</span><select className="form-select" value={form.kacYil} onChange={(e) => setForm((f) => ({ ...f, kacYil: e.target.value }))}><option value="">Seçiniz</option>{ENDEKS_ARALIK_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
-              <label><span className="block text-xs font-semibold text-slate-600 mb-1">Min. Birikim Tutarı Endeks Tipi *</span><select className="form-select" value={form.endeksTipi} onChange={(e) => setForm((f) => ({ ...f, endeksTipi: e.target.value }))}><option value="">Seçiniz</option>{ENDEKS_TIP_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
-            </div>
+        <div className="space-y-5 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">EGP Genel Kodu *</span><input className="form-input" value={form.kod} onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))} /></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">EGP Genel Adı *</span><input className="form-input" value={form.ad} onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))} /></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Versiyon</span><input className="form-input bg-slate-100" disabled value={form.versiyon || '1'} /></label>
+            <div />
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Döviz Kodu *</span><select className="form-select" value={form.doviz} onChange={(e) => setForm((f) => ({ ...f, doviz: e.target.value }))}><option value="">Seçiniz</option>{CURRENCY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Birey Tipi</span><select className="form-select" value={form.bireyTipi} onChange={(e) => setForm((f) => ({ ...f, bireyTipi: e.target.value }))}><option value="">Seçiniz</option>{BIREY_TIPI_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Min. Birikim Tutarı *</span><input className="form-input" value={form.minBirikim} onChange={(e) => setForm((f) => ({ ...f, minBirikim: e.target.value.replace(/[^0-9.,]/g, '') }))} /></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Endekslem Frekansı *</span><input className="form-input" value={form.frekans} onChange={(e) => setForm((f) => ({ ...f, frekans: e.target.value.replace(/[^0-9]/g, '') }))} /></label>
+            <label><span className="block text-xs font-semibold text-slate-600 mb-1">Min. Birikim Tutarı Endeks Tipi *</span><select className="form-select" value={form.endeksTipi} onChange={(e) => setForm((f) => ({ ...f, endeksTipi: e.target.value }))}><option value="">Seçiniz</option>{ENDEKS_TIP_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
           </div>
         </div>
       </Modal>
