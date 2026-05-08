@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -51,36 +51,48 @@ function normalizePlan(payload, source = {}) {
   }
 }
 
-function ProductCard({ urun, onOpen, onAction }) {
+function ProductCard({ urun, onOpen, onAction, menuOpenId, setMenuOpenId }) {
   return (
-    <div className="group bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="cursor-pointer" onClick={() => onOpen(urun)}>
-          <div className="text-[11px] uppercase tracking-wide text-slate-500">{urun.id}</div>
-          <h3 className="text-base font-bold text-slate-800 group-hover:text-blue-700">{urun.ad}</h3>
+    <div className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all">
+      <div className="flex items-start justify-between gap-3">
+        <div className="cursor-pointer p-5 pb-0" onClick={() => onOpen(urun)}>
+          <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 text-[11px] font-semibold">{urun.id}</div>
+          <h3 className="text-[42px] leading-[1.05] font-bold text-slate-800 group-hover:text-violet-700 mt-3">{urun.ad}</h3>
         </div>
-        <div className="flex items-start gap-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-blue-50 text-blue-700 border-blue-200">{urun.sozlesmeTipi}</span>
-          <RowActions row={urun} actions={URUN_ACTIONS} onAction={onAction} />
+        <div className="flex items-start gap-2 p-4 pb-0">
+          <button
+            type="button"
+            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100"
+            onClick={(e) => { e.stopPropagation(); setMenuOpenId((prev) => (prev === urun.id ? null : urun.id)) }}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+          <button type="button" className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-500">
+            <Settings className="w-4 h-4" />
+          </button>
+          {menuOpenId === urun.id && (
+            <div className="absolute z-30 top-12 right-14 w-44 bg-white border border-slate-200 rounded-xl shadow-[0_12px_30px_rgba(15,23,42,0.14)] py-1 text-sm">
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('view', urun)}><Eye className="w-3.5 h-3.5 text-violet-500" /> İncele</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('edit', urun)}><Pencil className="w-3.5 h-3.5 text-violet-500" /> Güncelle</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('copy', urun)}><Copy className="w-3.5 h-3.5 text-violet-500" /> Kopyala</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('version', urun)}><Plus className="w-3.5 h-3.5 text-violet-500" /> Yeni Plan Ekle</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2 text-violet-700" onClick={() => onAction('view', urun)}><List className="w-3.5 h-3.5 text-violet-500" /> Planlar</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-red-50 inline-flex items-center gap-2 text-red-600" onClick={() => onAction('delete', urun)}><Trash2 className="w-3.5 h-3.5 text-red-500" /> Sil</button>
+            </div>
+          )}
         </div>
       </div>
-      <div className="cursor-pointer" onClick={() => onOpen(urun)}>
-        <p className="text-xs text-slate-500 mb-3">{urun.tipler}</p>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-50 rounded-md py-2">
-            <div className="text-base font-bold text-slate-800">{urun.toplam}</div>
-            <div className="text-[10px] uppercase text-slate-500">Plan</div>
-          </div>
-          <div className="bg-green-50 rounded-md py-2">
-            <div className="text-base font-bold text-green-700">{urun.aktif}</div>
-            <div className="text-[10px] uppercase text-green-600">Aktif</div>
-          </div>
-          <div className="bg-slate-50 rounded-md py-2">
-            <div className="text-base font-bold text-slate-700">{urun.kapali}</div>
-            <div className="text-[10px] uppercase text-slate-500">Kapali</div>
-          </div>
+      <div className="cursor-pointer px-5 pb-4" onClick={() => onOpen(urun)}>
+        <p className="text-[13px] text-slate-500 mb-3">{urun.tipler}</p>
+        <div className="space-y-1.5 text-slate-600 text-sm">
+          <p>Toplam Plan Sayısı {urun.toplam}</p>
+          <p>Aktif Plan Sayısı {urun.aktif}</p>
+          <p>Satışa Kapalı Plan {urun.kapali}</p>
         </div>
-        <div className="text-[11px] text-slate-400 mt-3">Olusturulma: {urun.tarih}</div>
+      </div>
+      <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between bg-white">
+        <span className="text-xs text-slate-400">{urun.tarih}</span>
+        <button type="button" className="px-3 py-1 rounded-full border border-violet-200 text-violet-700 text-xs font-medium bg-violet-50/30">Aktif Planlar</button>
       </div>
     </div>
   )
@@ -226,6 +238,7 @@ export default function UrunPlanTarifeTanimlari() {
   const [editingProductId, setEditingProductId] = useState(null)
   const [form, setForm] = useState({ id: '', ad: '', tipler: 'Bireysel  ·  Bireysel Emeklilik', sozlesmeTipi: 'Ferdi', tarih: '', toplam: 0, aktif: 0, kapali: 0 })
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
+  const [menuOpenId, setMenuOpenId] = useState(null)
 
   const filtered = useMemo(() => {
     if (!search) return products
@@ -365,6 +378,7 @@ export default function UrunPlanTarifeTanimlari() {
   }
 
   const handleUrunAction = (key, row) => {
+    setMenuOpenId(null)
     if (key === 'view') { setSelected(row); return }
     if (key === 'edit') { openEditProduct(row); return }
     if (key === 'copy') {
@@ -412,27 +426,28 @@ export default function UrunPlanTarifeTanimlari() {
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
         title="Ürün - Plan - Tarife Tanımları"
-        description="Ürün, plan ve tarife tanımlarının kart görünümünde listelendiği ekrandır."
+        description=""
         right={
           <>
-            <OutlineButton onClick={() => setView('grid')} className={view === 'grid' ? 'border-blue-300 text-blue-700' : ''}><LayoutGrid className="w-4 h-4" /> Kart</OutlineButton>
-            <OutlineButton onClick={() => setView('list')} className={view === 'list' ? 'border-blue-300 text-blue-700' : ''}><ListIcon className="w-4 h-4" /> Liste</OutlineButton>
+            <OutlineButton className="text-slate-600"><Filter className="w-4 h-4" /> Filtrele</OutlineButton>
+            <OutlineButton onClick={() => setView('grid')} className={view === 'grid' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><LayoutGrid className="w-4 h-4" /></OutlineButton>
+            <OutlineButton onClick={() => setView('list')} className={view === 'list' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><ListIcon className="w-4 h-4" /></OutlineButton>
             <PrimaryButton onClick={openCreateProduct}><Plus className="w-4 h-4" /> Yeni Ürün</PrimaryButton>
           </>
         }
       />
 
       <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100">
-        <div className="relative max-w-md">
+        <div className="relative max-w-3xl">
           <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input type="text" className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ürün ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ürün Adı, kodu, Tarife/Plan Kodu, Tarife/Plan Adı, Branş ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-6">
         {view === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((u) => <ProductCard key={u.id} urun={u} onOpen={setSelected} onAction={handleUrunAction} />)}
+            {filtered.map((u) => <ProductCard key={u.id} urun={u} onOpen={setSelected} onAction={handleUrunAction} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />)}
           </div>
         ) : (
           <table className="w-full grid-table bg-white border border-slate-200 rounded-md overflow-hidden">
