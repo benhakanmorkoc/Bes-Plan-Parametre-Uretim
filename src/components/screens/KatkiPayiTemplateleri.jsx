@@ -1,170 +1,883 @@
-import { useMemo, useState } from 'react'
-import { Plus, Search, Link as LinkIcon } from 'lucide-react'
-import { katkiPayiTemplateleri } from '../../data/mockData'
+import { useMemo, useState, useCallback } from 'react'
+import {
+  Plus, Search, Link as LinkIcon, ChevronDown, ChevronUp, MoreVertical, Edit2, Trash2, List, ArrowLeft, X, AlertCircle, CheckCircle2,
+} from 'lucide-react'
+import { katkiPayiTemplateleri as seedKpt, kptBaglantiMockPlans } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
-import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
 
-export default function KatkiPayiTemplateleri() {
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [selected, setSelected] = useState([])
-  const [createOpen, setCreateOpen] = useState(false)
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [actionInfo, setActionInfo] = useState(null)
-  const [form, setForm] = useState({ kpTemplateKodu: '', adi: '', versiyon: '1', katkiPayiTutari: '', odemePeriyodu: 'Aylik', dovizKp: 'TL', gecerlilik: 'Aktif' })
+const ODEME_PERIYOTLARI = ['Aylık', 'Üç Aylık', 'Altı Aylık', 'Yıllık']
+const KP_HESAPLAMA_TURU_SECENEKLERI = ['Tefe', 'Tüfe', 'Sabit Oran', 'Artışsız']
+const GUNLER = Array.from({ length: 31 }, (_, i) => String(i + 1))
+const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
-  const handleAction = (key, row) => {
-    const labelMap = { view: 'Goruntule', edit: 'Duzenle', copy: 'Kopyala', version: 'Yeni Versiyon', history: 'Versiyon Gecmisi', delete: 'Sil' }
-    setActionInfo({ key, label: labelMap[key] || key, row })
+function toOdemeArray(val) {
+  if (Array.isArray(val)) return val
+  return String(val || '').split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+function displayOdeme(val) {
+  const a = toOdemeArray(val)
+  return a.length ? a.join(', ') : '—'
+}
+
+function latestByTemplateCode(rows) {
+  const m = new Map()
+  rows.forEach((item) => {
+    const key = item.kpTemplateKodu || ''
+    const prev = m.get(key)
+    if (!prev || Number(item.versiyon || 0) > Number(prev.versiyon || 0)) m.set(key, item)
+  })
+  return Array.from(m.values())
+}
+
+function SortHeader({ label, col, sortCol, sortOrder, onSort }) {
+  const active = sortCol === col
+  return (
+    <th
+      className="cursor-pointer select-none hover:bg-slate-100/80"
+      onClick={() => onSort(col)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />) : null}
+      </span>
+    </th>
+  )
+}
+
+function FieldHint({ label, hint, required, children }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold text-slate-700 mb-1">
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
+      {children}
+      {hint && <p className="text-[11px] text-slate-500 mt-1 leading-snug">{hint}</p>}
+    </label>
+  )
+}
+
+const emptyForm = () => ({
+  dovizKp: 'TL',
+  odemePeriyodu: [],
+  kpTemplateKodu: '',
+  adi: '',
+  versiyon: '1',
+  katkiPayiTutari: '',
+  katkiPayiTutariIges: '',
+  azamiKp: '',
+  gecerlilik: 'Aktif',
+  baslangicKapitali: '',
+  girisFonBuyuklugu: '',
+  dovizDiger: 'TL',
+  kpHesaplamaTuru: '',
+  kpDonemGun: '',
+  kpDonemAy: '',
+  yuvarlama: 'Yok',
+  yuvarlamaDegeri: '',
+})
+
+function itemToForm(item) {
+  const arr = toOdemeArray(item.odemePeriyodu)
+  return {
+    dovizKp: item.dovizKp || 'TL',
+    odemePeriyodu: arr,
+    kpTemplateKodu: item.kpTemplateKodu || '',
+    adi: item.adi || '',
+    versiyon: String(item.versiyon || '1'),
+    katkiPayiTutari: item.katkiPayiTutari || '',
+    katkiPayiTutariIges: item.katkiPayiTutariIges || '',
+    azamiKp: item.azamiKp || '',
+    gecerlilik: item.gecerlilik || 'Aktif',
+    baslangicKapitali: item.baslangicKapitali || '',
+    girisFonBuyuklugu: item.girisFonBuyuklugu || '',
+    dovizDiger: item.dovizDiger || 'TL',
+    kpHesaplamaTuru: item.kpHesaplamaTuru || '',
+    kpDonemGun: item.kpDonemGun || '',
+    kpDonemAy: item.kpDonemAy || '',
+    yuvarlama: item.yuvarlama || 'Yok',
+    yuvarlamaDegeri: item.yuvarlamaDegeri || '',
+  }
+}
+
+/** Mock: sablon koduna gore bagli planlar (prototip) */
+function mockBagliPlanlar(kod) {
+  return [
+    { planNo: '001', planAdi: 'LİMİTLİ PLAN', durum: 'Taslak', versiyon: '1' },
+    { planNo: '003', planAdi: 'ESNEK PLAN', durum: 'Taslak', versiyon: '1' },
+  ].map((r) => ({ ...r, kpTemplateKodu: kod }))
+}
+
+export default function KatkiPayiTemplateleri() {
+  const [kptData, setKptData] = useState(() => seedKpt.map((r) => ({ ...r })))
+  const [viewMode, setViewMode] = useState('list')
+  const [currentEditId, setCurrentEditId] = useState(null)
+  const [kptForm, setKptForm] = useState(emptyForm)
+  const [odemeDropdownOpen, setOdemeDropdownOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [menuRowId, setMenuRowId] = useState(null)
+  const [searchText, setSearchText] = useState('')
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [activeFilterKey, setActiveFilterKey] = useState('')
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
+  const [filterDraft, setFilterDraft] = useState({ min: '', max: '', text: '', period: '' })
+  const [appliedFilters, setAppliedFilters] = useState({})
+  const [sortCol, setSortCol] = useState('kpTemplateKodu')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [uiError, setUiError] = useState('')
+  const [uiSuccess, setUiSuccess] = useState('')
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  const [versionRows, setVersionRows] = useState([])
+  const [linkedOpen, setLinkedOpen] = useState(false)
+  const [linkedRow, setLinkedRow] = useState(null)
+  const [planModalOpen, setPlanModalOpen] = useState(false)
+  const [planModalError, setPlanModalError] = useState('')
+  const [planSearch, setPlanSearch] = useState('')
+  const [planRows, setPlanRows] = useState([])
+  const [selectedPlanIds, setSelectedPlanIds] = useState([])
+
+  const filteredLatest = useMemo(() => {
+    const latest = latestByTemplateCode(kptData)
+    const normalizeNum = (v) => Number(String(v || '0').replace(',', '.'))
+    const inRange = (value, f) => {
+      const n = normalizeNum(value)
+      const minOk = !f?.min || n >= normalizeNum(f.min)
+      const maxOk = !f?.max || n <= normalizeNum(f.max)
+      return minOk && maxOk
+    }
+    return latest.filter((item) =>
+      (!searchText || `${item.kpTemplateKodu} ${item.adi}`.toLowerCase().includes(searchText.toLowerCase())) &&
+      (!appliedFilters.baslangicKapitali || inRange(item.baslangicKapitali, appliedFilters.baslangicKapitali)) &&
+      (!appliedFilters.girisFonBuyuklugu || inRange(item.girisFonBuyuklugu, appliedFilters.girisFonBuyuklugu)) &&
+      (!appliedFilters.katkiPayiTutari || inRange(item.katkiPayiTutari, appliedFilters.katkiPayiTutari)) &&
+      (!appliedFilters.odemePeriyodu || displayOdeme(item.odemePeriyodu).includes(appliedFilters.odemePeriyodu.period)),
+    ).sort((a, b) => {
+      const va = String(a[sortCol] ?? '').toLowerCase()
+      const vb = String(b[sortCol] ?? '').toLowerCase()
+      if (va < vb) return sortOrder === 'asc' ? -1 : 1
+      if (va > vb) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [kptData, searchText, appliedFilters, sortCol, sortOrder])
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))
+    else { setSortCol(col); setSortOrder('asc') }
   }
 
-  const filtered = useMemo(() => {
-    return katkiPayiTemplateleri.filter((row) => {
-      const matchSearch = !search || row.kpTemplateKodu.toLowerCase().includes(search.toLowerCase()) || row.adi.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = !statusFilter || row.gecerlilik === statusFilter
-      return matchSearch && matchStatus
-    })
-  }, [search, statusFilter])
-
-  const allChecked = selected.length === filtered.length && filtered.length > 0
-
-  const toggleAll = () => {
-    if (allChecked) setSelected([])
-    else setSelected(filtered.map((r) => r.id))
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredLatest.length && filteredLatest.length) setSelectedIds([])
+    else setSelectedIds(filteredLatest.map((r) => r.id))
   }
 
   const toggleOne = (id) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const openAdd = () => {
+    setKptForm(emptyForm())
+    setCurrentEditId(null)
+    setUiError('')
+    setViewMode('form')
+  }
+
+  const openEdit = (id) => {
+    const item = kptData.find((a) => a.id === id)
+    if (!item) return
+    setKptForm(itemToForm(item))
+    setCurrentEditId(id)
+    setUiError('')
+    setOdemeDropdownOpen(false)
+    setViewMode('form')
+  }
+
+  const saveForm = () => {
+    setUiError('')
+    if (!kptForm.kpTemplateKodu?.trim() || !kptForm.adi?.trim() || !kptForm.katkiPayiTutari?.trim()) {
+      setUiError('KP Template Kodu, KP Template Adı ve Katkı Payı Tutarı alanları zorunludur.')
+      return
+    }
+    if (!kptForm.odemePeriyodu || kptForm.odemePeriyodu.length === 0) {
+      setUiError('Ödeme Periyodu alanından en az bir seçim yapmalısınız.')
+      return
+    }
+    const codeExists = kptData.some(
+      (a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase() && a.id !== currentEditId,
+    )
+    if (codeExists && !currentEditId) {
+      setUiError('Eklenmek istenen KP Template Kodu sistemde mevcuttur. Güncelleme için satır menüsünü kullanın.')
+      return
+    }
+    const odemePeriyodu = kptForm.odemePeriyodu
+    const versiyon = currentEditId
+      ? String(kptData.find((a) => a.id === currentEditId)?.versiyon || '1')
+      : String(Math.max(0, ...kptData.filter((a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase()).map((a) => Number(a.versiyon || 0))) + 1)
+    const today = new Date().toLocaleDateString('tr-TR')
+    const payload = {
+      kpTemplateKodu: kptForm.kpTemplateKodu.trim(),
+      adi: kptForm.adi.trim(),
+      versiyon,
+      katkiPayiTutari: kptForm.katkiPayiTutari,
+      katkiPayiTutariIges: kptForm.katkiPayiTutariIges,
+      azamiKp: kptForm.azamiKp,
+      gecerlilik: currentEditId ? kptForm.gecerlilik : 'Aktif',
+      baslangicKapitali: kptForm.baslangicKapitali,
+      girisFonBuyuklugu: kptForm.girisFonBuyuklugu,
+      dovizKp: kptForm.dovizKp,
+      odemePeriyodu,
+      dovizDiger: kptForm.dovizDiger,
+      kpHesaplamaTuru: kptForm.kpHesaplamaTuru,
+      kpDonemGun: kptForm.kpDonemGun,
+      kpDonemAy: kptForm.kpDonemAy,
+      yuvarlama: kptForm.yuvarlama,
+      yuvarlamaDegeri: kptForm.yuvarlamaDegeri,
+      olusturan: currentEditId ? (kptData.find((a) => a.id === currentEditId)?.olusturan || 'uaktas') : 'uaktas',
+        olusturulmaTarihi: currentEditId ? ((kptData.find((a) => a.id === currentEditId)?.olusturulmaTarihi) || today) : today,
+      guncelleyen: 'uaktas',
+      guncellemeTarihi: today,
+    }
+    if (currentEditId) {
+      setKptData((prev) => prev.map((a) => (a.id === currentEditId ? { ...a, ...payload } : a)))
+    } else {
+      setKptData((prev) => [...prev, { id: Date.now(), ...payload }])
+    }
+    setUiSuccess('Kayıt tamamlandı.')
+    setTimeout(() => setUiSuccess(''), 3500)
+    setViewMode('list')
+  }
+
+  const deleteByTemplateKodu = (kod) => {
+    setKptData((prev) => {
+      const removed = new Set(prev.filter((i) => i.kpTemplateKodu === kod).map((i) => i.id))
+      setSelectedIds((sids) => sids.filter((id) => !removed.has(id)))
+      return prev.filter((item) => item.kpTemplateKodu !== kod)
+    })
+  }
+
+  const openVersions = (row) => {
+    const rows = kptData
+      .filter((item) => item.kpTemplateKodu === row.kpTemplateKodu)
+      .sort((a, b) => Number(b.versiyon || 0) - Number(a.versiyon || 0))
+    setVersionRows(rows)
+    setVersionsOpen(true)
+    setMenuRowId(null)
+  }
+
+  const openLinked = (row) => {
+    setLinkedRow(row)
+    setLinkedOpen(true)
+    setMenuRowId(null)
+  }
+
+  const resetPlanModal = useCallback(() => {
+    setPlanRows(kptBaglantiMockPlans.map((p) => ({ ...p })))
+    setSelectedPlanIds([])
+    setPlanSearch('')
+    setPlanModalError('')
+  }, [])
+
+  const openPlanModal = () => {
+    resetPlanModal()
+    setPlanModalOpen(true)
+  }
+
+  const savePlanModal = () => {
+    const selectedPlans = planRows.filter((p) => selectedPlanIds.includes(p.id))
+    const hasIges = selectedPlans.some((p) => /İGES|IGES/i.test(p.ad || ''))
+    if (hasIges) {
+      const templates = kptData.filter((t) => selectedIds.includes(t.id))
+      const missing = templates.some((t) => !String(t.katkiPayiTutariIges || '').trim())
+      if (missing) {
+        setPlanModalError('İGES içeren plan seçildiğinde Katkı Payı Tutarı (İGES) alanı boş olamaz (liste üzerinde şablon seçili olmalı).')
+        return
+      }
+    }
+    if (selectedPlanIds.length === 0) {
+      setPlanModalError('En az bir plan seçmelisiniz.')
+      return
+    }
+    setPlanModalError('')
+    setPlanModalOpen(false)
+    setUiSuccess('Planlara atama tamamlandı.')
+    setTimeout(() => setUiSuccess(''), 4000)
+  }
+
+  const dovizDigerEnabled = Number(String(kptForm.baslangicKapitali || '0').replace(',', '.')) > 0
+  const selectedTemplateRows = filteredLatest.filter((r) => selectedIds.includes(r.id))
+  const filteredPlanRows = planRows.filter((p) => (`${p.id} ${p.ad}`).toLowerCase().includes(planSearch.toLowerCase()))
+  const filterOptions = [
+    { key: 'baslangicKapitali', label: 'Başlangıç Kapitali', type: 'range' },
+    { key: 'girisFonBuyuklugu', label: 'Giriş Fon Büyüklüğü', type: 'range' },
+    { key: 'katkiPayiTutari', label: 'Katkı Payı Tutarı', type: 'range' },
+    { key: 'odemePeriyodu', label: 'Ödeme Periyodu', type: 'period' },
+  ]
+  const activeFilterMeta = filterOptions.find((f) => f.key === activeFilterKey)
+  const activeFilterLabel = activeFilterMeta?.label || ''
+
+  const openFilter = (key) => {
+    setActiveFilterKey(key)
+    const existing = appliedFilters[key] || {}
+    setFilterDraft({
+      min: existing.min || '',
+      max: existing.max || '',
+      text: existing.text || '',
+      period: existing.period || '',
+    })
+    setFilterMenuOpen(false)
+    setFilterPopoverOpen(true)
+  }
+
+  const applyFilter = () => {
+    if (!activeFilterKey) return
+    const meta = filterOptions.find((f) => f.key === activeFilterKey)
+    if (!meta) return
+    const isEmpty = meta.type === 'range'
+      ? (!filterDraft.min && !filterDraft.max)
+      : (!filterDraft.period)
+    if (isEmpty) {
+      setAppliedFilters((prev) => {
+        const { [activeFilterKey]: _, ...rest } = prev
+        return rest
+      })
+      setFilterPopoverOpen(false)
+      return
+    }
+    setAppliedFilters((prev) => ({
+      ...prev,
+      [activeFilterKey]: meta.type === 'range'
+        ? { min: filterDraft.min, max: filterDraft.max }
+        : { period: filterDraft.period },
+    }))
+    setFilterPopoverOpen(false)
+  }
+
+  const clearActiveFilter = () => {
+    if (!activeFilterKey) return
+    setAppliedFilters((prev) => {
+      const { [activeFilterKey]: _, ...rest } = prev
+      return rest
+    })
+    setFilterDraft({ min: '', max: '', text: '', period: '' })
+    setActiveFilterKey('')
+    setFilterPopoverOpen(false)
+  }
+
+  const listHeaderRight = viewMode === 'list' ? (
+    <>
+      <OutlineButton disabled={selectedIds.length === 0} onClick={openPlanModal}>
+        <LinkIcon className="w-4 h-4" /> Planlara Bağla
+        {selectedIds.length > 0 && (
+          <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-blue-600 text-white text-[10px] rounded-full">{selectedIds.length}</span>
+        )}
+      </OutlineButton>
+      <PrimaryButton onClick={openAdd}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
+    </>
+  ) : null
+
+  if (viewMode === 'form') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden relative">
+        {(uiError || uiSuccess) && (
+          <div className={`shrink-0 px-4 py-2 flex items-center justify-between text-sm ${uiError ? 'bg-red-50 text-red-800 border-b border-red-100' : 'bg-green-50 text-green-800 border-b border-green-100'}`}>
+            <span className="flex items-center gap-2 font-medium">
+              {uiError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+              {uiError || uiSuccess}
+            </span>
+            <button type="button" className="p-1 rounded hover:bg-black/5" onClick={() => { setUiError(''); setUiSuccess('') }}><X className="w-4 h-4" /></button>
+          </div>
+        )}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>
+              <ArrowLeft className="w-4 h-4" /> Listeye Dön
+            </OutlineButton>
+            <h2 className="text-lg font-bold text-slate-800">{currentEditId ? 'KP Template Güncelle' : 'Yeni KP Template Ekle'}</h2>
+          </div>
+          <div className="flex gap-2">
+            <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>İptal</OutlineButton>
+            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">Ana Tanımlar</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <FieldHint required label="KP Template Kodu">
+                <input type="text" className="form-input" value={kptForm.kpTemplateKodu} onChange={(e) => setKptForm({ ...kptForm, kpTemplateKodu: e.target.value })} />
+              </FieldHint>
+              <FieldHint required label="KP Template Adı">
+                <input type="text" className="form-input" value={kptForm.adi} onChange={(e) => setKptForm({ ...kptForm, adi: e.target.value })} />
+              </FieldHint>
+              <FieldHint label="Döviz Türü KP">
+                <select className="form-input" value={kptForm.dovizKp} onChange={(e) => setKptForm({ ...kptForm, dovizKp: e.target.value })}>
+                  <option value="TL">TL</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </FieldHint>
+              <FieldHint required label="Ödeme Periyodu">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOdemeDropdownOpen((v) => !v)}
+                    className="form-input min-h-[42px] h-auto flex items-center justify-between gap-2"
+                  >
+                    <div className="flex flex-wrap gap-2 text-left">
+                      {kptForm.odemePeriyodu?.length > 0 ? (
+                        kptForm.odemePeriyodu.map((item) => (
+                          <span key={item} className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 text-xs font-medium">{item}</span>
+                        ))
+                      ) : (
+                        <span className="text-slate-400">Seçiniz</span>
+                      )}
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 ${odemeDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {odemeDropdownOpen && (
+                    <div className="absolute z-30 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 max-h-52 overflow-auto">
+                      {ODEME_PERIYOTLARI.map((period) => (
+                        <label key={period} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            checked={kptForm.odemePeriyodu.includes(period)}
+                            onChange={() => {
+                              const on = kptForm.odemePeriyodu.includes(period)
+                              const next = on ? kptForm.odemePeriyodu.filter((p) => p !== period) : [...kptForm.odemePeriyodu, period]
+                              setKptForm({ ...kptForm, odemePeriyodu: next })
+                            }}
+                          />
+                          <span>{period}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </FieldHint>
+              <FieldHint label="Versiyon">
+                <input className="form-input bg-slate-100" disabled value={kptForm.versiyon || '1'} />
+              </FieldHint>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">Katkı Payı Bilgileri</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <FieldHint label="KP Hesaplama Türü">
+                <select
+                  className="form-input"
+                  value={kptForm.kpHesaplamaTuru}
+                  onChange={(e) => setKptForm({ ...kptForm, kpHesaplamaTuru: e.target.value, kpDonemGun: '', kpDonemAy: '' })}
+                >
+                  <option value="">Seçiniz...</option>
+                  {KP_HESAPLAMA_TURU_SECENEKLERI.map((kp) => (
+                    <option key={kp} value={kp}>{kp}</option>
+                  ))}
+                </select>
+              </FieldHint>
+              <div className="grid grid-cols-2 gap-2">
+                <FieldHint label="Gün">
+                  <select
+                    className={`form-input ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                    disabled={!kptForm.kpHesaplamaTuru}
+                    value={kptForm.kpDonemGun}
+                    onChange={(e) => setKptForm({ ...kptForm, kpDonemGun: e.target.value })}
+                  >
+                    <option value="">Gün</option>
+                    {GUNLER.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </FieldHint>
+                <FieldHint label="Ay">
+                  <select
+                    className={`form-input ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                    disabled={!kptForm.kpHesaplamaTuru}
+                    value={kptForm.kpDonemAy}
+                    onChange={(e) => setKptForm({ ...kptForm, kpDonemAy: e.target.value })}
+                  >
+                    <option value="">Ay</option>
+                    {AYLAR.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </FieldHint>
+              </div>
+              <FieldHint label="Yuvarlama">
+                <select
+                  className="form-input"
+                  value={kptForm.yuvarlama}
+                  onChange={(e) => setKptForm({
+                    ...kptForm,
+                    yuvarlama: e.target.value,
+                    yuvarlamaDegeri: e.target.value === 'Tabana' || e.target.value === 'Tavana' ? kptForm.yuvarlamaDegeri : '',
+                  })}
+                >
+                  <option value="Yok">Yok</option>
+                  <option value="Tavana">Tavana</option>
+                  <option value="Tabana">Tabana</option>
+                </select>
+              </FieldHint>
+              <FieldHint label="Yuvarlama değeri">
+                <input
+                  type="text"
+                  className={`form-input ${(kptForm.yuvarlama === 'Tabana' || kptForm.yuvarlama === 'Tavana') ? '' : 'bg-slate-100 cursor-not-allowed'}`}
+                  disabled={!(kptForm.yuvarlama === 'Tabana' || kptForm.yuvarlama === 'Tavana')}
+                  value={kptForm.yuvarlamaDegeri}
+                  onChange={(e) => setKptForm({ ...kptForm, yuvarlamaDegeri: e.target.value.replace(/[^0-9.,]/g, '') })}
+                />
+              </FieldHint>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">Değerler</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <FieldHint required label="Katkı Payı Tutarı">
+                <input type="text" className="form-input" value={kptForm.katkiPayiTutari} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutari: e.target.value.replace(/[^0-9.,]/g, '') })} />
+              </FieldHint>
+              <FieldHint label="Azami KP Tutarı">
+                <input type="text" className="form-input" value={kptForm.azamiKp} onChange={(e) => setKptForm({ ...kptForm, azamiKp: e.target.value.replace(/[^0-9.,]/g, '') })} />
+              </FieldHint>
+              <FieldHint label="Katkı Payı Tutarı (İGES)">
+                <input type="text" className="form-input" value={kptForm.katkiPayiTutariIges} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutariIges: e.target.value.replace(/[^0-9.,]/g, '') })} />
+              </FieldHint>
+              <FieldHint label="Giriş Fon Büyüklüğü">
+                <input type="text" className="form-input" value={kptForm.girisFonBuyuklugu} onChange={(e) => setKptForm({ ...kptForm, girisFonBuyuklugu: e.target.value.replace(/[^0-9.,]/g, '') })} />
+              </FieldHint>
+              <FieldHint label="Başlangıç Kapitali">
+                <input type="text" className="form-input" value={kptForm.baslangicKapitali} onChange={(e) => setKptForm({ ...kptForm, baslangicKapitali: e.target.value.replace(/[^0-9.,]/g, '') })} />
+              </FieldHint>
+              <FieldHint label="Döviz Türü - BK">
+                <select
+                  className={`form-input ${!dovizDigerEnabled ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                  value={kptForm.dovizDiger}
+                  disabled={!dovizDigerEnabled}
+                  onChange={(e) => setKptForm({ ...kptForm, dovizDiger: e.target.value })}
+                >
+                  <option value="TL">TL</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </FieldHint>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden relative">
+      {menuRowId && <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="close menu" onClick={() => setMenuRowId(null)} />}
+      {(uiError || uiSuccess) && (
+        <div className={`shrink-0 px-4 py-2 flex items-center justify-between text-sm z-20 ${uiError ? 'bg-red-50 text-red-800 border-b border-red-100' : 'bg-green-50 text-green-800 border-b border-green-100'}`}>
+          <span className="flex items-center gap-2 font-medium">
+            {uiError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            {uiError || uiSuccess}
+          </span>
+          <button type="button" className="p-1 rounded hover:bg-black/5" onClick={() => { setUiError(''); setUiSuccess('') }}><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <ScreenHeader
-        title="Katki Payi Templateleri"
-        description="KP template tanimlarinin listelendigi, filtrelenip siralandigi ekrandir."
-        right={
-          <>
-            <OutlineButton disabled={selected.length === 0} onClick={() => setLinkOpen(true)}>
-              <LinkIcon className="w-4 h-4" /> Planlara Bagla {selected.length > 0 && <span className="ml-1 inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white text-[10px] rounded-full">{selected.length}</span>}
-            </OutlineButton>
-            <PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
-          </>
-        }
+        title="Katkı Payı Templateleri"
+        description="KP template tanımlarının listelendiği, filtrelenip sıralandığı ekrandır."
+        right={listHeaderRight}
       />
 
-      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[220px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Template Ara</label>
-          <div className="relative">
+      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 relative">
+          <div className="relative w-full md:w-64">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
-              type="text"
-              className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
-              placeholder="Kod veya ad ile ara..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm bg-white"
+              placeholder="Ara..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
             />
           </div>
+          <div className="relative">
+            <button
+              type="button"
+              className="h-9 px-3 rounded-md border border-violet-200 bg-violet-50 text-violet-700 text-xs font-semibold inline-flex items-center gap-1"
+              onClick={() => setFilterMenuOpen((v) => !v)}
+            >
+              Filtre Ekle <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {filterMenuOpen && (
+              <div className="absolute z-30 mt-1 w-52 bg-white border border-slate-200 rounded-md shadow-lg py-1">
+                {filterOptions.map((f) => (
+                  <button key={f.key} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => openFilter(f.key)}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {activeFilterKey && (
+            <div className="relative">
+              <div className="h-9 px-3 rounded-md border border-slate-300 bg-white text-xs inline-flex items-center gap-2">
+                <button type="button" onClick={() => openFilter(activeFilterKey)}>{activeFilterLabel}</button>
+                <button type="button" className="text-slate-500" onClick={clearActiveFilter}>×</button>
+              </div>
+              {filterPopoverOpen && (
+                <div className="absolute z-30 mt-2 w-80 bg-white border border-slate-200 rounded-md shadow-lg p-3">
+                {activeFilterMeta?.type === 'range' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <input className="form-input" placeholder="Min. (TL)" value={filterDraft.min} onChange={(e) => setFilterDraft((d) => ({ ...d, min: e.target.value.replace(/[^0-9.,]/g, '') }))} />
+                      <input className="form-input" placeholder="Max. (TL)" value={filterDraft.max} onChange={(e) => setFilterDraft((d) => ({ ...d, max: e.target.value.replace(/[^0-9.,]/g, '') }))} />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" className="text-xs text-slate-500" onClick={clearActiveFilter}>Temizle</button>
+                      <button type="button" className="text-xs px-3 py-1 rounded bg-violet-100 text-violet-700 font-medium" onClick={applyFilter}>Uygula</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <select className="form-input mb-3" value={filterDraft.period} onChange={(e) => setFilterDraft((d) => ({ ...d, period: e.target.value }))}>
+                      <option value="">Ödeme periyodu seçin</option>
+                      {ODEME_PERIYOTLARI.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" className="text-xs text-slate-500" onClick={clearActiveFilter}>Temizle</button>
+                      <button type="button" className="text-xs px-3 py-1 rounded bg-violet-100 text-violet-700 font-medium" onClick={applyFilter}>Uygula</button>
+                    </div>
+                  </>
+                )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        <div className="w-48">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Gecerlilik</label>
-          <select className="w-full h-10 px-3 border border-slate-300 rounded-md text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Tumu</option>
-            <option value="Aktif">Aktif</option>
-            <option value="Pasif">Pasif</option>
-          </select>
-        </div>
-        <OutlineButton onClick={() => { setSearch(''); setStatusFilter('') }}>Temizle</OutlineButton>
       </div>
 
       <div className="flex-1 overflow-auto">
         <table className="w-full grid-table">
           <thead>
             <tr>
-              <th className="w-10">
-                <input type="checkbox" className="rounded" checked={allChecked} onChange={toggleAll} />
+              <th className="w-12 text-center border-r border-slate-100">
+                <input type="checkbox" className="rounded" checked={selectedIds.length === filteredLatest.length && filteredLatest.length > 0} onChange={toggleSelectAll} />
               </th>
-              <th>KP Template Kodu</th>
-              <th>Adi</th>
-              <th>Versiyon</th>
-              <th>Tutar</th>
-              <th>Periyot</th>
-              <th>Doviz</th>
-              <th>Gecerlilik</th>
-              <th>Olusturan</th>
-              <th>Olusturulma</th>
-              <th className="w-12 text-right">Aksiyon</th>
+              <SortHeader label="KP Template Kodu" col="kpTemplateKodu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Adı" col="adi" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Versiyon" col="versiyon" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Katkı Payı Tutarı" col="katkiPayiTutari" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Geçerlilik" col="gecerlilik" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Başlangıç Kapitali" col="baslangicKapitali" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Giriş Fon Büyüklüğü" col="girisFonBuyuklugu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Döviz Türü(KP)" col="dovizKp" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Ödeme Periyodu" col="odemePeriyodu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Azami KP" col="azamiKp" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Döviz Türü(Diğer)" col="dovizDiger" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Oluşturan" col="olusturan" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Oluşturulma Tarihi" col="olusturulmaTarihi" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Güncelleyen" col="guncelleyen" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Güncelleme Tarihi" col="guncellemeTarihi" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <th className="text-center w-24">Liste İşlemleri</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
+            {filteredLatest.map((row) => (
               <tr key={row.id}>
-                <td><input type="checkbox" className="rounded" checked={selected.includes(row.id)} onChange={() => toggleOne(row.id)} /></td>
-                <td className="font-mono text-xs">{row.kpTemplateKodu}</td>
-                <td className="font-semibold text-slate-800">{row.adi}</td>
+                <td className="text-center border-r border-slate-100">
+                  <input type="checkbox" className="rounded" checked={selectedIds.includes(row.id)} onChange={() => toggleOne(row.id)} />
+                </td>
+                <td className="font-semibold text-slate-800">{row.kpTemplateKodu}</td>
+                <td>{row.adi}</td>
                 <td>{row.versiyon}</td>
                 <td>{row.katkiPayiTutari}</td>
-                <td>{row.odemePeriyodu}</td>
+                <td>{row.gecerlilik}</td>
+                <td>{row.baslangicKapitali}</td>
+                <td>{row.girisFonBuyuklugu}</td>
                 <td>{row.dovizKp}</td>
-                <td><StatusBadge value={row.gecerlilik} /></td>
+                <td className="max-w-[200px]">{displayOdeme(row.odemePeriyodu)}</td>
+                <td>{row.azamiKp}</td>
+                <td>{row.dovizDiger || '—'}</td>
                 <td>{row.olusturan}</td>
                 <td>{row.olusturulmaTarihi}</td>
-                <td className="text-right"><RowActions row={row} onAction={handleAction} /></td>
+                <td>{row.guncelleyen || '—'}</td>
+                <td>{row.guncellemeTarihi || '—'}</td>
+                <td className="text-center relative">
+                  <button
+                    type="button"
+                    onClick={() => setMenuRowId(menuRowId === row.id ? null : row.id)}
+                    className={`p-1.5 rounded-full ${menuRowId === row.id ? 'bg-slate-200' : 'hover:bg-slate-100 text-slate-500'}`}
+                  >
+                    <MoreVertical className="w-5 h-5 mx-auto" />
+                  </button>
+                  {menuRowId === row.id && (
+                    <div className="absolute right-8 top-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1.5 text-left">
+                      <button type="button" onClick={() => { openEdit(row.id); setMenuRowId(null) }} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <Edit2 className="w-4 h-4 mr-2 text-blue-600" /> Güncelle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { deleteByTemplateKodu(row.kpTemplateKodu); setMenuRowId(null) }}
+                        className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2 text-red-500" /> Sil
+                      </button>
+                      <div className="h-px bg-slate-100 my-1" />
+                      <button type="button" onClick={() => openLinked(row)} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <LinkIcon className="w-4 h-4 mr-2 text-slate-400" /> Bağlı Planlar
+                      </button>
+                      <button type="button" onClick={() => openVersions(row)} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <List className="w-4 h-4 mr-2 text-slate-400" /> Versiyonlar
+                      </button>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={11} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
+            {filteredLatest.length === 0 && (
+              <tr><td colSpan={17} className="text-center py-12 text-slate-400">Kayıt bulunamadı.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       <Modal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Yeni Katki Payi Template"
+        open={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
+        title="KP Template Versiyonları"
         size="lg"
-        footer={<>
-          <OutlineButton onClick={() => setCreateOpen(false)}>Vazgec</OutlineButton>
-          <PrimaryButton onClick={() => { setCreateOpen(false); setActionInfo({ key: 'created', label: 'Yeni Template Olusturuldu (mock)', row: form }) }}>Kaydet</PrimaryButton>
-        </>}
+        footer={<PrimaryButton onClick={() => setVersionsOpen(false)}>Kapat</PrimaryButton>}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            { k: 'kpTemplateKodu', l: 'Template Kodu' },{ k: 'adi', l: 'Adi' },{ k: 'versiyon', l: 'Versiyon' },
-            { k: 'katkiPayiTutari', l: 'Tutar' },{ k: 'odemePeriyodu', l: 'Periyot' },{ k: 'dovizKp', l: 'Doviz' },
-            { k: 'gecerlilik', l: 'Gecerlilik' },
-          ].map((f) => (
-            <label key={f.k} className="block">
-              <span className="block text-xs font-semibold text-slate-600 mb-1">{f.l}</span>
-              <input className="form-input" value={form[f.k]} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />
-            </label>
-          ))}
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th>Versiyon</th><th>Kod</th><th>Ad</th><th>Tutar</th><th>Geçerlilik</th><th>Güncelleme</th>
+            </tr>
+          </thead>
+          <tbody>
+            {versionRows.map((v) => (
+              <tr key={v.id}>
+                <td>{v.versiyon}</td>
+                <td>{v.kpTemplateKodu}</td>
+                <td>{v.adi}</td>
+                <td>{v.katkiPayiTutari}</td>
+                <td>{v.gecerlilik}</td>
+                <td>{v.guncellemeTarihi}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Modal>
+
+      <Modal
+        open={linkedOpen}
+        onClose={() => setLinkedOpen(false)}
+        title={linkedRow ? `Bağlı Planlar — ${linkedRow.kpTemplateKodu}` : 'Bağlı Planlar'}
+        size="xl"
+        footer={<PrimaryButton onClick={() => setLinkedOpen(false)}>Kapat</PrimaryButton>}
+      >
+        <p className="text-xs text-slate-500 mb-3">Prototip: şablona örnek plan eşlemeleri.</p>
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr><th>Plan No</th><th>Plan Adı</th><th>Versiyon</th><th>Durum</th></tr>
+          </thead>
+          <tbody>
+            {linkedRow && mockBagliPlanlar(linkedRow.kpTemplateKodu).map((r) => (
+              <tr key={r.planNo}>
+                <td>{r.planNo}</td>
+                <td>{r.planAdi}</td>
+                <td>{r.versiyon}</td>
+                <td>{r.durum}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Modal>
+
+      <Modal
+        open={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        title="Planlara Bağla"
+        size="lg"
+        footer={(
+          <>
+            <OutlineButton onClick={() => setPlanModalOpen(false)}>İptal</OutlineButton>
+            <PrimaryButton onClick={savePlanModal}>Seçili Planlara Bağla</PrimaryButton>
+          </>
+        )}
+      >
+        {planModalError && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 text-red-800 text-sm rounded-md flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {planModalError}
+          </div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-800 mb-2">Seçilen Kat Payı Templateleri</h4>
+            <div className="flex flex-wrap gap-2">
+              {selectedTemplateRows.length > 0 ? selectedTemplateRows.map((r) => (
+                <span key={r.id} className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs">
+                  {r.kpTemplateKodu} - {r.adi}
+                </span>
+              )) : <span className="text-xs text-slate-500">Şablon seçilmedi.</span>}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-slate-800">Planlar</h4>
+              <div className="text-xs text-violet-700 font-medium">{selectedPlanIds.length} plan seçildi</div>
+            </div>
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="p-3 border-b border-slate-100 bg-slate-50/60">
+                <div className="relative max-w-sm">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input
+                    className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara (Plan no, plan adı)"
+                    value={planSearch}
+                    onChange={(e) => setPlanSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="max-h-[360px] overflow-auto">
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th className="w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={filteredPlanRows.length > 0 && filteredPlanRows.every((p) => selectedPlanIds.includes(p.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              const merge = new Set([...selectedPlanIds, ...filteredPlanRows.map((p) => p.id)])
+                              setSelectedPlanIds(Array.from(merge))
+                            } else {
+                              setSelectedPlanIds((prev) => prev.filter((id) => !filteredPlanRows.some((p) => p.id === id)))
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>Plan No</th>
+                      <th>Plan Adı</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlanRows.map((p) => (
+                      <tr key={p.id}>
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedPlanIds.includes(p.id)}
+                            onChange={() => setSelectedPlanIds((prev) => (prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id]))}
+                          />
+                        </td>
+                        <td className="font-mono">{p.id}</td>
+                        <td>{p.ad}</td>
+                      </tr>
+                    ))}
+                    {filteredPlanRows.length === 0 && (
+                      <tr><td colSpan={3} className="text-center py-6 text-slate-500">Kayıt bulunamadı.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </Modal>
-
-      <Modal
-        open={linkOpen}
-        onClose={() => setLinkOpen(false)}
-        title="Planlara Bagla"
-        description={`${selected.length} adet template secildi.`}
-        footer={<>
-          <OutlineButton onClick={() => setLinkOpen(false)}>Vazgec</OutlineButton>
-          <PrimaryButton onClick={() => { setLinkOpen(false); setActionInfo({ key: 'linked', label: 'Planlara Baglandi (mock)', row: { kayitlar: selected } }) }}>Bagla</PrimaryButton>
-        </>}
-      >
-        <p className="text-sm text-slate-600">Bu islem mock'tur. Gercek ortamda urun-plan secim modali ile entegre olacaktir.</p>
-      </Modal>
-
-      <Modal
-        open={!!actionInfo}
-        onClose={() => setActionInfo(null)}
-        title={actionInfo?.label}
-        description="Mock prototip - bu islem henuz aktif degildir"
-        footer={<PrimaryButton onClick={() => setActionInfo(null)}>Tamam</PrimaryButton>}
-      >
-        <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(actionInfo?.row || {}, null, 2)}</pre>
       </Modal>
     </div>
   )

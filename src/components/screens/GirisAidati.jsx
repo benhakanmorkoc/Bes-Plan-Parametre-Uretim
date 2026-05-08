@@ -1,165 +1,1011 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search, Link as LinkIcon } from 'lucide-react'
 import { girisAidati } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
-import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
 
+const GA_TYPE_OPTIONS = ['Peşin', 'Taksitli', 'Erteleme', 'Çıkışa Ertelenmiş']
+const CURRENCY_OPTIONS = ['TL', 'USD', 'EUR']
+
+const INSTALLMENT_TYPE_OPTIONS = ['Ardışık', 'Dönem', 'Peşin']
+
+const ABAU_DATE_TYPE_OPTIONS = ['Teklif Tarihi', 'Çıkış Tarihi']
+
+function mapTipToTypes(tip) {
+  if (tip === 'Pesin') return ['Peşin']
+  if (tip === 'Cikisa Ertelenmis') return ['Çıkışa Ertelenmiş']
+  if (tip === 'Pesin+Cikisa Ert.') return ['Peşin', 'Çıkışa Ertelenmiş']
+  if (tip === 'Yok') return ['Giriş Aidatı Yok']
+  return []
+}
+
+function formatTypes(arr) {
+  return arr && arr.length ? arr.join(', ') : ''
+}
+
+function toDisplayDate(d = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hour = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${min}`
+}
+
+function emptyForm() {
+  return {
+    gaCode: '',
+    gaName: '',
+    currency: 'TL',
+    version: '1',
+    hasFee: true,
+    maxDeduction: '',
+    abauDateType: '',
+    ruleName: '',
+    gaTypes: ['Peşin'],
+    installmentType: '',
+    installmentCount: '',
+    cashType: '',
+    cashRate: '',
+    cashAmount: '',
+    instType: '',
+    instRate: '',
+    instAmount: '',
+    deferType: '',
+    deferRate: '',
+    deferAmount: '',
+    totalAmount: '0.00',
+  }
+}
+
+function calcPartValue(type, rate, amount, baseAmount) {
+  if (type === 'Oran') {
+    const r = parseFloat(String(rate || '0').replace(',', '.'))
+    if (Number.isNaN(r)) return 0
+    if (r > 0 && r < 1) return baseAmount * r
+    return r
+  }
+  if (type === 'Tutar') {
+    const n = parseFloat(String(amount || '0').replace(',', '.'))
+    return Number.isNaN(n) ? 0 : n
+  }
+  return 0
+}
+
 export default function GirisAidati() {
+  const [rows, setRows] = useState(() =>
+    girisAidati.map((r) => ({
+      id: r.id,
+      gaCode: r.gaKodu,
+      gaName: `Giriş Aidatı ${r.gaKodu}`,
+      currency: r.doviz,
+      gaTypes: mapTipToTypes(r.tip),
+      installmentType: r.taksitTipi === '-' ? '' : r.taksitTipi,
+      installmentCount: r.taksitAdedi === '-' ? '' : r.taksitAdedi,
+      cashValue: r.pesinat,
+      installmentValue: r.taksit,
+      deferValue: r.erteleme,
+      totalAmount: r.toplam,
+      createdBy: 'mock.user',
+      createdAt: toDisplayDate(new Date()),
+      updatedBy: 'mock.user',
+      updatedAt: toDisplayDate(new Date()),
+      version: Number(r.versiyon || 1),
+      inUse: r.id === 1,
+    })),
+  )
   const [search, setSearch] = useState('')
-  const [tipFilter, setTipFilter] = useState('')
-  const [selected, setSelected] = useState([])
-  const [createOpen, setCreateOpen] = useState(false)
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [actionInfo, setActionInfo] = useState(null)
-  const [form, setForm] = useState({ gaKodu: '', versiyon: '1', tarih: '', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Ardisik', taksitAdedi: '12', pesinat: '0', taksit: '0', erteleme: '0', toplam: '0' })
+  const [selectedCodes, setSelectedCodes] = useState([])
+  const [openMenuCode, setOpenMenuCode] = useState(null)
 
-  const handleAction = (key, row) => {
-    const labelMap = { view: 'Goruntule', edit: 'Duzenle', copy: 'Kopyala', version: 'Yeni Versiyon', history: 'Versiyon Gecmisi', delete: 'Sil' }
-    setActionInfo({ key, label: labelMap[key] || key, row })
-  }
+  const [form, setForm] = useState(emptyForm)
+  const [formMode, setFormMode] = useState('create') // 'create' | 'update'
+  const [currentEditCode, setCurrentEditCode] = useState(null)
+  const [formOpen, setFormOpen] = useState(false)
 
-  const filtered = useMemo(() => {
-    return girisAidati.filter((row) => {
-      const matchSearch = !search || row.gaKodu.toLowerCase().includes(search.toLowerCase())
-      const matchTip = !tipFilter || row.tip === tipFilter
-      return matchSearch && matchTip
+  const [simpleModal, setSimpleModal] = useState({ open: false, title: '', body: null })
+  const [bindOpen, setBindOpen] = useState(false)
+
+  const baseAmount = 100000
+
+  const filteredRows = useMemo(() => {
+    const key = search.toLowerCase().trim()
+    if (!key) return rows
+    return rows.filter((r) => {
+      const haystack = `${r.gaCode} ${r.gaName} ${r.currency}`.toLowerCase()
+      return haystack.includes(key)
     })
-  }, [search, tipFilter])
+  }, [rows, search])
 
-  const allChecked = selected.length === filtered.length && filtered.length > 0
-  const toggleAll = () => {
-    if (allChecked) setSelected([])
-    else setSelected(filtered.map((r) => r.id))
+  const allChecked = filteredRows.length > 0 && selectedCodes.length === filteredRows.length
+
+  useEffect(() => {
+    const onClick = () => setOpenMenuCode(null)
+    window.addEventListener('click', onClick)
+    return () => window.removeEventListener('click', onClick)
+  }, [])
+
+  const toggleSelectAll = () => {
+    if (allChecked) {
+      setSelectedCodes([])
+    } else {
+      setSelectedCodes(filteredRows.map((r) => r.gaCode))
+    }
   }
-  const toggleOne = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+
+  const toggleSelectOne = (code) => {
+    setSelectedCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))
+  }
+
+  const currentTotal = useMemo(() => {
+    const cash = calcPartValue(form.cashType, form.cashRate, form.cashAmount, baseAmount)
+    const inst = calcPartValue(form.instType, form.instRate, form.instAmount, baseAmount)
+    const defer = calcPartValue(form.deferType, form.deferRate, form.deferAmount, baseAmount)
+    return (cash + inst + defer).toFixed(2)
+  }, [form, baseAmount])
+
+  const openCreate = () => {
+    setForm(emptyForm())
+    setFormMode('create')
+    setCurrentEditCode(null)
+    setFormOpen(true)
+  }
+
+  const openUpdate = (code, forceNewVersion) => {
+    const row = rows.find((r) => r.gaCode === code)
+    if (!row) return
+    const nextVersion = forceNewVersion ? row.version + 1 : row.version
+    const hasFee = !row.gaTypes.includes('Giriş Aidatı Yok')
+    setForm({
+      gaCode: row.gaCode,
+      gaName: row.gaName,
+      currency: row.currency,
+      version: String(nextVersion),
+      hasFee,
+      maxDeduction: '',
+      abauDateType: '',
+      ruleName: '',
+      gaTypes: hasFee ? row.gaTypes : ['Giriş Aidatı Yok'],
+      installmentType: row.installmentType || '',
+      installmentCount: row.installmentCount || '',
+      cashType: row.cashValue ? 'Tutar' : '',
+      cashRate: '',
+      cashAmount: row.cashValue || '',
+      instType: row.installmentValue ? 'Tutar' : '',
+      instRate: '',
+      instAmount: row.installmentValue || '',
+      deferType: row.deferValue ? 'Tutar' : '',
+      deferRate: '',
+      deferAmount: row.deferValue || '',
+      totalAmount: row.totalAmount || '0.00',
+    })
+    setFormMode('update')
+    setCurrentEditCode(code)
+    setFormOpen(true)
+  }
+
+  const validateForm = () => {
+    if (!form.gaCode.trim() || !form.gaName.trim() || !form.currency) {
+      alert('Giriş Aidatı Kodu, Giriş Aidatı Adı ve Döviz zorunludur.')
+      return false
+    }
+    const hasPesin = form.gaTypes.includes('Peşin')
+    if (hasPesin && !form.installmentType) {
+      alert('Peşin tipi seçiliyken Taksit Tipi zorunludur.')
+      return false
+    }
+    if (formMode === 'create') {
+      const exists = rows.some((r) => r.gaCode.toLowerCase() === form.gaCode.trim().toLowerCase())
+      if (exists) {
+        alert('Eklenmek istenen GA Kodu sistemde mevcuttur. Güncelleme için satır menüsünü kullanın.')
+        return false
+      }
+    }
+    return true
+  }
+
+  const saveForm = () => {
+    if (!validateForm()) return
+    const now = new Date()
+    const payload = {
+      gaCode: form.gaCode.trim(),
+      gaName: form.gaName.trim(),
+      currency: form.currency,
+      gaTypes: form.hasFee ? form.gaTypes : ['Giriş Aidatı Yok'],
+      installmentType: form.installmentType,
+      installmentCount: form.installmentCount,
+      cashValue: calcPartValue(form.cashType, form.cashRate, form.cashAmount, baseAmount).toFixed(2),
+      installmentValue: calcPartValue(form.instType, form.instRate, form.instAmount, baseAmount).toFixed(2),
+      deferValue: calcPartValue(form.deferType, form.deferRate, form.deferAmount, baseAmount).toFixed(2),
+      totalAmount: currentTotal,
+      createdBy: 'current.user',
+      createdAt:
+        formMode === 'update'
+          ? rows.find((r) => r.gaCode === form.gaCode)?.createdAt || toDisplayDate(now)
+          : toDisplayDate(now),
+      updatedBy: 'current.user',
+      updatedAt: toDisplayDate(now),
+      version: Number(form.version || 1),
+      inUse: false,
+    }
+    if (formMode === 'update') {
+      setRows((prev) => prev.map((r) => (r.gaCode === form.gaCode ? { ...r, ...payload } : r)))
+    } else {
+      setRows((prev) => [...prev, { id: Date.now(), ...payload }])
+    }
+    setFormOpen(false)
+  }
+
+  const openInspect = (code) => {
+    const row = rows.find((r) => r.gaCode === code)
+    if (!row) return
+    setSimpleModal({
+      open: true,
+      title: 'Giriş Aidatı İncele',
+      body: (
+        <div className="space-y-1 text-sm">
+          <p>
+            <strong>GA Kodu:</strong> {row.gaCode}
+          </p>
+          <p>
+            <strong>GA Adı:</strong> {row.gaName}
+          </p>
+          <p>
+            <strong>Versiyon:</strong> {row.version}
+          </p>
+          <p>
+            <strong>GA Tipi:</strong> {formatTypes(row.gaTypes)}
+          </p>
+        </div>
+      ),
+    })
+    setOpenMenuCode(null)
+  }
+
+  const openLinkedPlans = (code) => {
+    const mock = [
+      { code: 'PLN-501', name: 'Ferdi Avantaj Planı', version: 6, status: 'Yürürlükte' },
+      { code: 'PLN-612', name: 'Birikim Plus Plan', version: 3, status: 'Taslak' },
+    ]
+    setSimpleModal({
+      open: true,
+      title: `${code} - Bağlı Planlar`,
+      body: (
+        <div className="table-wrap border border-slate-200 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Plan Kodu</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Plan Uzun Adı</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Versiyon</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mock.map((p) => (
+                <tr key={p.code} className="border-t border-slate-100">
+                  <td className="px-3 py-1.5 font-mono text-xs">{p.code}</td>
+                  <td className="px-3 py-1.5">{p.name}</td>
+                  <td className="px-3 py-1.5">{p.version}</td>
+                  <td className="px-3 py-1.5">{p.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ),
+    })
+    setOpenMenuCode(null)
+  }
+
+  const openVersions = (code) => {
+    const base = rows.find((r) => r.gaCode === code)
+    const history = [
+      { version: (base?.version || 1) - 2, total: '8000.00' },
+      { version: (base?.version || 1) - 1, total: '12000.00' },
+    ].filter((v) => v.version > 0)
+    setSimpleModal({
+      open: true,
+      title: `${code} - Eski Versiyonlar`,
+      body: history.length ? (
+        <div className="table-wrap border border-slate-200 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Versiyon</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Toplam Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h) => (
+                <tr key={h.version} className="border-t border-slate-100">
+                  <td className="px-3 py-1.5">{h.version}</td>
+                  <td className="px-3 py-1.5">{h.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-600">Eski versiyon kaydı mock olarak gösterilmiyor.</p>
+      ),
+    })
+    setOpenMenuCode(null)
+  }
+
+  const openExitDeferred = (code) => {
+    const mock = [
+      { termType: 'Ay', minLimit: 1, maxLimit: 12, ratio: 0.05, fixedAmount: 0 },
+      { termType: 'Yıl', minLimit: 2, maxLimit: 5, ratio: 0.07, fixedAmount: 30 },
+    ]
+    setSimpleModal({
+      open: true,
+      title: `${code} - Çıkışta Alınacak GA`,
+      body: (
+        <div className="space-y-2 text-sm">
+          <p>Servis taklidi ile listelenen çıkışta alınacak GA tanımları:</p>
+          <div className="table-wrap border border-slate-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Süre Tipi</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Alt Limit</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Üst Limit</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Oran</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Sabit Tutar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mock.map((x, idx) => (
+                  <tr key={idx} className="border-t border-slate-100">
+                    <td className="px-3 py-1.5">{x.termType}</td>
+                    <td className="px-3 py-1.5">{x.minLimit}</td>
+                    <td className="px-3 py-1.5">{x.maxLimit}</td>
+                    <td className="px-3 py-1.5">{x.ratio}</td>
+                    <td className="px-3 py-1.5">{x.fixedAmount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500">
+            Not: Bu ekranda Create/Update/Delete servis davranışı mock olarak simüle edilebilir.
+          </p>
+        </div>
+      ),
+    })
+    setOpenMenuCode(null)
+  }
+
+  const deleteTemplate = (code) => {
+    if (!window.confirm(`${code} kodlu kaydı çıkarmak istediğinize emin misiniz?`)) return
+    setRows((prev) => prev.filter((r) => r.gaCode !== code))
+    setSelectedCodes((prev) => prev.filter((c) => c !== code))
+    setOpenMenuCode(null)
+  }
+
+  const openBindPlans = () => {
+    setBindOpen(true)
+  }
+
+  const confirmBindPlans = () => {
+    alert(`Mock: ${selectedCodes.length} giriş aidatı için planlara bağlama işlemi tetiklendi.`)
+    setBindOpen(false)
+  }
+
+  const hasFee = form.hasFee
+  const hasPesin = hasFee && form.gaTypes.includes('Peşin')
+  const hasTaksitli = hasFee && form.gaTypes.includes('Taksitli')
+  const hasErteleme = hasFee && form.gaTypes.includes('Erteleme')
+  const hasErtelenmis = hasFee && form.gaTypes.includes('Çıkışa Ertelenmiş')
+
+  const installmentCountOptions = useMemo(() => {
+    if (!form.installmentType) return []
+    if (form.installmentType === 'Ardışık') {
+      return Array.from({ length: 11 }).map((_, i) => `${i + 2} Taksit`)
+    }
+    if (form.installmentType === 'Dönem') {
+      return ['Aylık', 'Üç Aylık', 'Altı Aylık', 'Yıllık']
+    }
+    if (form.installmentType === 'Peşin') {
+      return ['Peşin']
+    }
+    return []
+  }, [form.installmentType])
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
-        title="Giris Aidati Tanimlari"
-        description="Katilimcidan sisteme giriste veya erken cikiste alinacak giris aidatinin tahsilat stratejisini belirler."
+        title="Giriş Aidatı"
+        description="Katılımcıdan sisteme girişte veya erken çıkışta alınacak giriş aidatının tahsilat stratejisini belirler."
         right={
           <>
-            <OutlineButton disabled={selected.length === 0} onClick={() => setLinkOpen(true)}>
-              <LinkIcon className="w-4 h-4" /> Planlara Bagla {selected.length > 0 && <span className="ml-1 inline-flex items-center justify-center w-5 h-5 bg-blue-600 text-white text-[10px] rounded-full">{selected.length}</span>}
+            <OutlineButton disabled={selectedCodes.length === 0} onClick={openBindPlans}>
+              <LinkIcon className="w-4 h-4" /> Planlara Bağla
+              {selectedCodes.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-blue-600 text-white text-[10px] rounded-full">
+                  {selectedCodes.length}
+                </span>
+              )}
             </OutlineButton>
-            <PrimaryButton onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
+            <PrimaryButton onClick={openCreate}>
+              <Plus className="w-4 h-4" /> Yeni Ekle
+            </PrimaryButton>
           </>
         }
       />
 
       <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[220px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">GA Kodu</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">GA Kodu / Adı / Döviz</label>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input type="text" className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Kod ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input
+              type="text"
+              className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="GA kodu, adı veya döviz ile ara..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
-        <div className="w-56">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Giris Aidati Tipi</label>
-          <select className="w-full h-10 px-3 border border-slate-300 rounded-md text-sm bg-white" value={tipFilter} onChange={(e) => setTipFilter(e.target.value)}>
-            <option value="">Tumu</option>
-            <option value="Pesin">Pesin</option>
-            <option value="Cikisa Ertelenmis">Cikisa Ertelenmis</option>
-            <option value="Pesin+Cikisa Ert.">Pesin+Cikisa Ert.</option>
-            <option value="Yok">Yok</option>
-          </select>
-        </div>
-        <OutlineButton onClick={() => { setSearch(''); setTipFilter('') }}>Temizle</OutlineButton>
+        <OutlineButton onClick={() => setSearch('')}>Filtreleri Temizle</OutlineButton>
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full grid-table">
+        <table className="w-full grid-table min-w-[1100px]">
           <thead>
             <tr>
-              <th className="w-10"><input type="checkbox" className="rounded" checked={allChecked} onChange={toggleAll} /></th>
+              <th className="w-10 text-center">
+                <input type="checkbox" className="rounded" checked={allChecked} onChange={toggleSelectAll} />
+              </th>
               <th>GA Kodu</th>
-              <th>Versiyon</th>
-              <th>Tarih</th>
-              <th>Doviz</th>
+              <th>GA Adı</th>
+              <th>Döviz</th>
               <th>GA Tipi</th>
               <th>Taksit Tipi</th>
               <th>Taksit Adedi</th>
-              <th>Pesinat</th>
+              <th>Peşinat</th>
               <th>Taksit</th>
               <th>Erteleme</th>
-              <th>Toplam</th>
-              <th className="w-12 text-right">Aksiyon</th>
+              <th>Toplam Tutar (ÇE Hariç)</th>
+              <th>Oluşturan</th>
+              <th>Oluşturulma Tarihi</th>
+              <th>Güncelleyen</th>
+              <th>Güncellenme Tarihi</th>
+              <th className="w-12 text-center">İşlemler</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id}>
-                <td><input type="checkbox" className="rounded" checked={selected.includes(row.id)} onChange={() => toggleOne(row.id)} /></td>
-                <td className="font-mono text-xs">{row.gaKodu}</td>
-                <td>{row.versiyon}</td>
-                <td>{row.tarih}</td>
-                <td>{row.doviz}</td>
-                <td>{row.tip}</td>
-                <td>{row.taksitTipi}</td>
-                <td>{row.taksitAdedi}</td>
-                <td>{row.pesinat}</td>
-                <td>{row.taksit}</td>
-                <td>{row.erteleme}</td>
-                <td className="font-semibold text-slate-800">{row.toplam}</td>
-                <td className="text-right"><RowActions row={row} onAction={handleAction} /></td>
+                <td className="text-center">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={selectedCodes.includes(row.gaCode)}
+                    onChange={() => toggleSelectOne(row.gaCode)}
+                  />
+                </td>
+                <td className="font-mono text-xs">{row.gaCode}</td>
+                <td>{row.gaName}</td>
+                <td>{row.currency}</td>
+                <td>{formatTypes(row.gaTypes)}</td>
+                <td>{row.installmentType || '-'}</td>
+                <td>{row.installmentCount || '-'}</td>
+                <td>{row.cashValue}</td>
+                <td>{row.installmentValue}</td>
+                <td>{row.deferValue}</td>
+                <td className="font-semibold text-slate-800">{row.totalAmount}</td>
+                <td>{row.createdBy}</td>
+                <td>{row.createdAt}</td>
+                <td>{row.updatedBy}</td>
+                <td>{row.updatedAt}</td>
+                <td className="relative text-center">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenMenuCode((prev) => (prev === row.gaCode ? null : row.gaCode))
+                    }}
+                  >
+                    ...
+                  </button>
+                  {openMenuCode === row.gaCode && (
+                    <div
+                      className="absolute right-0 mt-1 w-52 bg-white border border-slate-200 rounded-lg shadow-lg z-20 text-left text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openInspect(row.gaCode)}
+                      >
+                        İncele
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openUpdate(row.gaCode, false)}
+                      >
+                        Güncelle
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openUpdate(row.gaCode, true)}
+                      >
+                        Yeni Versiyon
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openLinkedPlans(row.gaCode)}
+                      >
+                        Bağlı Planlar
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openVersions(row.gaCode)}
+                      >
+                        Versiyonlar
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                        onClick={() => openExitDeferred(row.gaCode)}
+                      >
+                        Çıkışta Alınacak GA
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50"
+                        onClick={() => deleteTemplate(row.gaCode)}
+                      >
+                        Çıkar
+                      </button>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={13} className="text-center text-slate-500 py-6 text-sm">Sonuc bulunamadi</td></tr>
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={16} className="text-center text-slate-500 py-6 text-sm">
+                  Sonuç bulunamadı.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
 
       <Modal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Yeni Giris Aidati"
-        size="lg"
-        footer={<>
-          <OutlineButton onClick={() => setCreateOpen(false)}>Vazgec</OutlineButton>
-          <PrimaryButton onClick={() => { setCreateOpen(false); setActionInfo({ key: 'created', label: 'Yeni Giris Aidati Olusturuldu (mock)', row: form }) }}>Kaydet</PrimaryButton>
-        </>}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={formMode === 'create' ? 'Giriş Aidatı - Yeni Ekle' : `Giriş Aidatı - Güncelle (${form.gaCode})`}
+        size="xl"
+        footer={
+          <>
+            <OutlineButton onClick={() => setFormOpen(false)}>Vazgeç</OutlineButton>
+            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
+          </>
+        }
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[
-            { k: 'gaKodu', l: 'GA Kodu' },{ k: 'versiyon', l: 'Versiyon' },{ k: 'tarih', l: 'Tarih' },
-            { k: 'doviz', l: 'Doviz' },{ k: 'tip', l: 'GA Tipi' },{ k: 'taksitTipi', l: 'Taksit Tipi' },
-            { k: 'taksitAdedi', l: 'Taksit Adedi' },{ k: 'pesinat', l: 'Pesinat' },{ k: 'taksit', l: 'Taksit' },
-            { k: 'erteleme', l: 'Erteleme' },{ k: 'toplam', l: 'Toplam' },
-          ].map((f) => (
-            <label key={f.k} className="block">
-              <span className="block text-xs font-semibold text-slate-600 mb-1">{f.l}</span>
-              <input className="form-input" value={form[f.k]} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />
-            </label>
-          ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Kodu *</label>
+              <input
+                className="form-input"
+                value={form.gaCode}
+                disabled={formMode === 'update'}
+                onChange={(e) => setForm((f) => ({ ...f, gaCode: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Adı *</label>
+              <input
+                className="form-input"
+                value={form.gaName}
+                onChange={(e) => setForm((f) => ({ ...f, gaName: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Versiyon</label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-slate-200 bg-slate-50 text-sm">
+                {form.version}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Döviz Kodu *</label>
+              <select
+                className="form-select"
+                value={form.currency}
+                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 mt-4 md:mt-0">
+              <label className="block text-xs font-semibold text-slate-600">Giriş Aidatı Var</label>
+              <label className="inline-flex items-center gap-1 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  checked={form.hasFee}
+                  onChange={(e) => setForm((f) => ({ ...f, hasFee: e.target.checked }))}
+                />
+                Aktif
+              </label>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Max Kesinti Yap</label>
+              <select
+                className="form-select"
+                value={form.maxDeduction}
+                onChange={(e) => setForm((f) => ({ ...f, maxDeduction: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                <option value="Evet">Evet</option>
+                <option value="Hayır">Hayır</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">ABAÜ Tarih Tipi</label>
+              <select
+                className="form-select"
+                value={form.abauDateType}
+                disabled={!(hasFee && (hasErteleme || hasErtelenmis))}
+                onChange={(e) => setForm((f) => ({ ...f, abauDateType: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                {ABAU_DATE_TYPE_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">GA Hesaplama Kuralı</label>
+              <div className="flex gap-2">
+                <input
+                  className="form-input flex-1"
+                  value={form.ruleName}
+                  readOnly
+                  placeholder="Kural seçimi"
+                />
+                <OutlineButton
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      ruleName: `KURAL_GA_HESAP_${Math.floor(Math.random() * 90 + 10)}`,
+                    }))
+                  }
+                >
+                  Kural Seç
+                </OutlineButton>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tipi</label>
+              <select
+                className="form-select"
+                disabled={!hasPesin}
+                value={form.installmentType}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    installmentType: e.target.value,
+                    installmentCount: '',
+                  }))
+                }
+              >
+                <option value="">Seçiniz</option>
+                {INSTALLMENT_TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Adedi</label>
+              <select
+                className="form-select"
+                disabled={!form.installmentType}
+                value={form.installmentCount}
+                onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                {installmentCountOptions.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Toplam Tutar (ÇE Hariç)
+              </label>
+              <div className="h-9 px-3 flex items-center rounded-md border border-slate-200 bg-slate-50 text-sm">
+                {currentTotal}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-slate-200 rounded-lg p-3">
+            <h4 className="text-xs font-semibold text-slate-700 mb-2">
+              Giriş Aidatı Tipi (Çoklu seçim)
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {GA_TYPE_OPTIONS.map((t) => {
+                const selected = form.gaTypes.includes(t)
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`px-3 py-1 rounded-full text-xs border ${
+                      selected
+                        ? 'bg-violet-600 border-violet-600 text-white'
+                        : 'bg-white border-slate-300 text-slate-700'
+                    } ${!hasFee ? 'opacity-50 pointer-events-none' : ''}`}
+                    onClick={() =>
+                      setForm((f) => {
+                        const exists = f.gaTypes.includes(t)
+                        return {
+                          ...f,
+                          gaTypes: exists
+                            ? f.gaTypes.filter((x) => x !== t)
+                            : [...f.gaTypes, t],
+                        }
+                      })
+                    }
+                  >
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {hasPesin && (
+              <div className="border border-slate-200 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-slate-700 mb-2">Peşinat</h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Peşinat Değer Tipi
+                    </label>
+                    <select
+                      className="form-select"
+                      value={form.cashType}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          cashType: e.target.value,
+                          cashRate: '',
+                          cashAmount: '',
+                        }))
+                      }
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Oran">Oran</option>
+                      <option value="Tutar">Tutar</option>
+                    </select>
+                  </div>
+                  {form.cashType === 'Oran' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Peşinat Oran
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.cashRate}
+                        onChange={(e) => setForm((f) => ({ ...f, cashRate: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  {form.cashType === 'Tutar' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Peşinat Tutar
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.cashAmount}
+                        onChange={(e) => setForm((f) => ({ ...f, cashAmount: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {hasTaksitli && (
+              <div className="border border-slate-200 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-slate-700 mb-2">Taksit</h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Taksit Değer Tipi
+                    </label>
+                    <select
+                      className="form-select"
+                      value={form.instType}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          instType: e.target.value,
+                          instRate: '',
+                          instAmount: '',
+                        }))
+                      }
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Oran">Oran</option>
+                      <option value="Tutar">Tutar</option>
+                    </select>
+                  </div>
+                  {form.instType === 'Oran' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Taksit Oran
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.instRate}
+                        onChange={(e) => setForm((f) => ({ ...f, instRate: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  {form.instType === 'Tutar' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Taksit Tutar
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.instAmount}
+                        onChange={(e) => setForm((f) => ({ ...f, instAmount: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {hasErteleme && (
+              <div className="border border-slate-200 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-slate-700 mb-2">Erteleme</h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Erteleme Değer Tipi
+                    </label>
+                    <select
+                      className="form-select"
+                      value={form.deferType}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          deferType: e.target.value,
+                          deferRate: '',
+                          deferAmount: '',
+                        }))
+                      }
+                    >
+                      <option value="">Seçiniz</option>
+                      <option value="Oran">Oran</option>
+                      <option value="Tutar">Tutar</option>
+                    </select>
+                  </div>
+                  {form.deferType === 'Oran' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Erteleme Oran
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.deferRate}
+                        onChange={(e) => setForm((f) => ({ ...f, deferRate: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  {form.deferType === 'Tutar' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Erteleme Tutar
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={form.deferAmount}
+                        onChange={(e) => setForm((f) => ({ ...f, deferAmount: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-slate-500">
+            Not: Toplam tutar, mock ABAÜ baz tutarı üzerinden otomatik hesaplanır. Kaydet sonrası backend hesabı
+            simüle edilir.
+          </p>
         </div>
       </Modal>
 
       <Modal
-        open={linkOpen}
-        onClose={() => setLinkOpen(false)}
-        title="Planlara Bagla"
-        description={`${selected.length} adet giris aidati secildi. Plan secimi mock prototip ekraninda yapilir.`}
-        footer={<>
-          <OutlineButton onClick={() => setLinkOpen(false)}>Vazgec</OutlineButton>
-          <PrimaryButton onClick={() => { setLinkOpen(false); setActionInfo({ key: 'linked', label: 'Planlara Baglandi (mock)', row: { kayitlar: selected } }) }}>Bagla</PrimaryButton>
-        </>}
+        open={bindOpen}
+        onClose={() => setBindOpen(false)}
+        title="Planlara Bağla"
+        description={`Seçilen giriş aidatı sayısı: ${selectedCodes.length}`}
+        footer={
+          <>
+            <OutlineButton onClick={() => setBindOpen(false)}>Vazgeç</OutlineButton>
+            <PrimaryButton disabled={selectedCodes.length === 0} onClick={confirmBindPlans}>
+              Seçilen Planlara Bağla
+            </PrimaryButton>
+          </>
+        }
       >
-        <p className="text-sm text-slate-600">Bu islem mock'tur. Gercek ortamda urun-plan secim modali ile entegre olacaktir.</p>
+        <p className="text-sm text-slate-600 mb-3">
+          Bu ekran mock olup, BES Parametreleri prototipindeki plan seçimi ekranını temsil eder.
+        </p>
+        <div className="table-wrap border border-slate-200 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Plan Kodu</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Plan Uzun Adı</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Versiyon</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {['PLN-1001', 'PLN-1002', 'PLN-1003'].map((code, idx) => (
+                <tr key={code} className="border-t border-slate-100">
+                  <td className="px-3 py-1.5 font-mono text-xs">{code}</td>
+                  <td className="px-3 py-1.5">
+                    {idx === 0
+                      ? 'BES Standart Plan'
+                      : idx === 1
+                      ? 'BES Yıllık Plan'
+                      : 'BES Esnek Plan'}
+                  </td>
+                  <td className="px-3 py-1.5">{idx + 1}</td>
+                  <td className="px-3 py-1.5">{idx === 1 ? 'Taslak' : 'Yürürlükte'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Modal>
 
       <Modal
-        open={!!actionInfo}
-        onClose={() => setActionInfo(null)}
-        title={actionInfo?.label}
-        description="Mock prototip - bu islem henuz aktif degildir"
-        footer={<PrimaryButton onClick={() => setActionInfo(null)}>Tamam</PrimaryButton>}
+        open={simpleModal.open}
+        onClose={() => setSimpleModal({ open: false, title: '', body: null })}
+        title={simpleModal.title}
+        footer={<PrimaryButton onClick={() => setSimpleModal({ open: false, title: '', body: null })}>Tamam</PrimaryButton>}
       >
-        <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(actionInfo?.row || {}, null, 2)}</pre>
+        {simpleModal.body}
       </Modal>
     </div>
   )

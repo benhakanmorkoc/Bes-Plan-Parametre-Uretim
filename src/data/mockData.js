@@ -34,13 +34,19 @@ export const urunPlanlari = {
   ],
 }
 
-// --- KATKI PAYI ---
+// --- KATKI PAYI (BES Parametreleri.html ile ayni yapi) ---
 export const katkiPayiTemplateleri = [
-  { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', katkiPayiTutari: '1000', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylik', azamiKp: '5000', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025' },
-  { id: 11, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '0', katkiPayiTutari: '900', gecerlilik: 'Pasif', baslangicKapitali: '3000', girisFonBuyuklugu: '8000', dovizKp: 'TL', odemePeriyodu: 'Aylik', azamiKp: '4500', olusturan: 'hmorkoc', olusturulmaTarihi: '10.09.2025' },
-  { id: 2, kpTemplateKodu: 'KPT-002', adi: 'Yillik KP', versiyon: '2', katkiPayiTutari: '12000', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yillik', azamiKp: '20000', olusturan: 'endeksleme', olusturulmaTarihi: '20.09.2025' },
-  { id: 12, kpTemplateKodu: 'KPT-002', adi: 'Yillik KP', versiyon: '1', katkiPayiTutari: '11000', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yillik', azamiKp: '18000', olusturan: 'hmorkoc', olusturulmaTarihi: '16.09.2025' },
-  { id: 3, kpTemplateKodu: 'KPT-003', adi: 'Esnek KP', versiyon: '1', katkiPayiTutari: '750', gecerlilik: 'Aktif', baslangicKapitali: '2000', girisFonBuyuklugu: '6000', dovizKp: 'TL', odemePeriyodu: 'Aylik', azamiKp: '3500', olusturan: 'hmorkoc', olusturulmaTarihi: '02.10.2025' },
+  { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', katkiPayiTutari: '1000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '5000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '15.09.2025' },
+  { id: 2, kpTemplateKodu: 'KPT-002', adi: 'Yıllık KP', versiyon: '2', katkiPayiTutari: '12000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yıllık', azamiKp: '20000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '20.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '21.09.2025' },
+]
+
+/** Planlara bagla modali - BES Parametreleri.html initialMockPlans */
+export const kptBaglantiMockPlans = [
+  { id: '001', ad: 'Limitli Plan', versiyon: '1', durum: 'Taslak' },
+  { id: '002', ad: 'Aile Planı', versiyon: '1', durum: 'Taslak' },
+  { id: '003', ad: 'Aslan Bireysel Emeklilik Planı', versiyon: '1', durum: 'Taslak' },
+  { id: '004', ad: 'Meridyen Bireysel Emeklilik Planı', versiyon: '1', durum: 'Taslak' },
+  { id: '005', ad: 'Gruba Bağlı Bireysel Emeklilik Planı', versiyon: '1', durum: 'Taslak' },
 ]
 
 export const katkiPayiHesaplama = [
@@ -50,6 +56,28 @@ export const katkiPayiHesaplama = [
   { id: 4, hesapKodu: '7', hesapAdi: 'Artissiz', hesapMetod: 'Sabit Tutar', hesapKaynak: 'Sabit', tablo: '-', hesapDeger: '0', doviz: '-', dovizCinsi: '-' },
   { id: 5, hesapKodu: '11', hesapAdi: '(YI-UFE+TUFE)/2', hesapMetod: 'Endeks', hesapKaynak: 'Tablo', tablo: '(YI-UFE+TUFE)/2', hesapDeger: '-', doviz: '-', dovizCinsi: '-' },
 ]
+
+export const katkiPayiHesaplamaDetaylari = {
+  '1': [
+    { id: 1, parametre: 'Kaynak Endeks', deger: 'DIE TEFE Endeksleri', aciklama: 'Ana hesaplama tablosu' },
+    { id: 2, parametre: 'Ortalama Donem', deger: '3 Ay', aciklama: 'Aritmetik ortalama uygulanir' },
+  ],
+  '2': [
+    { id: 1, parametre: 'Kaynak Endeks', deger: 'DIE TUFE Endeksleri', aciklama: 'Ana hesaplama tablosu' },
+    { id: 2, parametre: 'Kur Tipi', deger: 'Efektif Satis', aciklama: 'Kur cevrimi uygulanir' },
+  ],
+  '6': [
+    { id: 1, parametre: 'Sabit Oran', deger: '0.2', aciklama: 'Yillik artis katsayisi' },
+    { id: 2, parametre: 'Uygulama Donemi', deger: 'Yillik', aciklama: 'Yilda bir guncellenir' },
+  ],
+  '7': [
+    { id: 1, parametre: 'Sabit Tutar', deger: '0', aciklama: 'Artissiz tanim' },
+  ],
+  '11': [
+    { id: 1, parametre: 'Formul', deger: '(YI-UFE+TUFE)/2', aciklama: 'Karma endeks hesabi' },
+    { id: 2, parametre: 'Yuvarlama', deger: '2 hane', aciklama: 'Bankaci yuvarlama' },
+  ],
+}
 
 // --- KESINTI ---
 export const girisAidati = [
@@ -113,11 +141,43 @@ export const endeksTanimlari = [
   { id: 3, kod: 'TMR_FAIZ', aciklama: 'Temerrut Faizi', inUse: false },
 ]
 
+export const endeksDetaylari = {
+  TUFE: [
+    { id: 1, gecerlilikTarihi: '01.01.2024', deger: '1245.52', kaynak: 'TUIK', aciklama: 'Aylik kapanis degeri' },
+    { id: 2, gecerlilikTarihi: '01.02.2024', deger: '1268.41', kaynak: 'TUIK', aciklama: 'Aylik kapanis degeri' },
+    { id: 3, gecerlilikTarihi: '01.03.2024', deger: '1281.77', kaynak: 'TUIK', aciklama: 'Aylik kapanis degeri' },
+  ],
+  ABAU: [
+    { id: 1, gecerlilikTarihi: '01.01.2024', deger: '20002.50', kaynak: 'Bordro Parametre', aciklama: 'Brut asgari ucret' },
+    { id: 2, gecerlilikTarihi: '01.01.2025', deger: '22104.67', kaynak: 'Bordro Parametre', aciklama: 'Brut asgari ucret' },
+  ],
+  TMR_FAIZ: [
+    { id: 1, gecerlilikTarihi: '01.01.2024', deger: '0.24', kaynak: 'Yasal Oran', aciklama: 'Temerrut faiz orani' },
+    { id: 2, gecerlilikTarihi: '01.07.2024', deger: '0.30', kaynak: 'Yasal Oran', aciklama: 'Temerrut faiz orani guncelleme' },
+  ],
+}
+
 export const asgariUcretTablosu = [
   { id: 1, gecerlilikTarihi: '01.07.2023', asgariUcret: '13414.50', katkiPayiOrani: '0.30', girisAidatiOrani: '0.08' },
   { id: 2, gecerlilikTarihi: '01.01.2024', asgariUcret: '20002.50', katkiPayiOrani: '0.30', girisAidatiOrani: '0.08' },
   { id: 3, gecerlilikTarihi: '01.01.2025', asgariUcret: '22104.67', katkiPayiOrani: '0.30', girisAidatiOrani: '0.08' },
 ]
+
+export const asgariUcretDetaylari = {
+  '01.07.2023': [
+    { id: 1, kanal: 'Ferdi', minKatkiPayi: '4024.35', maxGirisAidati: '1073.16', not: 'Ilk donem gecis kurali' },
+    { id: 2, kanal: 'Grup', minKatkiPayi: '3500.00', maxGirisAidati: '980.00', not: 'Kampanya katsayisi uygulandi' },
+  ],
+  '01.01.2024': [
+    { id: 1, kanal: 'Ferdi', minKatkiPayi: '6000.75', maxGirisAidati: '1600.20', not: 'Yillik revizyon' },
+    { id: 2, kanal: 'OKS', minKatkiPayi: '4500.56', maxGirisAidati: '1200.15', not: 'OKS alt limit guncellemesi' },
+  ],
+  '01.01.2025': [
+    { id: 1, kanal: 'Ferdi', minKatkiPayi: '6631.40', maxGirisAidati: '1768.37', not: 'Asgari ucret artis yansimasi' },
+    { id: 2, kanal: 'Grup', minKatkiPayi: '5900.00', maxGirisAidati: '1570.00', not: 'Grup plan revizyonu' },
+    { id: 3, kanal: 'OKS', minKatkiPayi: '5100.00', maxGirisAidati: '1360.00', not: 'OKS sabit oran' },
+  ],
+}
 
 export const sozlesmeTipi = [
   { id: 1, brans: 'Bireysel Emeklilik', kod: 'F', aciklama: 'Ferdi' },
@@ -125,12 +185,46 @@ export const sozlesmeTipi = [
   { id: 3, brans: 'Bireysel Emeklilik', kod: 'OKS', aciklama: 'Otomatik Katilim' },
 ]
 
+export const sozlesmeTipiDetaylari = {
+  F: [
+    { id: 1, parametre: 'Minimum Yas', deger: '18', not: 'Ferdi katilim alt limit' },
+    { id: 2, parametre: 'Maksimum Yas', deger: '56', not: 'Ferdi katilim ust limit' },
+  ],
+  G: [
+    { id: 1, parametre: 'Grup Min Kisi', deger: '10', not: 'Grup sozlesme acilis siniri' },
+    { id: 2, parametre: 'Tahsilat Modeli', deger: 'Isveren odemeli', not: 'Kurumsal tahsilat modeli' },
+  ],
+  OKS: [
+    { id: 1, parametre: 'Otomatik Dahil', deger: 'Evet', not: 'Calisan otomatik dahil olur' },
+    { id: 2, parametre: 'Cayma Suresi', deger: '2 Ay', not: 'Yasal cayma suresi' },
+  ],
+}
+
 export const borcTipleri = [
   { id: 1, kod: 'K', ad: 'Karma', bsmv: 'Hayir', tahakkuk: 'Hayir', tumBorcOde: 'Hayir', birikimeTransfer: 'Hayir' },
   { id: 2, kod: 'Z', ad: 'IKRAZ (Geri Odeme Zorunlu Degil)', bsmv: 'Hayir', tahakkuk: 'Hayir', tumBorcOde: 'Hayir', birikimeTransfer: 'Evet' },
   { id: 3, kod: 'T', ad: 'Tahsilat Masrafi', bsmv: 'Hayir', tahakkuk: 'Evet', tumBorcOde: 'Hayir', birikimeTransfer: 'Hayir' },
   { id: 4, kod: 'P', ad: 'Prim/Katki Payi Tahsilati', bsmv: 'Hayir', tahakkuk: 'Hayir', tumBorcOde: 'Hayir', birikimeTransfer: 'Evet' },
 ]
+
+export const borcTipleriDetaylari = {
+  K: [
+    { id: 1, parametre: 'Tahsilat Onceligi', deger: 'Orta', not: 'Karma borc dagitimi' },
+    { id: 2, parametre: 'Birikime Etki', deger: 'Pasif', not: 'Birikime otomatik aktarilmaz' },
+  ],
+  Z: [
+    { id: 1, parametre: 'Geri Odeme', deger: 'Zorunlu Degil', not: 'Musteri tercihine bagli' },
+    { id: 2, parametre: 'Birikime Transfer', deger: 'Evet', not: 'Tahsilat direkt birikime gider' },
+  ],
+  T: [
+    { id: 1, parametre: 'Tahakkuk', deger: 'Evet', not: 'Donemsel tahakkuk calisir' },
+    { id: 2, parametre: 'Masraf Kalemi', deger: 'Tahsilat', not: 'Tahsilat masrafina bagli' },
+  ],
+  P: [
+    { id: 1, parametre: 'Ana Kaynak', deger: 'Prim/Katki', not: 'Katki tahsilatindan mahsup' },
+    { id: 2, parametre: 'Birikime Transfer', deger: 'Evet', not: 'Fazla tahsilat birikime aktarilir' },
+  ],
+}
 
 export const odemeAraclari = [
   { id: 1, kod: 'A', ad: 'Aktarim', makbuzBasilacak: 'Hayir', besTahsilatListesi: 'Hayir', hesapZorunlu: 'Hayir', krediKartiZorunlu: 'Hayir', olusturan: 'uaktas' },
@@ -140,6 +234,28 @@ export const odemeAraclari = [
   { id: 5, kod: 'KK', ad: 'Kredi Karti', makbuzBasilacak: 'Evet', besTahsilatListesi: 'Evet', hesapZorunlu: 'Hayir', krediKartiZorunlu: 'Evet', olusturan: 'uaktas' },
 ]
 
+export const odemeAraclariDetaylari = {
+  A: [
+    { id: 1, parametre: 'Entegrasyon Tipi', deger: 'Aktarim Servisi', not: 'Harici transfer ile tahsilat' },
+    { id: 2, parametre: 'Mutabakat Periyodu', deger: 'Gunluk', not: 'Gun sonu mutabakat' },
+  ],
+  AK: [
+    { id: 1, parametre: 'Komisyon Kanali', deger: 'Acente', not: 'Acente bazli komisyon' },
+    { id: 2, parametre: 'Onay', deger: 'Yetkili', not: 'Yetkili onayi gerektirir' },
+  ],
+  BC: [
+    { id: 1, parametre: 'Teminat Suresi', deger: '2 Is Gunu', not: 'Cek teyit suresi' },
+    { id: 2, parametre: 'Banka Kontrol', deger: 'Zorunlu', not: 'Banka dogrulamasi gerekir' },
+  ],
+  BGE: [
+    { id: 1, parametre: 'Hesap Tipi', deger: 'Gecici', not: 'BES gecici hesapta bekletilir' },
+  ],
+  KK: [
+    { id: 1, parametre: '3D Secure', deger: 'Evet', not: 'Kart islemlerinde zorunlu' },
+    { id: 2, parametre: 'Provizyon', deger: 'Anlik', not: 'Online provizyon alinir' },
+  ],
+}
+
 export const degisiklikTipleri = [
   { id: 201, brans: 'BES', zeyilKodu: '93', zeyilAdi: 'Emeklilik', yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
   { id: 202, brans: 'BES', zeyilKodu: '95', zeyilAdi: 'Sistemden Cikis', yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
@@ -148,15 +264,59 @@ export const degisiklikTipleri = [
   { id: 207, brans: 'BES', zeyilKodu: '91', zeyilAdi: 'Fon Dagilimi Degisikligi', yilLimit: '12', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
 ]
 
+export const degisiklikTipleriDetaylari = {
+  '93': [
+    { id: 1, parametre: 'Onay Seviyesi', deger: 'Standart', not: 'Temel emeklilik zeyli' },
+    { id: 2, parametre: 'Tahsilat Etkisi', deger: 'Yok', not: 'Prim etkisi bulunmaz' },
+  ],
+  '95': [
+    { id: 1, parametre: 'Cikis Turu', deger: 'Sistemden Cikis', not: 'Tam cikis islemi' },
+    { id: 2, parametre: 'Mutabakat', deger: 'Zorunlu', not: 'Cikis oncesi mutabakat' },
+  ],
+  '90': [
+    { id: 1, parametre: 'Cayma Suresi', deger: '60 Gun', not: 'Yasal cayma suresi' },
+    { id: 2, parametre: 'Prim Degisim', deger: 'Evet', not: 'Prim iadesi hesaplanir' },
+  ],
+  '99': [
+    { id: 1, parametre: 'Plan Karsilastirma', deger: 'Zorunlu', not: 'Plan uyumluluk kontrolu' },
+  ],
+  '91': [
+    { id: 1, parametre: 'Fon Dagilim Siniri', deger: '%100', not: 'Toplam dagilim kontrolu' },
+    { id: 2, parametre: 'UW Kontrol', deger: 'Hayir', not: 'UW onayi gerektirmez' },
+  ],
+}
+
 export const gecerliSozlesmeCinsi = [
   { id: 1, kod: 'IGES', aciklama: 'Isveren Grup Emeklilik Sozlesmesi' },
   { id: 2, kod: 'GBB', aciklama: 'Gruba Bagli Bireysel' },
 ]
 
+export const gecerliSozlesmeCinsiDetaylari = {
+  IGES: [
+    { id: 1, parametre: 'Katilim Turu', deger: 'Isveren Katkili', not: 'Kurumsal katki modeli' },
+    { id: 2, parametre: 'Tahsilat Kanali', deger: 'Bordro', not: 'Maas uzerinden tahsilat' },
+  ],
+  GBB: [
+    { id: 1, parametre: 'Katilim Turu', deger: 'Gruba Bagli Bireysel', not: 'Bireysel sozlesme uzerinden' },
+    { id: 2, parametre: 'Transfer Yetkisi', deger: 'Evet', not: 'Planlar arasi transfer acik' },
+  ],
+}
+
 export const basvuruTipleri = [
   { id: 1, kod: 'O', aciklama: 'Online' },
   { id: 2, kod: 'M', aciklama: 'Matbu' },
 ]
+
+export const basvuruTipleriDetaylari = {
+  O: [
+    { id: 1, parametre: 'Kanal', deger: 'Dijital', not: 'Web ve mobil basvuru kanali' },
+    { id: 2, parametre: 'Onay Akisi', deger: 'Anlik', not: 'Anlik onay ve ilerleme' },
+  ],
+  M: [
+    { id: 1, parametre: 'Kanal', deger: 'Fiziksel Evrak', not: 'Sube/acenteden matbu basvuru' },
+    { id: 2, parametre: 'Onay Akisi', deger: 'Operasyon', not: 'Evrak kontrolu sonrasi onay' },
+  ],
+}
 
 export const tarifePlanDurum = [
   { id: 1, kod: 'D', aciklama: 'Taslak' },
@@ -165,12 +325,49 @@ export const tarifePlanDurum = [
   { id: 4, kod: 'Y', aciklama: 'Yururlukten Kaldirildi' },
 ]
 
+export const tarifePlanDurumDetaylari = {
+  D: [
+    { id: 1, parametre: 'Yayin Durumu', deger: 'Kapali', not: 'Taslak plan yayinlanmaz' },
+    { id: 2, parametre: 'Degisiklik Yetkisi', deger: 'Tam', not: 'Tum alanlar duzenlenebilir' },
+  ],
+  A: [
+    { id: 1, parametre: 'Yayin Durumu', deger: 'Acil', not: 'Satista aktif gorunur' },
+    { id: 2, parametre: 'Degisiklik Yetkisi', deger: 'Sinirli', not: 'Kritik alanlar kilitli' },
+  ],
+  K: [
+    { id: 1, parametre: 'Yayin Durumu', deger: 'Pasif', not: 'Yeni satisa kapali' },
+    { id: 2, parametre: 'Mevcut Sozlesme', deger: 'Devam', not: 'Mevcutler etkilenmez' },
+  ],
+  Y: [
+    { id: 1, parametre: 'Yayin Durumu', deger: 'Kaldirildi', not: 'Yururlukten cikarildi' },
+    { id: 2, parametre: 'Arsiv', deger: 'Zorunlu', not: 'Arsivleme kaydi olusturulur' },
+  ],
+}
+
 export const kurTipleri = [
   { id: 1, kod: 'EA', aciklama: 'Efektif Alis' },
   { id: 2, kod: 'ES', aciklama: 'Efektif Satis' },
   { id: 3, kod: 'DA', aciklama: 'Doviz Alis' },
   { id: 4, kod: 'DS', aciklama: 'Doviz Satis' },
 ]
+
+export const kurTipleriDetaylari = {
+  EA: [
+    { id: 1, parametre: 'Kaynak', deger: 'TCMB', not: 'Efektif alis kuru kaynagi' },
+    { id: 2, parametre: 'Guncelleme', deger: 'Gunluk', not: 'Her is gunu guncellenir' },
+  ],
+  ES: [
+    { id: 1, parametre: 'Kaynak', deger: 'TCMB', not: 'Efektif satis kuru kaynagi' },
+    { id: 2, parametre: 'Marj', deger: '0.001', not: 'Satis marj katsayisi' },
+  ],
+  DA: [
+    { id: 1, parametre: 'Kaynak', deger: 'TCMB Doviz', not: 'Doviz alis kur bilgisi' },
+  ],
+  DS: [
+    { id: 1, parametre: 'Kaynak', deger: 'TCMB Doviz', not: 'Doviz satis kur bilgisi' },
+    { id: 2, parametre: 'Kontrol', deger: 'Min/Max', not: 'Sinir kontrolu uygulanir' },
+  ],
+}
 
 export const vakifUyeKurum = [
   { id: 1, kod: 'V001', aciklama: 'TC. Basbakanlik Basin Yay. Enformasyon Yard. Vakfi' },
@@ -179,12 +376,47 @@ export const vakifUyeKurum = [
   { id: 4, kod: 'V004', aciklama: 'TC. Merkez Bankasi Mensuplari Sandigi Vakfi' },
 ]
 
+export const vakifUyeKurumDetaylari = {
+  V001: [
+    { id: 1, parametre: 'Uyelik Tipi', deger: 'Kamu', not: 'Kamu kurum uyeligi' },
+    { id: 2, parametre: 'Katilim Modeli', deger: 'Toplu', not: 'Toplu uyelik modeli' },
+  ],
+  V002: [
+    { id: 1, parametre: 'Uyelik Tipi', deger: 'Vakıf', not: 'Vakıf uyelik yapisi' },
+  ],
+  V003: [
+    { id: 1, parametre: 'Uyelik Tipi', deger: 'Meslek Grubu', not: 'Noter personeli odakli' },
+    { id: 2, parametre: 'Tahsilat', deger: 'Aylik', not: 'Periyodik tahsilat uygulanir' },
+  ],
+  V004: [
+    { id: 1, parametre: 'Uyelik Tipi', deger: 'Sandik', not: 'Mensup sandigi modeli' },
+    { id: 2, parametre: 'Aktivasyon', deger: 'Onayli', not: 'Kurum onayi ile aktif olur' },
+  ],
+}
+
 export const odemeDonemiTurleri = [
   { id: 1, kod: '1', aciklama: 'Aylik' },
   { id: 2, kod: '3', aciklama: 'Uc Aylik' },
   { id: 3, kod: '6', aciklama: 'Alti Aylik' },
   { id: 4, kod: '12', aciklama: 'Yillik' },
 ]
+
+export const odemeDonemiTurleriDetaylari = {
+  '1': [
+    { id: 1, parametre: 'Donem Tipi', deger: 'Aylik', not: 'Her ay tahsilat' },
+    { id: 2, parametre: 'Odeme Gunu', deger: '1-30', not: 'Ay icinde secilebilir' },
+  ],
+  '3': [
+    { id: 1, parametre: 'Donem Tipi', deger: 'Uc Aylik', not: 'Ceyreklik tahsilat' },
+  ],
+  '6': [
+    { id: 1, parametre: 'Donem Tipi', deger: 'Alti Aylik', not: 'Yilda iki tahsilat' },
+  ],
+  '12': [
+    { id: 1, parametre: 'Donem Tipi', deger: 'Yillik', not: 'Yilda bir tahsilat' },
+    { id: 2, parametre: 'Hatirlatma', deger: '30 Gun Once', not: 'Yenileme bildirimi' },
+  ],
+}
 
 export const girisAidatiTurleri = [
   { id: 1, kod: 'YOK', aciklama: 'Giris Aidati Yok' },
@@ -193,6 +425,23 @@ export const girisAidatiTurleri = [
   { id: 4, kod: 'PESIN_ERT', aciklama: 'Pesin+Cikisa Ertelenmis' },
 ]
 
+export const girisAidatiTurleriDetaylari = {
+  YOK: [
+    { id: 1, parametre: 'Tahsilat', deger: 'Yok', not: 'Giris aidati alinmaz' },
+  ],
+  PESIN: [
+    { id: 1, parametre: 'Tahsilat', deger: 'Pesin', not: 'Baslangicta tahsil edilir' },
+    { id: 2, parametre: 'Taksit', deger: 'Opsiyonel', not: 'Taksitlendirilebilir' },
+  ],
+  ERT: [
+    { id: 1, parametre: 'Tahsilat', deger: 'Cikista', not: 'Cikis aninda tahsil edilir' },
+  ],
+  PESIN_ERT: [
+    { id: 1, parametre: 'Tahsilat', deger: 'Karma', not: 'Pesin + cikista tahsilat' },
+    { id: 2, parametre: 'Dagilim', deger: '%50/%50', not: 'Ornek dagilim' },
+  ],
+}
+
 export const tarifeOzguBelgeTipleri = [
   { id: 1, kod: 'H', aciklama: 'Hazine Plani' },
   { id: 2, kod: 'S', aciklama: 'Sozlesme/Police Ornegi' },
@@ -200,6 +449,27 @@ export const tarifeOzguBelgeTipleri = [
   { id: 4, kod: 'E', aciklama: 'Ek Fayda Detaylari' },
   { id: 5, kod: 'T', aciklama: 'Test Onay Dokumani' },
 ]
+
+export const tarifeOzguBelgeTipleriDetaylari = {
+  H: [
+    { id: 1, parametre: 'Belge Grubu', deger: 'Hazine', not: 'Resmi plan dokumani' },
+    { id: 2, parametre: 'Yayin', deger: 'Zorunlu', not: 'Plan acilisinda zorunlu' },
+  ],
+  S: [
+    { id: 1, parametre: 'Belge Grubu', deger: 'Sozlesme', not: 'Sozlesme ve police ornegi' },
+  ],
+  P: [
+    { id: 1, parametre: 'Belge Grubu', deger: 'Pazarlama', not: 'Tanitim amacli belge' },
+    { id: 2, parametre: 'Onay', deger: 'Pazarlama Onayi', not: 'Yayin oncesi onay gerekir' },
+  ],
+  E: [
+    { id: 1, parametre: 'Belge Grubu', deger: 'Ek Fayda', not: 'Ek fayda kosullari' },
+  ],
+  T: [
+    { id: 1, parametre: 'Belge Grubu', deger: 'Test', not: 'Test ortaminda kullanilir' },
+    { id: 2, parametre: 'Aktivasyon', deger: 'Manuel', not: 'Manuel aktivasyon gerekir' },
+  ],
+}
 
 export const altBranslar = [
   { id: 1, brans: 'Hayat', kod: 'H', ad: 'H', aciklama: 'Hayat' },
@@ -211,17 +481,67 @@ export const altBranslar = [
   { id: 7, brans: 'Elementer', kod: 'K', ad: 'K', aciklama: 'Kara Araclari' },
 ]
 
+export const altBranslarDetaylari = {
+  H: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Hayat', not: 'Hayat urunlerinde kullanilir' },
+    { id: 2, parametre: 'Risk Skoru', deger: 'Orta', not: 'Standart risk sinifi' },
+  ],
+  K: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Ferdi Kaza', not: 'Kaza teminati odakli' },
+  ],
+  S: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Saglik', not: 'Saglik poliçe alt branşi' },
+  ],
+  T: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Tamamlayici Saglik', not: 'TSS urunlerinde kullanilir' },
+  ],
+  SY: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Seyahat', not: 'Yurtici/yurtdisi seyahat planlari' },
+  ],
+  M: [
+    { id: 1, parametre: 'Urun Grubu', deger: 'Muhendislik', not: 'Muhendislik sigorta urunleri' },
+  ],
+}
+
 export const yuvarlamaTipleri = [
   { id: 1, ad: 'YY', kod: 'YY', aciklama: 'Yuvarlama Yok' },
   { id: 2, ad: 'TB', kod: 'TB', aciklama: 'Tabana' },
   { id: 3, ad: 'TV', kod: 'TV', aciklama: 'Tavana' },
 ]
 
+export const yuvarlamaTipleriDetaylari = {
+  YY: [
+    { id: 1, parametre: 'Yontem', deger: 'Yuvarlama Yok', not: 'Ham deger korunur' },
+  ],
+  TB: [
+    { id: 1, parametre: 'Yontem', deger: 'Tabana', not: 'Asagi yuvarlama uygulanir' },
+    { id: 2, parametre: 'Hassasiyet', deger: '2 Hane', not: 'Kurallara gore hane kullanilir' },
+  ],
+  TV: [
+    { id: 1, parametre: 'Yontem', deger: 'Tavana', not: 'Yukari yuvarlama uygulanir' },
+    { id: 2, parametre: 'Hassasiyet', deger: '2 Hane', not: 'Kurallara gore hane kullanilir' },
+  ],
+}
+
 export const ygkYilTipi = [
   { id: 1, kod: 'YT', ad: 'Yururluk Tarihi', aciklama: 'Yururluk Tarihi' },
   { id: 2, kod: 'TT', ad: 'Tahsilat Tarihi', aciklama: 'Tahsilat Tarihi' },
   { id: 3, kod: 'VT', ad: 'Vade Tarihi', aciklama: 'Vade Tarihi' },
 ]
+
+export const ygkYilTipiDetaylari = {
+  YT: [
+    { id: 1, parametre: 'Hesaplama Baslangici', deger: 'Yururluk', not: 'Yururluk tarihine gore yil sayilir' },
+    { id: 2, parametre: 'Kontrol', deger: 'Plan Durumu', not: 'Planin yururlukte olmasi gerekir' },
+  ],
+  TT: [
+    { id: 1, parametre: 'Hesaplama Baslangici', deger: 'Tahsilat', not: 'Tahsilat tarihine gore yil sayilir' },
+  ],
+  VT: [
+    { id: 1, parametre: 'Hesaplama Baslangici', deger: 'Vade', not: 'Vade tarihine gore yil sayilir' },
+    { id: 2, parametre: 'Hatirlatma', deger: '30 Gun Once', not: 'Vade oncesi kontrol tetiklenir' },
+  ],
+}
 
 export const ygkLimitTutarTipi = [
   { id: 1, kod: 'SBT', ad: 'Sozlesme Birikim Tutari', aciklama: 'Sozlesme Birikim Tutari' },
@@ -231,16 +551,62 @@ export const ygkLimitTutarTipi = [
   { id: 5, kod: 'TOP', ad: 'Toplam Tahsilat', aciklama: 'Toplam Tahsilat' },
 ]
 
+export const ygkLimitTutarTipiDetaylari = {
+  SBT: [
+    { id: 1, parametre: 'Kaynak', deger: 'Sozlesme Birikim', not: 'Sozlesme bazli birikim tutari' },
+    { id: 2, parametre: 'Guncelleme', deger: 'Gun Sonu', not: 'Gun sonu birikim degeri kullanilir' },
+  ],
+  KBT: [
+    { id: 1, parametre: 'Kaynak', deger: 'Katilimci Birikim', not: 'Katilimci bazli birikim tutari' },
+  ],
+  KPT: [
+    { id: 1, parametre: 'Kaynak', deger: 'Katki Payi', not: 'Tahsil edilen katki payi tutari' },
+  ],
+  THT: [
+    { id: 1, parametre: 'Kaynak', deger: 'Tahsilat', not: 'Donemsel tahsilat tutari' },
+    { id: 2, parametre: 'Kontrol', deger: 'Limit Asimi', not: 'Limit asim kontrolu yapilir' },
+  ],
+  TOP: [
+    { id: 1, parametre: 'Kaynak', deger: 'Toplam Tahsilat', not: 'Kumulatif tahsilat degeri' },
+    { id: 2, parametre: 'Donem', deger: 'Yillik', not: 'Yillik toplam kullanilir' },
+  ],
+}
+
 export const ygkKademeTipi = [
   { id: 1, kod: 'KK', ad: 'Kumul Kademe', aciklama: 'Kumul Kademe' },
   { id: 2, kod: 'KD', ad: 'Kademe', aciklama: 'Kademe' },
 ]
+
+export const ygkKademeTipiDetaylari = {
+  KK: [
+    { id: 1, parametre: 'Kademe Modeli', deger: 'Kumulatif', not: 'Limitler birikimli hesaplanir' },
+    { id: 2, parametre: 'Sifirlama', deger: 'Yillik', not: 'Yil sonunda sifirlanir' },
+  ],
+  KD: [
+    { id: 1, parametre: 'Kademe Modeli', deger: 'Bagimsiz', not: 'Her kademe ayrik hesaplanir' },
+    { id: 2, parametre: 'Sifirlama', deger: 'Yok', not: 'Donem boyunca korunur' },
+  ],
+}
 
 export const ygkYillikKademeDonemi = [
   { id: 1, kod: 'A', ad: 'Aylik', aciklama: 'Aylik' },
   { id: 2, kod: 'Y', ad: 'Yillik', aciklama: 'Yillik' },
   { id: 3, kod: 'T', ad: 'Tek Sefer', aciklama: 'Tek Sefer' },
 ]
+
+export const ygkYillikKademeDonemiDetaylari = {
+  A: [
+    { id: 1, parametre: 'Donem', deger: 'Aylik', not: 'Her ay kademe kontrolu yapilir' },
+    { id: 2, parametre: 'Yenileme', deger: 'Aylik', not: 'Aylik periyot yenileme' },
+  ],
+  Y: [
+    { id: 1, parametre: 'Donem', deger: 'Yillik', not: 'Yilda bir kademe kontrolu' },
+    { id: 2, parametre: 'Yenileme', deger: 'Yillik', not: 'Yillik periyot yenileme' },
+  ],
+  T: [
+    { id: 1, parametre: 'Donem', deger: 'Tek Sefer', not: 'Bir kez uygulanir' },
+  ],
+}
 
 export const ygkYillikOdemeDonemi = [
   { id: 1, kod: 'A', ad: 'Aylik', aciklama: 'Aylik' },
@@ -249,10 +615,38 @@ export const ygkYillikOdemeDonemi = [
   { id: 4, kod: 'Y', ad: 'Yillik', aciklama: 'Yillik' },
 ]
 
+export const ygkYillikOdemeDonemiDetaylari = {
+  A: [
+    { id: 1, parametre: 'Odeme Periyodu', deger: 'Aylik', not: 'Her ay odeme alinır' },
+    { id: 2, parametre: 'Hatirlatma', deger: '5 Gun Once', not: 'Odemeden once bildirim' },
+  ],
+  '3A': [
+    { id: 1, parametre: 'Odeme Periyodu', deger: 'Uc Aylik', not: '3 ayda bir odeme' },
+  ],
+  '6A': [
+    { id: 1, parametre: 'Odeme Periyodu', deger: 'Alti Aylik', not: 'Yilda iki odeme' },
+  ],
+  Y: [
+    { id: 1, parametre: 'Odeme Periyodu', deger: 'Yillik', not: 'Yilda bir odeme' },
+    { id: 2, parametre: 'Yenileme', deger: 'Yillik', not: 'Yil sonu yenileme kontrolu' },
+  ],
+}
+
 export const araVermeTip = [
   { id: 1, kod: 'A', ad: 'Aylik', aciklama: 'Aylik' },
   { id: 2, kod: 'Y', ad: 'Yillik', aciklama: 'Yillik' },
 ]
+
+export const araVermeTipDetaylari = {
+  A: [
+    { id: 1, parametre: 'Donem', deger: 'Aylik', not: 'Ara verme kontrolu aylik yapilir' },
+    { id: 2, parametre: 'Bekleme', deger: '30 Gun', not: 'Aylik bekleme suresi' },
+  ],
+  Y: [
+    { id: 1, parametre: 'Donem', deger: 'Yillik', not: 'Ara verme kontrolu yillik yapilir' },
+    { id: 2, parametre: 'Bekleme', deger: '365 Gun', not: 'Yillik bekleme suresi' },
+  ],
+}
 
 export const egpBireyTipi = [
   { id: 1, kod: 'FP', ad: 'Fert-Personel', aciklama: 'Fert-Personel' },
@@ -263,12 +657,48 @@ export const egpBireyTipi = [
   { id: 6, kod: 'D', ad: 'Diger', aciklama: 'Diger' },
 ]
 
+export const egpBireyTipiDetaylari = {
+  FP: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Calisan', not: 'Personel odakli birey tipi' },
+    { id: 2, parametre: 'Uygunluk', deger: 'Standart', not: 'Varsayilan uygunluk kurali' },
+  ],
+  C: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Cocuk', not: 'Cocuk planlari icin kullanilir' },
+  ],
+  E: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Es', not: 'Es kapsami icin kullanilir' },
+  ],
+  AB: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Anne-Baba', not: 'Ust soy kapsami' },
+  ],
+  K: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Kardes', not: 'Kardes kapsami' },
+  ],
+  D: [
+    { id: 1, parametre: 'Birey Grubu', deger: 'Diger', not: 'Genel kapsam' },
+  ],
+}
+
 // --- ANKET / SORU ---
 export const soruTipleri = [
   { id: 1, ad: '1', aciklama: 'Saglik' },
   { id: 2, ad: '2', aciklama: 'Finansal' },
   { id: 3, ad: '3', aciklama: 'Risk Getiri Profili' },
 ]
+
+export const soruTipleriDetaylari = {
+  '1': [
+    { id: 1, parametre: 'Kategori', deger: 'Saglik', not: 'Saglik odakli soru seti' },
+    { id: 2, parametre: 'Zorunluluk', deger: 'Evet', not: 'Yanitsiz gecilemez' },
+  ],
+  '2': [
+    { id: 1, parametre: 'Kategori', deger: 'Finansal', not: 'Finansal yeterlilik sorulari' },
+  ],
+  '3': [
+    { id: 1, parametre: 'Kategori', deger: 'Risk Getiri', not: 'RGP hesaplamasinda kullanilir' },
+    { id: 2, parametre: 'Skorlama', deger: 'Agirlikli', not: 'Agirlikli skor hesaplanir' },
+  ],
+}
 
 export const cevapTipleri = [
   { id: 1, cevapTipi: 'E', aciklama: 'EVET/HAYIR' },
@@ -279,6 +709,31 @@ export const cevapTipleri = [
   { id: 6, cevapTipi: 'D', aciklama: 'TARIH' },
 ]
 
+export const cevapTipleriDetaylari = {
+  E: [
+    { id: 1, parametre: 'Format', deger: 'Boolean', not: 'Evet/Hayir secimi' },
+    { id: 2, parametre: 'Secim Sayisi', deger: 'Tek', not: 'Tek cevap secilir' },
+  ],
+  C: [
+    { id: 1, parametre: 'Format', deger: 'Liste', not: 'Coklu secim listesi' },
+    { id: 2, parametre: 'Secim Sayisi', deger: 'Coklu', not: 'Birden fazla cevap secilir' },
+  ],
+  T: [
+    { id: 1, parametre: 'Format', deger: 'Liste', not: 'Tekli secim listesi' },
+    { id: 2, parametre: 'Secim Sayisi', deger: 'Tek', not: 'Tek cevap secilir' },
+  ],
+  N: [
+    { id: 1, parametre: 'Format', deger: 'Sayisal', not: 'Numerik deger girisi' },
+  ],
+  M: [
+    { id: 1, parametre: 'Format', deger: 'Metin', not: 'Serbest metin girisi' },
+  ],
+  D: [
+    { id: 1, parametre: 'Format', deger: 'Tarih', not: 'Tarih secimi' },
+    { id: 2, parametre: 'Giris Tipi', deger: 'Takvim', not: 'Takvim uzerinden secim' },
+  ],
+}
+
 export const soruBankasi = [
   { id: 1, soruNo: '14', soruTipi: 'Risk Getiri Profili-2018', cevapTipi: 'TEKLI SECIM', soru: 'Emeklilik doneminizde, yeteri kadar geliriniz olacagini dusunuyor musunuz?', siraNo: '7' },
   { id: 2, soruNo: '15', soruTipi: 'Risk Getiri Profili-2018', cevapTipi: 'TEKLI SECIM', soru: 'Yatiriminizin faiz icermesi onemli midir?', siraNo: '8' },
@@ -287,6 +742,29 @@ export const soruBankasi = [
   { id: 5, soruNo: '10', soruTipi: 'Risk Getiri Profili-2018', cevapTipi: 'TEKLI SECIM', soru: 'Getiri ve risk alma hususlarinda ne dusunuyorsunuz?', siraNo: '3' },
 ]
 
+export const soruBankasiDetaylari = {
+  14: [
+    { id: 1, parametre: 'Zorunlu', deger: 'Evet', not: 'Soru atlanamaz' },
+    { id: 2, parametre: 'Skor', deger: '10', not: 'Pozitif etki' },
+  ],
+  15: [
+    { id: 1, parametre: 'Zorunlu', deger: 'Evet', not: 'Soru atlanamaz' },
+    { id: 2, parametre: 'Skor', deger: '8', not: 'Orta etki' },
+  ],
+  8: [
+    { id: 1, parametre: 'Zorunlu', deger: 'Evet', not: 'Temel risk sorusu' },
+    { id: 2, parametre: 'Skor', deger: '12', not: 'Yuksek etki' },
+  ],
+  9: [
+    { id: 1, parametre: 'Zorunlu', deger: 'Evet', not: 'Bilgi seviyesi olcumu' },
+    { id: 2, parametre: 'Skor', deger: '9', not: 'Orta etki' },
+  ],
+  10: [
+    { id: 1, parametre: 'Zorunlu', deger: 'Evet', not: 'Risk istahi sorusu' },
+    { id: 2, parametre: 'Skor', deger: '11', not: 'Yuksek etki' },
+  ],
+}
+
 export const soruKumeleri = [
   { id: 1, kumeNo: '1', aciklama: 'Musteri Bilgi Formu' },
   { id: 2, kumeNo: '2', aciklama: 'RGP BES' },
@@ -294,6 +772,27 @@ export const soruKumeleri = [
   { id: 4, kumeNo: '4', aciklama: 'Risk Getiri Anketi-2018' },
   { id: 5, kumeNo: '5', aciklama: 'Saglik Sorulari' },
 ]
+
+export const soruKumeleriDetaylari = {
+  1: [
+    { id: 1, parametre: 'Soru Adedi', deger: '12', not: 'Temel musteri sorulari' },
+    { id: 2, parametre: 'Zorunlu', deger: 'Evet', not: 'Basvuru asamasinda zorunlu' },
+  ],
+  2: [
+    { id: 1, parametre: 'Soru Adedi', deger: '8', not: 'RGP hesaplama sorulari' },
+    { id: 2, parametre: 'Skorlama', deger: 'Aktif', not: 'Skorlama kullanilir' },
+  ],
+  3: [
+    { id: 1, parametre: 'Soru Adedi', deger: '6', not: 'Hazir profil seti' },
+  ],
+  4: [
+    { id: 1, parametre: 'Soru Adedi', deger: '15', not: '2018 risk anketi' },
+    { id: 2, parametre: 'Skorlama', deger: 'Aktif', not: 'Skor uretir' },
+  ],
+  5: [
+    { id: 1, parametre: 'Soru Adedi', deger: '10', not: 'Saglik beyan sorulari' },
+  ],
+}
 
 // --- BES URETIM ---
 export const tariffeListesi = [
