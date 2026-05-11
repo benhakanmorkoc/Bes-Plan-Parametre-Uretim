@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight } from 'lucide-react'
-import { urunPlanTarifeKartlari, urunPlanlari } from '../../data/mockData'
+import { urunPlanTarifeKartlari, urunPlanlari, katkiPayiTemplateleri } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
@@ -39,6 +39,67 @@ const PLAN_SETUP_CARDS = [
   { id: 'diger', title: 'Diğer Tanımlar', update: '10.12.2025', bar: 82, score: '3/6', color: 'bg-lime-500', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
   { id: 'belge', title: 'Plan Belgeleri', update: '10.12.2025', bar: 100, score: '6/6', color: 'bg-emerald-500', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
 ]
+
+const FON_DELETE_ACTION = [{ key: 'delete', label: 'Sil', icon: 'delete', danger: true }]
+const FON_KARMA_ACTIONS = [
+  { key: 'details', label: 'Detaylar', icon: 'view' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+const INITIAL_FON_ROWS = [
+  { fonKodu: 'FON-001', fonAdi: 'Esnek', fonTipi: 'T', min: '0%', max: '100%', zorunlu: 'Hayır', standart: 'Evet', devletKatkisi: 'Hayır', katilimEsasli: 'Hayır', fonDurumu: 'Pasif', kullanimda: 'Evet' },
+  { fonKodu: 'FON-002', fonAdi: 'Büyüme', fonTipi: 'K', min: '0%', max: '100%', zorunlu: 'Evet', standart: 'Hayır', devletKatkisi: 'Hayır', katilimEsasli: 'Hayır', fonDurumu: 'Aktif', kullanimda: 'Evet' },
+  { fonKodu: 'FON-003', fonAdi: 'Dengeli', fonTipi: 'D', min: '10%', max: '90%', zorunlu: 'Hayır', standart: 'Hayır', devletKatkisi: 'Evet', katilimEsasli: 'Hayır', fonDurumu: 'Aktif', kullanimda: 'Hayır' },
+  { fonKodu: 'FON-004', fonAdi: 'Korunmacı', fonTipi: 'K', min: '0%', max: '50%', zorunlu: 'Hayır', standart: 'Hayır', devletKatkisi: 'Hayır', katilimEsasli: 'Evet', fonDurumu: 'Aktif', kullanimda: 'Evet' },
+  { fonKodu: 'FON-005', fonAdi: 'Hisse Ağırlıklı', fonTipi: 'T', min: '0%', max: '100%', zorunlu: 'Evet', standart: 'Hayır', devletKatkisi: 'Hayır', katilimEsasli: 'Hayır', fonDurumu: 'Aktif', kullanimda: 'Evet' },
+]
+const INITIAL_KARMA_ROWS = [
+  { karmaNo: '22328382', aciklama: 'Korumacı', mpRefKod: '—', katilimEsasli: 'Hayır', standart: 'Hayır', devletKatkisi: 'Hayır', baslangic: 'Hayır', rgpf: 'Evet' },
+  { karmaNo: '22328383', aciklama: 'Dengeli', mpRefKod: '—', katilimEsasli: 'Hayır', standart: 'Evet', devletKatkisi: 'Hayır', baslangic: 'Evet', rgpf: 'Hayır' },
+  { karmaNo: '22328384', aciklama: 'Girişimci', mpRefKod: '—', katilimEsasli: 'Evet', standart: 'Hayır', devletKatkisi: 'Hayır', baslangic: 'Hayır', rgpf: 'Evet' },
+  { karmaNo: '22328385', aciklama: 'Esnek', mpRefKod: '—', katilimEsasli: 'Hayır', standart: 'Evet', devletKatkisi: 'Evet', baslangic: 'Hayır', rgpf: 'Hayır' },
+  { karmaNo: '22328386', aciklama: 'Büyüme', mpRefKod: '—', katilimEsasli: 'Evet', standart: 'Hayır', devletKatkisi: 'Hayır', baslangic: 'Hayır', rgpf: 'Hayır' },
+]
+const INITIAL_KARMA_FON_DETAY = [
+  { fonKodu: 'AER', fonAciklama: 'Agito Para Piyasaları Fonu', fonTipi: 'Z', katilimEsasli: false, minOran: 0, maxOran: 100, oran: 30 },
+  { fonKodu: 'AEG', fonAciklama: 'Agito Borçlanma Araçları Fonu', fonTipi: 'Z', katilimEsasli: false, minOran: 0, maxOran: 100, oran: 50 },
+  { fonKodu: 'AEA', fonAciklama: 'Agito Hisse Senedi Emeklilik Fonu', fonTipi: 'Z', katilimEsasli: false, minOran: 0, maxOran: 100, oran: 20 },
+]
+
+const KP_TEMPLATE_ROW_ACTIONS = [
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+]
+
+const KP_TEMPLATE_VERSIONS_BY_KOD = {
+  'KPT-001': [
+    { versiyon: '1', aciklama: 'Standart KP', durum: 'Aktif', olusturulma: '15.09.2025', olusturan: 'endeksleme' },
+    { versiyon: '0', aciklama: 'Standart KP (önceki)', durum: 'Arşiv', olusturulma: '01.06.2025', olusturan: 'admin' },
+  ],
+  'KPT-002': [
+    { versiyon: '2', aciklama: 'Yıllık KP', durum: 'Aktif', olusturulma: '21.09.2025', olusturan: 'endeksleme' },
+    { versiyon: '1', aciklama: 'Yıllık KP', durum: 'Arşiv', olusturulma: '20.09.2025', olusturan: 'endeksleme' },
+  ],
+}
+
+function kptToLinkedRow(t) {
+  return {
+    rowKey: `${t.kpTemplateKodu}-${t.versiyon}`,
+    kpTemplateKodu: t.kpTemplateKodu,
+    adi: t.adi,
+    versiyon: t.versiyon,
+    katkiPayiTutari: t.katkiPayiTutari,
+    baslangicKapitali: t.baslangicKapitali,
+    girisFonBuyuklugu: t.girisFonBuyuklugu,
+    dovizKp: t.dovizKp,
+    odemePeriyodu: t.odemePeriyodu,
+    azamiKp: t.azamiKp,
+    dovizDiger: t.dovizDiger,
+    olusturan: t.olusturan,
+    olusturulmaTarihi: t.olusturulmaTarihi,
+    guncelleyen: t.guncelleyen || t.olusturan,
+    guncellemeTarihi: t.guncellemeTarihi || t.olusturulmaTarihi,
+  }
+}
 
 function normalizeDate(value) {
   return value || new Date().toLocaleDateString('tr-TR')
@@ -92,7 +153,7 @@ function ProductCard({ urun, onOpen, onAction, menuOpenId, setMenuOpenId }) {
               <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('view', urun)}><Eye className="w-3.5 h-3.5 text-violet-500" /> İncele</button>
               <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('edit', urun)}><Pencil className="w-3.5 h-3.5 text-violet-500" /> Güncelle</button>
               <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('copy', urun)}><Copy className="w-3.5 h-3.5 text-violet-500" /> Kopyala</button>
-              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('version', urun)}><Plus className="w-3.5 h-3.5 text-violet-500" /> Yeni Plan Ekle</button>
+              <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => onAction('newPlan', urun)}><Plus className="w-3.5 h-3.5 text-violet-500" /> Yeni Plan Ekle</button>
               <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2 text-violet-700" onClick={() => onAction('view', urun)}><List className="w-3.5 h-3.5 text-violet-500" /> Planlar</button>
               <button type="button" className="w-full px-3 py-2 text-left hover:bg-red-50 inline-flex items-center gap-2 text-red-600" onClick={() => onAction('delete', urun)}><Trash2 className="w-3.5 h-3.5 text-red-500" /> Sil</button>
             </div>
@@ -115,7 +176,7 @@ function ProductCard({ urun, onOpen, onAction, menuOpenId, setMenuOpenId }) {
   )
 }
 
-function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction }) {
+function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewPlanFlow }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [formOpen, setFormOpen] = useState(false)
@@ -129,9 +190,7 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction }) {
   })
 
   const openCreate = () => {
-    setEditingId(null)
-    setForm({ id: '', ad: '', durum: 'Taslak', oran: 30, tarih: '' })
-    setFormOpen(true)
+    onStartNewPlanFlow?.(urun)
   }
 
   const openEdit = (row) => {
@@ -481,6 +540,551 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   )
 }
 
+function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
+  const [tab, setTab] = useState('fonlar')
+  const [rows, setRows] = useState(INITIAL_FON_ROWS)
+  const [karmaRows, setKarmaRows] = useState(INITIAL_KARMA_ROWS)
+  const [selectedKarma, setSelectedKarma] = useState(null)
+  const [karmaDetailRows, setKarmaDetailRows] = useState(INITIAL_KARMA_FON_DETAY)
+  const [search, setSearch] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [karmaModalOpen, setKarmaModalOpen] = useState(false)
+  const [oranModalOpen, setOranModalOpen] = useState(false)
+  const [fonForm, setFonForm] = useState({
+    fonKodu: '',
+    fonTipi: '',
+    fonAdi: '',
+    katilimEsasli: '',
+    devletKatkisi: '',
+    standart: '',
+    minOran: '0.00',
+    maxOran: '0.00',
+    zorunlu: '',
+  })
+  const [karmaForm, setKarmaForm] = useState({
+    karmaNo: 'EMK-FNK-756',
+    aciklama: '',
+    devletKatkisi: '',
+    katilimEsasli: '',
+    baslangic: '',
+    standart: '',
+  })
+
+  const filteredRows = rows.filter((r) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return r.fonKodu.toLowerCase().includes(q) || r.fonAdi.toLowerCase().includes(q)
+  })
+  const filteredKarmaRows = karmaRows.filter((r) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return r.karmaNo.toLowerCase().includes(q) || r.aciklama.toLowerCase().includes(q)
+  })
+
+  const saveFon = () => {
+    if (!fonForm.fonKodu) return alert('Fon Kodu zorunludur.')
+    const payload = {
+      fonKodu: fonForm.fonKodu,
+      fonAdi: fonForm.fonAdi || '-',
+      fonTipi: fonForm.fonTipi || '-',
+      min: `${fonForm.minOran || '0'}%`,
+      max: `${fonForm.maxOran || '0'}%`,
+      zorunlu: fonForm.zorunlu || 'Hayır',
+      standart: fonForm.standart || 'Hayır',
+      devletKatkisi: fonForm.devletKatkisi || 'Hayır',
+      katilimEsasli: fonForm.katilimEsasli || 'Hayır',
+      fonDurumu: 'Aktif',
+      kullanimda: 'Evet',
+    }
+    setRows((prev) => [...prev, payload])
+    setModalOpen(false)
+    setFonForm({ fonKodu: '', fonTipi: '', fonAdi: '', katilimEsasli: '', devletKatkisi: '', standart: '', minOran: '0.00', maxOran: '0.00', zorunlu: '' })
+  }
+
+  const pill = (value) => (
+    <span className={`px-2 py-0.5 rounded text-[11px] border ${value === 'Evet' || value === 'Aktif' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-500 bg-slate-50 border-slate-200'}`}>{value}</span>
+  )
+  const boolBadge = (value) => (
+    <span className={`px-2 py-0.5 rounded text-[11px] border inline-flex items-center gap-1 ${value === 'Evet' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-sky-700 bg-sky-50 border-sky-200'}`}>
+      {value === 'Evet' ? '✓' : '×'} {value}
+    </span>
+  )
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="px-6 py-3 border-b border-slate-100">
+        <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 mb-2">
+          <ArrowLeft className="w-3.5 h-3.5" /> Ürün Yönetimi / Ürün Planları / Plan Detay Sayfası / Fonlar
+        </button>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs text-slate-600">
+          <div>Branş: <strong>{(urun?.tipler || '').includes('Bireysel Emeklilik') ? 'Bireysel Emeklilik' : '-'}</strong></div>
+          <div>Sözleşme Tipi: <strong>{urun?.sozlesmeTipi || '-'}</strong></div>
+          <div>Ürün Kodu: <strong>{urun?.id || '-'}</strong></div>
+          <div>Plan Kodu: <strong>{plan?.id || '-'}</strong></div>
+          <div>Plan Adı: <strong>{plan?.ad || '-'}</strong></div>
+          <div>Aktif mi: <strong>Hayır</strong></div>
+        </div>
+      </div>
+
+      <div className="px-6 pt-3">
+        <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
+          <button type="button" onClick={() => setTab('fonlar')} className={`px-4 h-9 text-sm ${tab === 'fonlar' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600'}`}>Fonlar</button>
+          <button type="button" onClick={() => setTab('karmalar')} className={`px-4 h-9 text-sm ${tab === 'karmalar' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600'}`}>Fon Karmaları</button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-6">
+        {tab === 'fonlar' ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-3">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+              <PrimaryButton onClick={() => setModalOpen(true)}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
+            </div>
+            <div className="overflow-auto">
+              <table className="w-full grid-table text-sm">
+                <thead>
+                  <tr>
+                    <th>FON KODU</th><th>FON ADI</th><th>FON TİPİ</th><th>MİN %</th><th>MAX %</th><th>ZORUNLU</th><th>STANDART</th><th>DEVLET KATKISI</th><th>KATILIM ESASLI</th><th>FON DURUMU</th><th>KULLANIMDA</th><th className="w-12 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr key={row.fonKodu}>
+                      <td className="font-semibold">{row.fonKodu}</td>
+                      <td>{row.fonAdi}</td>
+                      <td>{row.fonTipi}</td>
+                      <td>{row.min}</td>
+                      <td>{row.max}</td>
+                      <td>{pill(row.zorunlu)}</td>
+                      <td>{pill(row.standart)}</td>
+                      <td>{pill(row.devletKatkisi)}</td>
+                      <td>{pill(row.katilimEsasli)}</td>
+                      <td>{pill(row.fonDurumu)}</td>
+                      <td>{pill(row.kullanimda)}</td>
+                      <td className="text-right">
+                        <RowActions row={row} actions={FON_DELETE_ACTION} onAction={(key) => {
+                          if (key === 'delete' && window.confirm('Fon kaydı silinsin mi?')) setRows((prev) => prev.filter((x) => x.fonKodu !== row.fonKodu))
+                        }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : !selectedKarma ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-3">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+              <PrimaryButton onClick={() => setKarmaModalOpen(true)}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
+            </div>
+            <div className="overflow-auto">
+              <table className="w-full grid-table text-sm">
+                <thead><tr><th>KARMA NO</th><th>AÇIKLAMA</th><th>MP REF KOD</th><th>KATILIM ESASLI</th><th>STANDART</th><th>DEVLET KATKISI</th><th>BAŞLANGIÇ</th><th>RGPF</th><th className="w-12 text-right"></th></tr></thead>
+                <tbody>
+                  {filteredKarmaRows.map((row) => (
+                    <tr key={row.karmaNo}>
+                      <td className="font-semibold">{row.karmaNo}</td>
+                      <td>{row.aciklama}</td>
+                      <td>{row.mpRefKod}</td>
+                      <td>{boolBadge(row.katilimEsasli)}</td>
+                      <td>{boolBadge(row.standart)}</td>
+                      <td>{boolBadge(row.devletKatkisi)}</td>
+                      <td>{boolBadge(row.baslangic)}</td>
+                      <td>{boolBadge(row.rgpf)}</td>
+                      <td className="text-right">
+                        <RowActions row={row} actions={FON_KARMA_ACTIONS} onAction={(key) => {
+                          if (key === 'delete' && window.confirm('Fon karması silinsin mi?')) {
+                            setKarmaRows((prev) => prev.filter((x) => x.karmaNo !== row.karmaNo))
+                          }
+                          if (key === 'details') setSelectedKarma(row)
+                        }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 grid grid-cols-2 md:grid-cols-8 gap-2">
+              <div>Karma No: <strong>{selectedKarma.karmaNo}</strong></div>
+              <div>Açıklama: <strong>{selectedKarma.aciklama}</strong></div>
+              <div>MP Ref Kod: <strong>{selectedKarma.mpRefKod}</strong></div>
+              <div>Faizsiz: <strong>{selectedKarma.katilimEsasli}</strong></div>
+              <div>Standart: <strong>{selectedKarma.standart}</strong></div>
+              <div>Devlet Katkısı: <strong>{selectedKarma.devletKatkisi}</strong></div>
+              <div>Başlangıç: <strong>{selectedKarma.baslangic}</strong></div>
+              <div>RGPF: <strong>{selectedKarma.rgpf}</strong></div>
+            </div>
+            <div className="flex justify-end">
+              <PrimaryButton onClick={() => setOranModalOpen(true)}>Oranları Güncelle</PrimaryButton>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white overflow-auto">
+              <table className="w-full grid-table text-sm">
+                <thead><tr><th>FON KODU</th><th>FON AÇIKLAMASI</th><th>FON TİPİ</th><th>KATILIM ESASLI</th><th>MİN. ORAN</th><th>MAX. ORAN</th><th>ORAN</th><th className="w-10"></th></tr></thead>
+                <tbody>
+                  {karmaDetailRows.map((row) => (
+                    <tr key={row.fonKodu}>
+                      <td>{row.fonKodu}</td>
+                      <td>{row.fonAciklama}</td>
+                      <td>{row.fonTipi}</td>
+                      <td>
+                        <label className="inline-flex items-center gap-2">
+                          <input type="checkbox" checked={row.katilimEsasli} onChange={(e) => setKarmaDetailRows((prev) => prev.map((x) => x.fonKodu === row.fonKodu ? { ...x, katilimEsasli: e.target.checked } : x))} />
+                          {row.katilimEsasli ? 'Evet' : 'Hayır'}
+                        </label>
+                      </td>
+                      <td>{row.minOran}</td>
+                      <td>{row.maxOran}</td>
+                      <td className="text-violet-700 font-semibold">%{row.oran}</td>
+                      <td className="text-right"><RowActions row={row} actions={FON_DELETE_ACTION} onAction={(key) => {
+                        if (key === 'delete' && window.confirm('Fon satırı silinsin mi?')) setKarmaDetailRows((prev) => prev.filter((x) => x.fonKodu !== row.fonKodu))
+                      }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" onClick={() => setSelectedKarma(null)} className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-800"><ArrowLeft className="w-4 h-4" /> Fon Karmaları Listesine Dön</button>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Fon Ekle"
+        size="md"
+        footer={<><OutlineButton onClick={() => setModalOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={saveFon}>Kaydet</PrimaryButton></>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Kodu</span><select className="form-select" value={fonForm.fonKodu} onChange={(e) => setFonForm((p) => ({ ...p, fonKodu: e.target.value }))}><option value="">Seçiniz</option><option value="FON-006">FON-006</option><option value="FON-007">FON-007</option></select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Tipi</span><input className="form-input" value={fonForm.fonTipi} onChange={(e) => setFonForm((p) => ({ ...p, fonTipi: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Adı</span><input className="form-input" value={fonForm.fonAdi} onChange={(e) => setFonForm((p) => ({ ...p, fonAdi: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><input className="form-input" value={fonForm.katilimEsasli} onChange={(e) => setFonForm((p) => ({ ...p, katilimEsasli: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Devlet Katkısı</span><input className="form-input" value={fonForm.devletKatkisi} onChange={(e) => setFonForm((p) => ({ ...p, devletKatkisi: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Standart</span><select className="form-select" value={fonForm.standart} onChange={(e) => setFonForm((p) => ({ ...p, standart: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Min. Oran (0-1)</span><input className="form-input" value={fonForm.minOran} onChange={(e) => setFonForm((p) => ({ ...p, minOran: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Max. Oran (0-1)</span><input className="form-input" value={fonForm.maxOran} onChange={(e) => setFonForm((p) => ({ ...p, maxOran: e.target.value }))} /></label>
+          <label className="block md:col-span-2"><span className="block text-sm text-slate-700 mb-1">Zorunlu</span><select className="form-select" value={fonForm.zorunlu} onChange={(e) => setFonForm((p) => ({ ...p, zorunlu: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={karmaModalOpen}
+        onClose={() => setKarmaModalOpen(false)}
+        title="Fon Karması Ekle"
+        size="md"
+        footer={<><OutlineButton onClick={() => setKarmaModalOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={() => {
+          if (!karmaForm.karmaNo.trim()) return alert('Karma No zorunludur.')
+          if (!karmaForm.aciklama.trim()) return alert('Fon Karma Açıklaması zorunludur.')
+          setKarmaRows((prev) => [...prev, {
+            karmaNo: karmaForm.karmaNo.trim(),
+            aciklama: karmaForm.aciklama.trim(),
+            mpRefKod: '—',
+            katilimEsasli: karmaForm.katilimEsasli || 'Hayır',
+            standart: karmaForm.standart || 'Hayır',
+            devletKatkisi: karmaForm.devletKatkisi || 'Hayır',
+            baslangic: karmaForm.baslangic || 'Hayır',
+            rgpf: 'Evet',
+          }])
+          setKarmaModalOpen(false)
+        }}>Kaydet</PrimaryButton></>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="block md:col-span-1"><span className="block text-sm text-slate-700 mb-1">Karma No</span><input className="form-input bg-slate-50" value={karmaForm.karmaNo} onChange={(e) => setKarmaForm((p) => ({ ...p, karmaNo: e.target.value }))} /></label>
+          <div />
+          <label className="block md:col-span-2"><span className="block text-sm text-slate-700 mb-1">Fon Karma Açıklaması</span><input className="form-input" placeholder="Açıklama giriniz" value={karmaForm.aciklama} onChange={(e) => setKarmaForm((p) => ({ ...p, aciklama: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Devlet Katkısı</span><select className="form-select" value={karmaForm.devletKatkisi} onChange={(e) => setKarmaForm((p) => ({ ...p, devletKatkisi: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><select className="form-select" value={karmaForm.katilimEsasli} onChange={(e) => setKarmaForm((p) => ({ ...p, katilimEsasli: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Başlangıç</span><select className="form-select" value={karmaForm.baslangic} onChange={(e) => setKarmaForm((p) => ({ ...p, baslangic: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select><span className="text-xs text-slate-400 mt-1 block">OKS planları için özel parametre; bu ekranda düzenlenemez.</span></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Standart</span><select className="form-select" value={karmaForm.standart} onChange={(e) => setKarmaForm((p) => ({ ...p, standart: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={oranModalOpen}
+        onClose={() => setOranModalOpen(false)}
+        title="Fon Oranlarını Güncelle"
+        size="lg"
+        footer={<><OutlineButton onClick={() => setOranModalOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={() => setOranModalOpen(false)}>Güncelle</PrimaryButton></>}
+      >
+        <div className="overflow-auto">
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>FON KODU</th><th>FON AÇIKLAMASI</th><th>FON TİPİ</th><th>KATILIM ESASLI</th><th>MİN. ORAN</th><th>MAX. ORAN</th><th>ORAN (%)</th></tr></thead>
+            <tbody>
+              {karmaDetailRows.map((row) => (
+                <tr key={row.fonKodu}>
+                  <td>{row.fonKodu}</td>
+                  <td>{row.fonAciklama}</td>
+                  <td>{row.fonTipi}</td>
+                  <td>{row.katilimEsasli ? 'Evet' : 'Hayır'}</td>
+                  <td>{row.minOran}</td>
+                  <td>{row.maxOran}</td>
+                  <td><input type="number" className="form-input h-9 w-24" value={row.oran} onChange={(e) => setKarmaDetailRows((prev) => prev.map((x) => x.fonKodu === row.fonKodu ? { ...x, oran: Number(e.target.value) } : x))} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function KatkiPayiTanimlariScreen({ plan, urun, onBack }) {
+  const [linked, setLinked] = useState(() => katkiPayiTemplateleri.map(kptToLinkedRow))
+  const [catalog, setCatalog] = useState(() => [...katkiPayiTemplateleri])
+  const [bindOpen, setBindOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [kayitGoster, setKayitGoster] = useState(10)
+  const [modalPageSize, setModalPageSize] = useState(10)
+  const [versionsModal, setVersionsModal] = useState({ open: false, title: '', rows: [] })
+
+  const breadcrumb = `${String(urun?.id || '').replace(/-/g, ' ')} PS • ${String(plan?.ad || urun?.ad || '').replace(/\s*-\s*/g, ' ').trim()}`
+
+  const selectTemplate = (raw) => {
+    const row = kptToLinkedRow(raw)
+    if (linked.some((l) => l.rowKey === row.rowKey)) {
+      alert('Bu KP şablonu zaten bağlı.')
+      return
+    }
+    setLinked((prev) => [...prev, row])
+  }
+
+  const openVersionsForKod = (kod) => {
+    const rows = KP_TEMPLATE_VERSIONS_BY_KOD[kod] || []
+    setVersionsModal({
+      open: true,
+      title: `${kod} — Versiyonlar`,
+      rows,
+    })
+  }
+
+  const handleRowAction = (key, row, fromCatalog) => {
+    if (key === 'history') {
+      openVersionsForKod(row.kpTemplateKodu)
+      return
+    }
+    if (key === 'delete') {
+      if (!window.confirm('Kayıt silinsin mi?')) return
+      if (fromCatalog) {
+        setCatalog((prev) => prev.filter((x) => !(x.kpTemplateKodu === row.kpTemplateKodu && String(x.versiyon) === String(row.versiyon))))
+      } else {
+        setLinked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+      }
+    }
+  }
+
+  const linkedSlice = linked.slice(0, kayitGoster)
+  const linkedRange = linked.length ? `1-${Math.min(linked.length, kayitGoster)}/${linked.length}` : '0/0'
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <button type="button" onClick={onBack} className="mt-0.5 text-slate-500 hover:text-slate-700"><ArrowLeft className="w-4 h-4" /></button>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Katkı Payı</h2>
+            <div className="text-xs text-slate-500 mt-0.5">{breadcrumb}</div>
+          </div>
+        </div>
+        <div className="min-w-[140px]">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wide text-right">Tamamlanma</div>
+          <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-violet-500" style={{ width: '20%' }} /></div>
+          <div className="text-xs text-slate-600 text-right mt-1">%20 2/6</div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50/40">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-800">Bağlı Katkı Payı Templateleri</h3>
+            <PrimaryButton onClick={() => setBindOpen(true)}>KP Template Bağla</PrimaryButton>
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full grid-table text-xs">
+              <thead>
+                <tr>
+                  <th>KP Template Kodu</th>
+                  <th>Adı</th>
+                  <th>Versiyon</th>
+                  <th>Katkı Payı Tutarı</th>
+                  <th>Başlangıç Kapitali</th>
+                  <th>Giriş Fon Büyüklüğü</th>
+                  <th>Döviz Türü(KP)</th>
+                  <th>Ödeme Periyodu</th>
+                  <th>Azami KP</th>
+                  <th>Döviz Türü(Diğer)</th>
+                  <th>Oluşturan</th>
+                  <th>Oluşturma Tarihi</th>
+                  <th>Güncelleyen</th>
+                  <th>Güncelleme Tarihi</th>
+                  <th className="text-right">Liste İşlemleri</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linkedSlice.map((row) => (
+                  <tr key={row.rowKey}>
+                    <td className="font-semibold">{row.kpTemplateKodu}</td>
+                    <td>{row.adi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.katkiPayiTutari}</td>
+                    <td>{row.baslangicKapitali}</td>
+                    <td>{row.girisFonBuyuklugu}</td>
+                    <td>{row.dovizKp}</td>
+                    <td>{row.odemePeriyodu}</td>
+                    <td>{row.azamiKp}</td>
+                    <td>{row.dovizDiger}</td>
+                    <td>{row.olusturan}</td>
+                    <td>{row.olusturulmaTarihi}</td>
+                    <td>{row.guncelleyen}</td>
+                    <td>{row.guncellemeTarihi}</td>
+                    <td className="text-right">
+                      <RowActions row={row} actions={KP_TEMPLATE_ROW_ACTIONS} onAction={(key, r) => handleRowAction(key, r, false)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+            <label className="inline-flex items-center gap-2">
+              Kayıt Göster
+              <select className="form-select h-8 py-0 text-xs min-w-[4rem]" value={kayitGoster} onChange={(e) => setKayitGoster(Number(e.target.value))}>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </label>
+            <span>{linkedRange}</span>
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        open={bindOpen}
+        onClose={() => setBindOpen(false)}
+        title="Katkı Payı Templateleri"
+        description="KP template tanımlarının listelendiği, filtrelenip sıralandığı ekrandır."
+        size="xl"
+        footer={null}
+      >
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+            <span className="text-sm font-medium text-slate-700">Filtre Seçenekleri</span>
+            <button type="button" className="text-sm text-violet-600 font-medium" onClick={() => setFilterOpen((v) => !v)}>{filterOpen ? 'Gizle' : 'Göster'}</button>
+          </div>
+          {filterOpen && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+              <input className="form-input" placeholder="KP Template Kodu" />
+              <input className="form-input" placeholder="Adı" />
+              <select className="form-select"><option value="">Ödeme Periyodu</option><option>Aylık</option><option>Yıllık</option></select>
+            </div>
+          )}
+          <div className="overflow-auto border border-slate-200 rounded-lg">
+            <table className="w-full grid-table text-xs">
+              <thead>
+                <tr>
+                  <th>KP Template Kodu</th>
+                  <th>Adı</th>
+                  <th>Versiyon</th>
+                  <th>Katkı Payı Tutarı</th>
+                  <th>Başlangıç Kapitali</th>
+                  <th>Giriş Fon Büyüklüğü</th>
+                  <th>Doviz Türü(KP)</th>
+                  <th>Ödeme Periyodu</th>
+                  <th>Azami KP</th>
+                  <th>Doviz Türü(Diğer)</th>
+                  <th>Oluşturan</th>
+                  <th>Oluşturulma Tarihi</th>
+                  <th>Seç</th>
+                  <th className="text-right">Liste İşlemleri</th>
+                </tr>
+              </thead>
+              <tbody>
+                {catalog.slice(0, modalPageSize).map((t) => (
+                  <tr
+                    key={`${t.kpTemplateKodu}-${t.versiyon}`}
+                    className="cursor-pointer hover:bg-slate-50/80"
+                    onDoubleClick={() => selectTemplate(t)}
+                  >
+                    <td className="font-semibold">{t.kpTemplateKodu}</td>
+                    <td>{t.adi}</td>
+                    <td>{t.versiyon}</td>
+                    <td>{t.katkiPayiTutari}</td>
+                    <td>{t.baslangicKapitali}</td>
+                    <td>{t.girisFonBuyuklugu}</td>
+                    <td>{t.dovizKp}</td>
+                    <td>{t.odemePeriyodu}</td>
+                    <td>{t.azamiKp}</td>
+                    <td>{t.dovizDiger}</td>
+                    <td>{t.olusturan}</td>
+                    <td>{t.olusturulmaTarihi}</td>
+                    <td>
+                      <OutlineButton className="h-7 px-2 text-xs" onClick={(e) => { e.stopPropagation(); selectTemplate(t) }}>Seç</OutlineButton>
+                    </td>
+                    <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <RowActions row={t} actions={KP_TEMPLATE_ROW_ACTIONS} onAction={(key, r) => handleRowAction(key, r, true)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+            <label className="inline-flex items-center gap-2">
+              Sayfa başına
+              <select className="form-select h-8 py-0 text-xs min-w-[4rem]" value={modalPageSize} onChange={(e) => setModalPageSize(Number(e.target.value))}>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+              </select>
+            </label>
+            <span>Toplam {catalog.length} kayıt</span>
+          </div>
+          <div className="flex justify-end pt-2">
+            <OutlineButton onClick={() => setBindOpen(false)}>Kapat</OutlineButton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={versionsModal.open}
+        onClose={() => setVersionsModal({ open: false, title: '', rows: [] })}
+        title={versionsModal.title}
+        footer={<PrimaryButton onClick={() => setVersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {versionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Oluşturulma</th><th>Oluşturan</th></tr></thead>
+            <tbody>
+              {versionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.olusturulma}</td>
+                  <td>{v.olusturan}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Bu şablon için versiyon kaydı yok.</p>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
 export default function UrunPlanTarifeTanimlari() {
   const [view, setView] = useState('grid')
   const [selected, setSelected] = useState(null)
@@ -550,6 +1154,22 @@ export default function UrunPlanTarifeTanimlari() {
     return candidate
   }
 
+  const startExistingProductPlanFlow = (product) => {
+    if (!product) return
+    setSelected(null)
+    setSelectedExistingProductId(product.id)
+    const nextNo = getPlans(product.id).length + 1
+    setPlanForm({
+      planAdi: `${product.ad} - Yeni Plan`,
+      planKodu: `${product.id}-P${nextNo}`,
+      baslangicTarihi: normalizeDate(),
+      katilimEsasli: false,
+      hedefKitle: '',
+    })
+    setCreateWizardOpen(true)
+    setCreateStep(5)
+  }
+
   const openCreateProduct = () => {
     setCreateWizardOpen(true)
     setCreateStep(1)
@@ -616,15 +1236,7 @@ export default function UrunPlanTarifeTanimlari() {
   }
 
   const selectExistingProduct = (product) => {
-    setSelectedExistingProductId(product.id)
-    const nextNo = getPlans(product.id).length + 1
-    setPlanForm({
-      planAdi: `${product.ad} - Yeni Plan`,
-      planKodu: `${product.id}-P${nextNo}`,
-      baslangicTarihi: normalizeDate(),
-      katilimEsasli: false,
-      hedefKitle: '',
-    })
+    startExistingProductPlanFlow(product)
     setCreateStep(5)
   }
 
@@ -745,6 +1357,7 @@ export default function UrunPlanTarifeTanimlari() {
     setMenuOpenId(null)
     if (key === 'view') { setSelected(row); return }
     if (key === 'edit') { openEditProduct(row); return }
+    if (key === 'newPlan') { startExistingProductPlanFlow(row); return }
     if (key === 'copy') {
       const newId = createCopiedId(row.id, (id) => products.some((p) => p.id === id))
       const copied = normalizeProduct({ ...row, id: newId, ad: `${row.ad} (Kopya)`, tarih: normalizeDate() }, row)
@@ -783,15 +1396,23 @@ export default function UrunPlanTarifeTanimlari() {
   }
 
   if (selected) {
-    return <PlanList urun={selected} planlar={getPlans(selected.id)} onBack={() => setSelected(null)} onSavePlan={handleSavePlan} onPlanAction={handlePlanAction} />
+    return <PlanList urun={selected} planlar={getPlans(selected.id)} onBack={() => setSelected(null)} onSavePlan={handleSavePlan} onPlanAction={handlePlanAction} onStartNewPlanFlow={startExistingProductPlanFlow} />
   }
 
   if (planSetupContext) {
     if (planSetupView === 'genel') {
       return <PlanGenelBilgilerScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
+    if (planSetupView === 'fonlar') {
+      return <FonlarVeFonKarmalariScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
+    }
+    if (planSetupView === 'katki') {
+      return <KatkiPayiTanimlariScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
+    }
     return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
+      else if (cardId === 'fonlar') setPlanSetupView('fonlar')
+      else if (cardId === 'katki') setPlanSetupView('katki')
       else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
     }} />
   }
