@@ -245,7 +245,7 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction }) {
   )
 }
 
-function PlanConfigurationBoard({ plan, urun, onBack }) {
+function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between">
@@ -269,7 +269,7 @@ function PlanConfigurationBoard({ plan, urun, onBack }) {
       <div className="flex-1 overflow-auto p-3 md:p-4 bg-slate-50/30">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {PLAN_SETUP_CARDS.map((card) => (
-            <button key={card.id} data-card-id={card.id} type="button" className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:border-violet-300 transition">
+            <button key={card.id} data-card-id={card.id} type="button" onClick={() => onOpenCard?.(card.id)} className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:border-violet-300 transition">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">{card.title}</h3>
@@ -681,6 +681,7 @@ export default function UrunPlanTarifeTanimlari() {
     if (duplicate) return alert('Bu Ürün No zaten mevcut.')
     setProducts((prev) => [...prev, payload])
     setPlansByProduct((prev) => ({ ...prev, [payload.id]: [] }))
+    setSelected(payload)
     closeCreateWizard()
   }
 
@@ -789,14 +790,10 @@ export default function UrunPlanTarifeTanimlari() {
     if (planSetupView === 'genel') {
       return <PlanGenelBilgilerScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
-    return (
-      <div onClick={(e) => {
-        const target = e.target
-        if (target instanceof HTMLElement && target.closest('[data-card-id="genel"]')) setPlanSetupView('genel')
-      }}>
-        <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} />
-      </div>
-    )
+    return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
+      if (cardId === 'genel') setPlanSetupView('genel')
+      else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
+    }} />
   }
 
   return (
