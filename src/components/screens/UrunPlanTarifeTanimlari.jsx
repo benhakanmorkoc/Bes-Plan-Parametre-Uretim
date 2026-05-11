@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, BriefcaseBusiness, FilePlus, BookOpen, Sparkles, Upload, ArrowRight } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -27,7 +27,7 @@ const BRANCH_OPTIONS = [
   { key: 'saglik', label: 'Sağlık', description: 'ÖSS, TSS ve Seyahat', icon: Heart },
   { key: 'hayat', label: 'Hayat & Kaza', description: 'Hayat ve Ferdi Kaza', icon: Activity },
   { key: 'bireysel', label: 'Bireysel Emeklilik', description: 'BES ve OKS', icon: PiggyBank },
-  { key: 'elementer', label: 'Elementer', description: 'Mühendislik, Oto, Yangın', icon: BriefcaseBusiness },
+  { key: 'elementer', label: 'Elementer', description: 'Mühendislik, Oto, Yangın', icon: Briefcase },
 ]
 
 const SOZLESME_TIPLERI = ['Ferdi', 'Grup', 'EGP', 'OKS', 'OKS-EGP']
