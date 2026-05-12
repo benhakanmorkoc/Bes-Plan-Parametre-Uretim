@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -9,6 +9,7 @@ import {
   odemeAraclari,
   borcTipleri,
   tarifePlanDurum,
+  vakifUyeKurum,
 } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -95,6 +96,27 @@ const PLAN_SETUP_CARDS_EGP = [
     iconClass: 'from-emerald-500 to-teal-600',
     lines: ['Belge tanımı yapılmamıştır', 'TANIMLANAN BELGE SAYISI: 0 Adet'],
   },
+]
+
+const DIGER_TANIMLAR_MENU = [
+  { id: 'istisna', label: 'İstisna Planlar' },
+  { id: 'endeks', label: 'Endeksler' },
+  { id: 'ekFayda', label: 'Ek Fayda' },
+  { id: 'satisKanali', label: 'Satış Kanalı' },
+  { id: 'kurallar', label: 'Kurallar' },
+  { id: 'gonderi', label: 'Gönderi/Basım' },
+  { id: 'degisiklik', label: 'Değişiklik Tanımları' },
+]
+
+const INITIAL_ISTISNA_PLAN_ROWS = [
+  { id: 'ist-1', planId: '', planAdi: 'Emeklilik Fonu A Tipi Plan', baslangic: '2026-01-09', bitis: '2026-01-09' },
+  { id: 'ist-2', planId: '', planAdi: 'Grup Emeklilik Katılım Planı', baslangic: '2026-01-09', bitis: '2026-01-09' },
+  { id: 'ist-3', planId: '', planAdi: 'Standart Bireysel Emeklilik Planı', baslangic: '2026-01-09', bitis: '2026-01-09' },
+]
+
+const ISTISNA_PLAN_ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
 ]
 
 const FON_DELETE_ACTION = [{ key: 'delete', label: 'Sil', icon: 'delete', danger: true }]
@@ -435,6 +457,16 @@ function toHeaderIsoDate(raw) {
 
 function toInputDateValue(raw) {
   return toHeaderIsoDate(raw)
+}
+
+function formatIsoToTrDate(iso) {
+  if (!iso) return '—'
+  const s = String(iso)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-')
+    return `${d}.${m}.${y}`
+  }
+  return s
 }
 
 /** Plan kaydındaki durum metnini Tarife Plan Durum parametre koduna çevirir */
@@ -781,7 +813,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') {
+                  if (card.id === 'egpDetay' || card.id === 'belge') {
                     alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
                     return
                   }
@@ -790,7 +822,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
+                    if (card.id === 'egpDetay' || card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
                     else onOpenCard?.(card.id)
                   }
                 }}
@@ -811,7 +843,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                         className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') alert('Düzenleme ekranı yakında.')
+                          if (card.id === 'egpDetay' || card.id === 'belge') alert('Düzenleme ekranı yakında.')
                           else onOpenCard?.(card.id)
                         }}
                       >
@@ -904,6 +936,283 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
   )
 }
 
+function DigerTanimlarScreen({ plan, urun, onBack }) {
+  const [activeMenu, setActiveMenu] = useState('istisna')
+  const [istisnaTanimlanmayacak, setIstisnaTanimlanmayacak] = useState(false)
+  const [istisnaSearch, setIstisnaSearch] = useState('')
+  const [istisnaRows, setIstisnaRows] = useState(() => INITIAL_ISTISNA_PLAN_ROWS.map((r) => ({ ...r })))
+  const [istisnaModalOpen, setIstisnaModalOpen] = useState(false)
+  const [istisnaEditingId, setIstisnaEditingId] = useState(null)
+  const [istisnaForm, setIstisnaForm] = useState({ planId: '', baslangic: '', bitis: '' })
+
+  const planLookupOptions = useMemo(() => {
+    const out = []
+    Object.entries(urunPlanlari).forEach(([, plans]) => {
+      plans.forEach((p) => {
+        out.push({ id: p.id, ad: p.ad })
+      })
+    })
+    return out.sort((a, b) => a.ad.localeCompare(b.ad, 'tr'))
+  }, [])
+
+  const filteredIstisna = useMemo(() => {
+    const q = istisnaSearch.trim().toLowerCase()
+    if (!q) return istisnaRows
+    return istisnaRows.filter((r) => r.planAdi.toLowerCase().includes(q))
+  }, [istisnaRows, istisnaSearch])
+
+  const openIstisnaModalNew = () => {
+    setIstisnaEditingId(null)
+    setIstisnaForm({ planId: '', baslangic: '', bitis: '' })
+    setIstisnaModalOpen(true)
+  }
+
+  const openIstisnaModalEdit = (row) => {
+    setIstisnaEditingId(row.id)
+    setIstisnaForm({
+      planId: row.planId || planLookupOptions.find((o) => o.ad === row.planAdi)?.id || '',
+      baslangic: row.baslangic || '',
+      bitis: row.bitis || '',
+    })
+    setIstisnaModalOpen(true)
+  }
+
+  const saveIstisnaModal = () => {
+    if (!istisnaForm.planId) return alert('Geçiş yapılamayacak plan seçiniz.')
+    if (!istisnaForm.baslangic) return alert('Başlangıç tarihi zorunludur.')
+    const opt = planLookupOptions.find((o) => o.id === istisnaForm.planId)
+    const planAdi = opt?.ad || istisnaForm.planId
+    if (istisnaEditingId) {
+      setIstisnaRows((prev) =>
+        prev.map((r) =>
+          r.id === istisnaEditingId
+            ? { ...r, planId: istisnaForm.planId, planAdi, baslangic: istisnaForm.baslangic, bitis: istisnaForm.bitis || '' }
+            : r,
+        ),
+      )
+    } else {
+      setIstisnaRows((prev) => [
+        ...prev,
+        {
+          id: `ist-${Date.now()}`,
+          planId: istisnaForm.planId,
+          planAdi,
+          baslangic: istisnaForm.baslangic,
+          bitis: istisnaForm.bitis || '',
+        },
+      ])
+    }
+    setIstisnaModalOpen(false)
+  }
+
+  const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
+
+  return (
+    <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="px-4 md:px-6 py-3 border-b border-slate-100 bg-white shrink-0">
+        <div className="text-[11px] text-slate-500 mb-2">
+          Ürün Yönetimi / Ürün Planları / Plan Detay Sayfası / <span className="text-slate-700 font-medium">Diğer Tanımlar</span>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <button type="button" onClick={onBack} className="mt-0.5 text-slate-500 hover:text-slate-800 p-1 -ml-1 rounded-md hover:bg-slate-100" aria-label="Geri">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-slate-900 truncate">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-auto">
+          <div className="p-3 border-b border-slate-100">
+            <div className="text-sm font-semibold text-slate-800 leading-snug">{urun?.ad || 'Ürün'}</div>
+            <div className="text-[11px] text-slate-500 mt-1 space-y-0.5">
+              <div><span className="text-slate-400">Plan Kodu:</span> {plan?.id || '—'}</div>
+              <div><span className="text-slate-400">Branş:</span> {branchLabelFromUrun(urun)}</div>
+              <div><span className="text-slate-400">Sözleşme Tipi:</span> {urun?.sozlesmeTipi || '—'}</div>
+            </div>
+          </div>
+          <nav className="p-2 flex flex-col gap-0.5">
+            {DIGER_TANIMLAR_MENU.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveMenu(item.id)}
+                className={`text-left text-sm px-3 py-2 rounded-lg transition ${
+                  activeMenu === item.id
+                    ? 'bg-violet-50 text-violet-900 font-medium border border-violet-100'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {activeMenu === 'istisna' ? (
+            <div className="max-w-5xl">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">İstisna Planlar</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara..."
+                    value={istisnaSearch}
+                    onChange={(e) => setIstisnaSearch(e.target.value)}
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-violet-600"
+                    checked={istisnaTanimlanmayacak}
+                    onChange={(e) => setIstisnaTanimlanmayacak(e.target.checked)}
+                  />
+                  İstisna Plan Tanımlanmayacak
+                </label>
+                <div className="sm:ml-auto">
+                  <PrimaryButton
+                    disabled={istisnaTanimlanmayacak}
+                    onClick={openIstisnaModalNew}
+                  >
+                    <Plus className="w-4 h-4" /> Yeni Ekle
+                  </PrimaryButton>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th>
+                        <span className="inline-flex items-center gap-1.5">
+                          Geçiş Yapılamayacak Planlar
+                          <Filter className="w-3.5 h-3.5 text-slate-400" />
+                        </span>
+                      </th>
+                      <th className="whitespace-nowrap w-36">
+                        <span className="inline-flex items-center gap-1.5">
+                          Başlangıç Tarihi
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        </span>
+                      </th>
+                      <th className="whitespace-nowrap w-36">
+                        <span className="inline-flex items-center gap-1.5">
+                          Bitiş Tarihi
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        </span>
+                      </th>
+                      <th className="w-12 text-right">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredIstisna.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.planAdi}</td>
+                        <td>{formatIsoToTrDate(row.baslangic)}</td>
+                        <td>{row.bitis ? formatIsoToTrDate(row.bitis) : '—'}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={ISTISNA_PLAN_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openIstisnaModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setIstisnaRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredIstisna.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-center text-slate-500 py-8">
+                          {istisnaSearch ? 'Arama sonucu bulunamadı.' : 'Kayıt yok.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-2xl rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              <p className="font-medium text-slate-700 mb-1">{DIGER_TANIMLAR_MENU.find((m) => m.id === activeMenu)?.label}</p>
+              <p>Bu modülün ekranı yakında eklenecek.</p>
+            </div>
+          )}
+        </main>
+      </div>
+
+      <Modal
+        open={istisnaModalOpen}
+        onClose={() => setIstisnaModalOpen(false)}
+        title={istisnaEditingId ? 'İstisna Planlar Güncelle' : 'İstisna Planlar Ekle'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setIstisnaModalOpen(false)}>Vazgeç</OutlineButton>
+            <PrimaryButton type="button" onClick={saveIstisnaModal}>Kaydet</PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-blue-600">LOOKUP</span>
+              <span className="text-xs font-medium text-slate-700">
+                Geçiş Yapılamayacak Planlar <span className="text-red-500">*</span>
+              </span>
+            </div>
+            <div className="relative">
+              <select
+                className="form-select w-full appearance-none pr-10"
+                value={istisnaForm.planId}
+                onChange={(e) => setIstisnaForm((f) => ({ ...f, planId: e.target.value }))}
+              >
+                <option value="">Plan seçiniz...</option>
+                {planLookupOptions.map((o) => (
+                  <option key={o.id} value={o.id}>{o.ad}</option>
+                ))}
+              </select>
+              <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Başlangıç Tarihi <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="date"
+              className="form-input"
+              value={istisnaForm.baslangic}
+              onChange={(e) => setIstisnaForm((f) => ({ ...f, baslangic: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Bitiş Tarihi</span>
+            <input
+              type="date"
+              className="form-input"
+              value={istisnaForm.bitis}
+              onChange={(e) => setIstisnaForm((f) => ({ ...f, bitis: e.target.value }))}
+            />
+          </label>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
   const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
@@ -930,14 +1239,13 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       maxGirisYasi: '',
       emanetFon: 'FON1',
       gecerliSozlesmeCinsi: '',
-      vakifAktarim: '',
-      vakifAktarimSuresi: '',
+      vakifAktarim: false,
+      uyeKurumKod: '',
       odemeAraciKodlari: [],
       borcTipiKodlari: [],
       katilimEsasli: Boolean(plan?.katilimEsasli),
       vatandaslikPlani: false,
       aktarimaOzelPlan: false,
-      vakifAktarimCheck: false,
       masrafliSatis: false,
       betas: false,
       hedefKitle: plan?.hedefKitle || '',
@@ -1073,10 +1381,50 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
 
               <div className="md:col-span-4">
                 <span className="block text-xs font-medium text-slate-600 mb-2">Özellikler</span>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
-                  Aktarım Özel Planı
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
+                    Vatandaşlık Planı
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
+                    Aktarım Özel Planı
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
+                    Mesafeli Satış
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
+                    BEFAS
+                  </label>
+                </div>
+              </div>
+
+              <div className="md:col-span-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={form.vakifAktarim}
+                    onChange={(e) => {
+                      const c = e.target.checked
+                      setForm((prev) => ({ ...prev, vakifAktarim: c, uyeKurumKod: c ? prev.uyeKurumKod : '' }))
+                    }}
+                    className="rounded border-slate-300"
+                  />
+                  Vakıf Aktarım
                 </label>
+                {form.vakifAktarim ? (
+                  <label className="block flex-1 min-w-[220px] max-w-xl">
+                    <span className="block text-xs font-medium text-slate-600 mb-1">Üye Kurum</span>
+                    <select className="form-select" value={form.uyeKurumKod} onChange={(e) => setValue('uyeKurumKod', e.target.value)}>
+                      <option value="">Seçiniz</option>
+                      {vakifUyeKurum.map((v) => (
+                        <option key={v.kod} value={v.kod}>{v.aciklama}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
               </div>
 
               <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1261,32 +1609,44 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                 </label>
                 <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
-                  Aktarıma Özel Plan
+                  Aktarım Özel Planı
                 </label>
                 <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
-                  Masraflı Satış
+                  Mesafeli Satış
                 </label>
                 <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
-                  Betas
+                  BEFAS
                 </label>
               </div>
             </div>
 
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Vakf Aktarımı</span>
-              <select className="form-select" value={form.vakifAktarim} onChange={(e) => setValue('vakifAktarim', e.target.value)}>
-                <option value="">Seçiniz</option>
-                <option value="yes">Vakıf Aktarımı</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Vakf. Aktarım Süresi</span>
-              <select className="form-select" value={form.vakifAktarimSuresi} onChange={(e) => setValue('vakifAktarimSuresi', e.target.value)}>
-                <option value="">Seçiniz</option>
-              </select>
-            </label>
+            <div className="md:col-span-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={form.vakifAktarim}
+                  onChange={(e) => {
+                    const c = e.target.checked
+                    setForm((prev) => ({ ...prev, vakifAktarim: c, uyeKurumKod: c ? prev.uyeKurumKod : '' }))
+                  }}
+                  className="rounded border-slate-300"
+                />
+                Vakıf Aktarım
+              </label>
+              {form.vakifAktarim ? (
+                <label className="block flex-1 min-w-[220px] max-w-xl">
+                  <span className="block text-xs font-medium text-slate-600 mb-1">Üye Kurum</span>
+                  <select className="form-select" value={form.uyeKurumKod} onChange={(e) => setValue('uyeKurumKod', e.target.value)}>
+                    <option value="">Seçiniz</option>
+                    {vakifUyeKurum.map((v) => (
+                      <option key={v.kod} value={v.kod}>{v.aciklama}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
 
             <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <OksMultiSelectDropdown
@@ -3538,11 +3898,15 @@ export default function UrunPlanTarifeTanimlari() {
     if (planSetupView === 'kesinti') {
       return <KesintilerScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
+    if (planSetupView === 'diger') {
+      return <DigerTanimlarScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
+    }
     return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
       else if (cardId === 'fonlar') setPlanSetupView('fonlar')
       else if (cardId === 'katki') setPlanSetupView('katki')
       else if (cardId === 'kesinti') setPlanSetupView('kesinti')
+      else if (cardId === 'diger') setPlanSetupView('diger')
       else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
     }} />
   }
