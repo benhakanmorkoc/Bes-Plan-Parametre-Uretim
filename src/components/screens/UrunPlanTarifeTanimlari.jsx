@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2 } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -13,6 +13,9 @@ import {
   egpBireyTipi,
   katkiPayiHesaplama,
   egpGeriOdemeTipleri,
+  egpGenel,
+  egpGeriOdeme,
+  egpAraOdeme,
 } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -128,13 +131,6 @@ const EGP_DETAY_SUBMENU = [
   { id: 'araOdeme', label: 'Ara Ödeme Parametreleri' },
 ]
 
-const EGP_PLAN_GENEL_DOVIZ = [
-  { kod: 'TRL', label: 'TRL' },
-  { kod: 'USD', label: 'USD' },
-  { kod: 'EUR', label: 'EUR' },
-  { kod: 'TRY', label: 'TRY' },
-]
-
 function egpBireyTipiLabel(kod) {
   const r = egpBireyTipi.find((x) => x.kod === kod)
   return r ? r.ad : kod || '—'
@@ -155,6 +151,55 @@ function formatEgpGeriOdemeTipEtiket(tanimAdi) {
     Faiz: 'Faiz',
   }
   return m[tanimAdi] || tanimAdi || '—'
+}
+
+function parseDdMmYyyyToIso(tr) {
+  const parts = String(tr || '').split('.')
+  if (parts.length !== 3) return new Date().toISOString().slice(0, 10)
+  const [d, m, y] = parts
+  if (!y || !m || !d) return new Date().toISOString().slice(0, 10)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+/** EGP genel şablon satırı → plan tablosu `bireyTipiKod` */
+function mapEgpGenelBireyTipiToKod(label) {
+  const raw = String(label || '').trim()
+  if (!raw) return 'FP'
+  const byKod = egpBireyTipi.find((x) => x.kod === raw)
+  if (byKod) return byKod.kod
+  const low = raw.toLowerCase()
+  const byAd = egpBireyTipi.find((x) => x.ad.toLowerCase() === low)
+  if (byAd) return byAd.kod
+  if (low.includes('fert') || low.includes('bireysel')) return 'FP'
+  if (low.includes('çocuk') || low.includes('cocuk')) return 'C'
+  if (low.includes('eş') || low.includes('es')) return 'E'
+  return 'FP'
+}
+
+/** Şablondaki endeks tipi (TUFE/UFE) → katkı payı hesaplama hesap kodu */
+function mapEgpGenelEndeksTipiToHesapKodu(endeksTipi) {
+  const k = String(endeksTipi || '').trim().toUpperCase()
+  if (k === 'TUFE') {
+    const t = katkiPayiHesaplama.find((h) => String(h.hesapAdi).toUpperCase() === 'TUFE')
+    return t ? String(t.hesapKodu) : '2'
+  }
+  if (k === 'UFE' || k.includes('UFE')) {
+    const u = katkiPayiHesaplama.find((h) => String(h.hesapAdi).toUpperCase().includes('UFE'))
+    return u ? String(u.hesapKodu) : '11'
+  }
+  const exact = katkiPayiHesaplama.find((h) => String(h.hesapAdi).toUpperCase() === k)
+  return exact ? String(exact.hesapKodu) : '2'
+}
+
+/** EGP geri ödeme şablonu `tip` metni → plan satırı `tanimAdi` (parametre listesi anahtarı) */
+function geriOdemeTanimAdiFromTemplateTip(tip) {
+  const t = String(tip || '').toLowerCase()
+  if (t.includes('süre') && t.includes('bazlı')) return 'Sureye Bagli'
+  if (t.includes('sure') && t.includes('bazli')) return 'Sureye Bagli'
+  if (t.includes('tutar') && (t.includes('bazlı') || t.includes('bazli'))) return 'Tutara Bagli'
+  if (t.includes('sureye') || t.includes('süreye')) return 'Sureye Bagli'
+  if (t.includes('tutara')) return 'Tutara Bagli'
+  return 'Sureye Bagli'
 }
 
 const EGP_GERI_ODEME_ROW_ACTIONS = [
@@ -1290,16 +1335,8 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
     { id: 'pegp-2', gecerlilikTarihi: '2024-06-01', dovizKodu: 'USD', bireyTipiKod: 'FP', minBirikim: '30000', endeksYil: 2, endeksHesapKodu: '1' },
     { id: 'pegp-3', gecerlilikTarihi: '2024-01-01', dovizKodu: 'TRL', bireyTipiKod: 'C', minBirikim: '10000', endeksYil: 1, endeksHesapKodu: '2' },
   ])
-  const [genelModalOpen, setGenelModalOpen] = useState(false)
-  const [genelEditingId, setGenelEditingId] = useState(null)
-  const [genelForm, setGenelForm] = useState({
-    gecerlilikTarihi: '',
-    dovizKodu: '',
-    bireyTipiKod: '',
-    minBirikim: '',
-    endeksYil: '',
-    endeksHesapKodu: '',
-  })
+  /** EGP şablon seçici: genel / geri ödeme / ara ödeme */
+  const [egpTemplatePicker, setEgpTemplatePicker] = useState({ open: false, kind: null })
 
   const [geriOdemeRows, setGeriOdemeRows] = useState(() => [
     { id: 'ego-1', tanimAdi: 'Sureye Bagli', sureAlt: 5, sureUst: 10, tutarAlt: 10000, tutarUst: 500000, oranUst: 80, faiz: 5.5 },
@@ -1313,10 +1350,66 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
 
   const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
 
+  const openEgpTemplatePicker = (kind) => {
+    setEgpTemplatePicker({ open: true, kind })
+  }
+
+  const closeEgpTemplatePicker = () => {
+    setEgpTemplatePicker({ open: false, kind: null })
+  }
+
+  const applyEgpGenelTemplate = (tpl) => {
+    const yil = Number(String(tpl.kacYil).trim())
+    if (Number.isNaN(yil)) return
+    setGenelRows((prev) => [
+      ...prev,
+      {
+        id: `pegp-tpl-${tpl.id}-${Date.now()}`,
+        gecerlilikTarihi: parseDdMmYyyyToIso(tpl.tarih),
+        dovizKodu: tpl.doviz,
+        bireyTipiKod: mapEgpGenelBireyTipiToKod(tpl.bireyTipi),
+        minBirikim: String(tpl.minBirikim).replace(/\s/g, ''),
+        endeksYil: yil,
+        endeksHesapKodu: mapEgpGenelEndeksTipiToHesapKodu(tpl.endeksTipi),
+      },
+    ])
+    closeEgpTemplatePicker()
+  }
+
+  const applyEgpGeriOdemeTemplate = (tpl) => {
+    setGeriOdemeRows((prev) => [
+      ...prev,
+      {
+        id: `ego-tpl-${tpl.id}-${Date.now()}`,
+        tanimAdi: geriOdemeTanimAdiFromTemplateTip(tpl.tip),
+        sureAlt: Number(tpl.sureAlt),
+        sureUst: Number(tpl.sureUst),
+        tutarAlt: Number(tpl.tutarAlt),
+        tutarUst: Number(tpl.tutarUst),
+        oranUst: Number(tpl.oranUst),
+        faiz: Number(tpl.faiz),
+      },
+    ])
+    closeEgpTemplatePicker()
+  }
+
+  const applyEgpAraOdemeTemplate = (tpl) => {
+    setAraOdemeRows((prev) => [
+      ...prev,
+      {
+        id: `eao-tpl-${tpl.id}-${Date.now()}`,
+        sayiAlt: Number(tpl.sayiAlt),
+        sayiUst: Number(tpl.sayiUst),
+        tutarUst: Number(tpl.tutarUst),
+        oranBirikim: Number(tpl.oranBirikim),
+        oranMaas: Number(tpl.oranMaas),
+      },
+    ])
+    closeEgpTemplatePicker()
+  }
+
   const openGeriOdemeModalNew = () => {
-    setGeriOdemeEditingId(null)
-    setGeriOdemeForm({ ...EGP_GERI_ODEME_FORM_DEFAULT })
-    setGeriOdemeModalOpen(true)
+    openEgpTemplatePicker('geriOdeme')
   }
 
   const clearGeriOdemeForm = () => {
@@ -1369,9 +1462,7 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
   const [araOdemeForm, setAraOdemeForm] = useState(() => ({ ...EGP_ARA_ODEME_FORM_DEFAULT }))
 
   const openAraOdemeModalNew = () => {
-    setAraOdemeEditingId(null)
-    setAraOdemeForm({ ...EGP_ARA_ODEME_FORM_DEFAULT })
-    setAraOdemeModalOpen(true)
+    openEgpTemplatePicker('araOdeme')
   }
 
   const openAraOdemeModalEdit = (row) => {
@@ -1404,43 +1495,6 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
       setAraOdemeRows((prev) => [...prev, payload])
     }
     setAraOdemeModalOpen(false)
-  }
-
-  const openGenelModalNew = () => {
-    setGenelEditingId(null)
-    setGenelForm({
-      gecerlilikTarihi: '',
-      dovizKodu: '',
-      bireyTipiKod: '',
-      minBirikim: '',
-      endeksYil: '',
-      endeksHesapKodu: '',
-    })
-    setGenelModalOpen(true)
-  }
-
-  const saveGenelModal = () => {
-    if (!genelForm.gecerlilikTarihi) return alert('Geçerlilik tarihi zorunludur.')
-    if (!genelForm.dovizKodu) return alert('Döviz kodu zorunludur.')
-    if (!String(genelForm.minBirikim).trim()) return alert('Min. birikim tutarı zorunludur.')
-    const yil = String(genelForm.endeksYil).trim()
-    if (yil === '' || Number.isNaN(Number(yil))) return alert('Min. birikim tutarı kaç yılda bir endekslenecek alanı zorunludur.')
-    if (!genelForm.endeksHesapKodu) return alert('Min. birikim tutarı endeks tipi zorunludur.')
-    const payload = {
-      id: genelEditingId || `pegp-${Date.now()}`,
-      gecerlilikTarihi: genelForm.gecerlilikTarihi,
-      dovizKodu: genelForm.dovizKodu,
-      bireyTipiKod: genelForm.bireyTipiKod || '',
-      minBirikim: String(genelForm.minBirikim).replace(/\s/g, ''),
-      endeksYil: Number(yil),
-      endeksHesapKodu: genelForm.endeksHesapKodu,
-    }
-    if (genelEditingId) {
-      setGenelRows((prev) => prev.map((r) => (r.id === genelEditingId ? payload : r)))
-    } else {
-      setGenelRows((prev) => [...prev, payload])
-    }
-    setGenelModalOpen(false)
   }
 
   return (
@@ -1493,8 +1547,8 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
             <div className="max-w-6xl">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-sm font-semibold text-slate-800">EGP Genel Parametreler</h3>
-                <PrimaryButton onClick={openGenelModalNew} className="bg-violet-600 hover:bg-violet-700">
-                  <Plus className="w-4 h-4" /> Ekle
+                <PrimaryButton onClick={() => openEgpTemplatePicker('genel')} className="bg-violet-600 hover:bg-violet-700">
+                  <Link2 className="w-4 h-4" /> Template Bağla
                 </PrimaryButton>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
@@ -1541,7 +1595,7 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-sm font-semibold text-slate-800">Geri Ödeme Tipleri</h3>
                 <PrimaryButton onClick={openGeriOdemeModalNew} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4" /> Ekle
+                  <Link2 className="w-4 h-4" /> Template Bağla
                 </PrimaryButton>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
@@ -1604,7 +1658,7 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-sm font-semibold text-slate-800">Ara Ödeme Parametreleri</h3>
                 <PrimaryButton onClick={openAraOdemeModalNew} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4" /> Ekle
+                  <Link2 className="w-4 h-4" /> Template Bağla
                 </PrimaryButton>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
@@ -1668,98 +1722,115 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
       </div>
 
       <Modal
-        open={genelModalOpen}
-        onClose={() => setGenelModalOpen(false)}
-        title="EGP Genel Parametre Ekle"
-        description="EGP için yeni genel parametre tanımlayın"
-        footer={
-          <>
-            <OutlineButton type="button" onClick={() => setGenelModalOpen(false)}>İptal</OutlineButton>
-            <PrimaryButton type="button" onClick={saveGenelModal} className="bg-violet-600 hover:bg-violet-700">Kaydet</PrimaryButton>
-          </>
-        }
+        open={egpTemplatePicker.open}
+        onClose={closeEgpTemplatePicker}
+        size="xl"
+        title="Template Bağla"
+        description="Plana eklemek istediğiniz şablon satırına çift tıklayın."
+        footer={<OutlineButton type="button" onClick={closeEgpTemplatePicker}>Kapat</OutlineButton>}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Geçerlilik Tarihi <span className="text-red-500">*</span>
-            </span>
-            <input
-              type="date"
-              className="form-input"
-              value={genelForm.gecerlilikTarihi}
-              onChange={(e) => setGenelForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))}
-            />
-          </label>
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Döviz Kodu <span className="text-red-500">*</span>
-            </span>
-            <select
-              className="form-select"
-              value={genelForm.dovizKodu}
-              onChange={(e) => setGenelForm((f) => ({ ...f, dovizKodu: e.target.value }))}
-            >
-              <option value="">Seçiniz</option>
-              {EGP_PLAN_GENEL_DOVIZ.map((d) => (
-                <option key={d.kod} value={d.kod}>{d.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Birey Tipi</span>
-            <select
-              className="form-select"
-              value={genelForm.bireyTipiKod}
-              onChange={(e) => setGenelForm((f) => ({ ...f, bireyTipiKod: e.target.value }))}
-            >
-              <option value="">Seçiniz</option>
-              {egpBireyTipi.map((b) => (
-                <option key={b.kod} value={b.kod}>{b.ad}{b.aciklama && b.aciklama !== b.ad ? ` — ${b.aciklama}` : ''}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Min. Birikim Tutarı <span className="text-red-500">*</span>
-            </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="form-input"
-              placeholder="0,00"
-              value={genelForm.minBirikim}
-              onChange={(e) => setGenelForm((f) => ({ ...f, minBirikim: e.target.value }))}
-            />
-          </label>
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Min. Birikim Tutar Kaç Yılda Bir Endekslenecek? <span className="text-red-500">*</span>
-            </span>
-            <input
-              type="number"
-              min={0}
-              className="form-input"
-              value={genelForm.endeksYil}
-              onChange={(e) => setGenelForm((f) => ({ ...f, endeksYil: e.target.value }))}
-            />
-          </label>
-          <label className="block md:col-span-1">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Min. Birikim Tutarı Endeks Tipi <span className="text-red-500">*</span>
-            </span>
-            <select
-              className="form-select"
-              value={genelForm.endeksHesapKodu}
-              onChange={(e) => setGenelForm((f) => ({ ...f, endeksHesapKodu: e.target.value }))}
-            >
-              <option value="">Seçiniz</option>
-              {katkiPayiHesaplama.map((h) => (
-                <option key={h.id} value={String(h.hesapKodu)}>{h.hesapAdi} ({h.hesapKodu})</option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {egpTemplatePicker.kind === 'genel' && (
+          <div className="rounded-lg border border-slate-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="text-left font-semibold px-3 py-2.5">EGP Parametre Kodu</th>
+                  <th className="text-left font-semibold px-3 py-2.5">EGP Parametre Adı</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Versiyon</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Döviz Kodu</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Birey Tipi</th>
+                  <th className="text-right font-semibold px-3 py-2.5">Minimum Birikim Tutarı</th>
+                  <th className="text-right font-semibold px-3 py-2.5">Endekslem Frekansı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {egpGenel.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 hover:bg-violet-50/50 cursor-pointer"
+                    onDoubleClick={() => applyEgpGenelTemplate(row)}
+                  >
+                    <td className="px-3 py-2 text-slate-800">{row.kod}</td>
+                    <td className="px-3 py-2 text-slate-800">{row.ad}</td>
+                    <td className="px-3 py-2 tabular-nums">{row.versiyon}</td>
+                    <td className="px-3 py-2">{row.doviz}</td>
+                    <td className="px-3 py-2">{row.bireyTipi}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{Number(String(row.minBirikim).replace(/\s/g, '')).toLocaleString('tr-TR')}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.kacYil}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {egpTemplatePicker.kind === 'geriOdeme' && (
+          <div className="rounded-lg border border-slate-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-[920px]">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="text-left font-semibold px-3 py-2.5">Geri Ödeme Kodu</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Geri Ödeme Adı</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Geri Ödeme Tipi</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Versiyon</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Geri Ödeme Süresi(Yıl) Alt Limiti</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Geri Ödeme Süresi(Yıl) Üst Limiti</th>
+                </tr>
+              </thead>
+              <tbody>
+                {egpGeriOdeme.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 hover:bg-violet-50/50 cursor-pointer"
+                    onDoubleClick={() => applyEgpGeriOdemeTemplate(row)}
+                  >
+                    <td className="px-3 py-2 text-slate-800">{row.kod}</td>
+                    <td className="px-3 py-2 text-slate-800">{row.ad}</td>
+                    <td className="px-3 py-2">{row.tip}</td>
+                    <td className="px-3 py-2 tabular-nums">{row.versiyon}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.sureAlt}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.sureUst}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {egpTemplatePicker.kind === 'araOdeme' && (
+          <div className="rounded-lg border border-slate-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-[1100px]">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr>
+                  <th className="text-left font-semibold px-3 py-2.5">Ara Ödeme Kodu</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Ara Ödeme Adı</th>
+                  <th className="text-left font-semibold px-3 py-2.5">Versiyon</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Ara Ödeme Sayısı Alt Limiti</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Ara Ödeme Sayısı Üst Limiti</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Ara Ödeme Tutarı Üst Limiti</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Üst Limit Ara Ödeme Oranı Birikim</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Üst Limit Ara Ödeme Oranı Yıllık Maaş</th>
+                </tr>
+              </thead>
+              <tbody>
+                {egpAraOdeme.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 hover:bg-violet-50/50 cursor-pointer"
+                    onDoubleClick={() => applyEgpAraOdemeTemplate(row)}
+                  >
+                    <td className="px-3 py-2 text-slate-800">{row.kod}</td>
+                    <td className="px-3 py-2 text-slate-800">{row.ad}</td>
+                    <td className="px-3 py-2 tabular-nums">{row.versiyon}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.sayiAlt}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.sayiUst}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{Number(row.tutarUst).toLocaleString('tr-TR')}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.oranBirikim}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.oranMaas}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
 
       <Modal

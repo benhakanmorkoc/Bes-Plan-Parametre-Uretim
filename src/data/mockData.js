@@ -121,13 +121,13 @@ export const ygkBes30 = [
 
 // --- EGP ---
 export const egpGenel = [
-  { id: 1, kod: 'EGPG-001', ad: 'EGP Genel Parametre', versiyon: '1', tarih: '01.01.2024', doviz: 'TRY', bireyTipi: 'Bireysel', minBirikim: '5000', kacYil: '5', endeksTipi: 'TUFE' },
-  { id: 2, kod: 'EGPG-002', ad: 'EGP Genel (Alternatif)', versiyon: '2', tarih: '01.06.2024', doviz: 'TRY', bireyTipi: 'Bireysel', minBirikim: '7500', kacYil: '7', endeksTipi: 'UFE' },
+  { id: 1, kod: 'EGPG-001', ad: 'EGP Genel Parametre', versiyon: '1', tarih: '01.01.2024', doviz: 'TRY', bireyTipi: 'Fert', minBirikim: '5000', kacYil: '5', endeksTipi: 'TUFE' },
+  { id: 2, kod: 'EGPG-002', ad: 'EGP Genel (Alternatif)', versiyon: '2', tarih: '01.06.2024', doviz: 'TRY', bireyTipi: 'Fert', minBirikim: '7500', kacYil: '7', endeksTipi: 'UFE' },
 ]
 
 export const egpGeriOdeme = [
-  { id: 1, kod: 'EGPGO-001', ad: 'EGP Geri Odeme Kurali', versiyon: '1', tip: 'Bakiyeye Orantili', tarih: '01.01.2024', sureAlt: '1', sureUst: '5', tutarAlt: '5000', tutarUst: '100000', oranUst: '25', faiz: '5' },
-  { id: 2, kod: 'EGPGO-002', ad: 'EGP Geri Odeme Esnek', versiyon: '1', tip: 'Sabit', tarih: '01.06.2024', sureAlt: '2', sureUst: '8', tutarAlt: '7500', tutarUst: '150000', oranUst: '30', faiz: '6' },
+  { id: 1, kod: 'EGPGO-001', ad: 'EGP Geri Odeme Kurali', versiyon: '1', tip: 'Süre Bazlı Ödeme', tarih: '01.01.2024', sureAlt: '1', sureUst: '5', tutarAlt: '5000', tutarUst: '100000', oranUst: '25', faiz: '5' },
+  { id: 2, kod: 'EGPGO-002', ad: 'EGP Geri Odeme Esnek', versiyon: '1', tip: 'Tutar Bazlı Ödeme', tarih: '01.06.2024', sureAlt: '2', sureUst: '8', tutarAlt: '7500', tutarUst: '150000', oranUst: '30', faiz: '6' },
 ]
 
 export const egpAraOdeme = [
