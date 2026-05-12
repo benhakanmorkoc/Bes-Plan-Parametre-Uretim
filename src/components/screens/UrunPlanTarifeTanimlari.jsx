@@ -51,13 +51,57 @@ const BRANCH_OPTIONS = [
 ]
 
 const SOZLESME_TIPLERI = ['Ferdi', 'Grup', 'EGP', 'OKS', 'OKS-EGP']
+
+/** Plan konfigürasyon kartı — demo oranları (çubuk rengi yüzdeye göre) */
+function planKonfigProgressTone(pct) {
+  const p = Number(pct) || 0
+  if (p >= 100) return { bar: 'bg-emerald-600', text: 'text-emerald-700' }
+  if (p >= 75) return { bar: 'bg-lime-500', text: 'text-lime-700' }
+  if (p >= 50) return { bar: 'bg-yellow-400', text: 'text-yellow-700' }
+  if (p >= 20) return { bar: 'bg-orange-500', text: 'text-orange-600' }
+  return { bar: 'bg-red-500', text: 'text-red-600' }
+}
+
+function planKonfigRingStroke(pct) {
+  const p = Number(pct) || 0
+  if (p >= 100) return '#059669'
+  if (p >= 75) return '#84cc16'
+  if (p >= 50) return '#ca8a04'
+  if (p >= 20) return '#ea580c'
+  return '#dc2626'
+}
+
+function aggregatePlanSetupHeader(cards) {
+  if (!cards?.length) return { pct: 0, score: '0/6' }
+  const pct = Math.round(cards.reduce((s, c) => s + (Number(c.bar) || 0), 0) / cards.length)
+  let sum = 0
+  for (const c of cards) {
+    const m = /^(\d+)\//.exec(String(c.score ?? ''))
+    if (m) sum += Number(m[1])
+  }
+  const step = Math.round(sum / cards.length)
+  return { pct, score: `${Math.min(6, Math.max(0, step))}/6` }
+}
+
+function aggregateEgpPlanHeader(cards) {
+  if (!cards?.length) return { pct: 0, score: '0/6' }
+  const pct = Math.round(cards.reduce((s, c) => s + (Number(c.progress?.pct) || 0), 0) / cards.length)
+  let sum = 0
+  for (const c of cards) {
+    const m = /^(\d+)\//.exec(String(c.progress?.score ?? ''))
+    if (m) sum += Number(m[1])
+  }
+  const step = Math.round(sum / cards.length)
+  return { pct, score: `${Math.min(6, Math.max(0, step))}/6` }
+}
+
 const PLAN_SETUP_CARDS = [
-  { id: 'genel', title: 'Genel Bilgiler', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['Kategori Kodu: BES-AD', 'Sözleşme Tipi: Ferdi'] },
-  { id: 'fonlar', title: 'Fonlar ve Fon Karmaları', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['TANIMLANAN FON: 5 Adet', 'DEVLET KATKI FONU', 'ACİL EMEKLİLİK FONU'] },
-  { id: 'katki', title: 'Katkı Payı Tanımları', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['TANIMLANAN KATKI PAYI', '5 Adet', 'ASGARİ KATKI PAYI 1200 TL'] },
-  { id: 'kesinti', title: 'Kesintiler', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['ÖZET', 'Giriş Aidatı, YKG tanımlanmıştır', 'ÇIKIŞ AİDATI', 'Çıkışa erteleme'] },
-  { id: 'diger', title: 'Diğer Tanımlar', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
-  { id: 'belge', title: 'Plan Belgeleri', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
+  { id: 'genel', title: 'Genel Bilgiler', update: '30.12.2023', bar: 37, score: '2/6', lines: ['Kategori Kodu: BES-AD', 'Sözleşme Tipi: Ferdi'] },
+  { id: 'fonlar', title: 'Fonlar ve Fon Karmaları', update: '30.12.2023', bar: 34, score: '2/6', lines: ['TANIMLANAN FON: 5 Adet', 'DEVLET KATKI FONU', 'ACİL EMEKLİLİK FONU'] },
+  { id: 'katki', title: 'Katkı Payı Tanımları', update: '30.12.2025', bar: 8, score: '0/6', lines: ['TANIMLANAN KATKI PAYI', '5 Adet', 'ASGARİ KATKI PAYI 1200 TL'] },
+  { id: 'kesinti', title: 'Kesintiler', update: '10.12.2025', bar: 55, score: '3/6', lines: ['ÖZET', 'Giriş Aidatı, YKG tanımlanmıştır', 'ÇIKIŞ AİDATI', 'Çıkışa erteleme'] },
+  { id: 'diger', title: 'Diğer Tanımlar', update: '10.12.2025', bar: 82, score: '5/6', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
+  { id: 'belge', title: 'Plan Belgeleri', update: '10.12.2025', bar: 100, score: '6/6', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
 ]
 
 /** EGP emeklilik gelir planı — kart ızgarası (referans UI) */
@@ -68,7 +112,7 @@ const PLAN_SETUP_CARDS_EGP = [
     update: '30.12.2023',
     icon: 'settings',
     iconClass: 'from-violet-500 to-violet-700',
-    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
+    progress: { label: 'TANIMLAMA', pct: 37, score: '2/6' },
     lines: ['Kategori Kodu: BES-EGP', 'Sözleşme Tipi: EGP'],
   },
   {
@@ -77,34 +121,34 @@ const PLAN_SETUP_CARDS_EGP = [
     update: '30.12.2023',
     icon: 'check',
     iconClass: 'from-emerald-500 to-teal-600',
-    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
+    progress: { label: 'TANIMLAMA', pct: 34, score: '2/6' },
     lines: ['TANIMLANAN FON', '5 Adet', 'DEVLET KATKISI FONU', 'AGITO KATKI EMEKLİLİK FONU'],
     footerChips: ['Fon Karması'],
   },
   {
     id: 'egpDetay',
     title: 'EGP Detay Parametreleri',
-    update: '30.12.2023',
+    update: '30.12.2025',
     icon: 'sliders',
     iconClass: 'from-violet-500 to-indigo-700',
-    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
+    progress: { label: 'TANIMLAMA', pct: 55, score: '3/6' },
     lines: ['EGP özel parametreleri tanımlanmıştır', 'GELİR PLANI TİPİ: Ömür Boyu Gelir'],
     footerChips: ['EGP Genel Parametreler', 'Geri Ödeme Tipleri', 'Ara Ödeme Parametreleri'],
   },
   {
     id: 'diger',
     title: 'Diğer Tanımlar',
-    update: '30.12.2023',
+    update: '10.12.2025',
     icon: 'check',
     iconClass: 'from-emerald-500 to-teal-600',
-    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
+    progress: { label: 'TANIMLAMA', pct: 82, score: '5/6' },
     lines: ['İstisna Planları, Endeksler, Ek Faydalar, Kurallar ve Sevkiyatlar tanımlanmıştır.'],
     footerChips: ['İstisna Planlar', 'Endeksler', 'Ek Fayda', '+2'],
   },
   {
     id: 'belge',
     title: 'Plana Ait Belgeler',
-    update: '30.12.2023',
+    update: '10.12.2025',
     icon: 'file',
     iconClass: 'from-emerald-500 to-teal-600',
     progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
@@ -924,20 +968,20 @@ function PlanHeaderProgressRing({ pct = 20, stepText = '2/6' }) {
   const r = 15.5
   const c = 2 * Math.PI * r
   const dash = (pct / 100) * c
-  const complete = pct >= 100
-  const stroke = complete ? '#059669' : '#7c3aed'
+  const stroke = planKonfigRingStroke(pct)
+  const tone = planKonfigProgressTone(pct)
   return (
     <div className="flex items-center gap-3">
       <div className="text-right">
         <div className="text-[10px] text-slate-400 uppercase tracking-wide">Tamamlanma</div>
-        <div className={`text-sm font-semibold ${complete ? 'text-emerald-700' : 'text-slate-800'}`}>{pct}%</div>
+        <div className={`text-sm font-semibold tabular-nums ${tone.text}`}>{pct}%</div>
       </div>
       <div className="relative w-[52px] h-[52px] shrink-0">
         <svg className="w-[52px] h-[52px] -rotate-90" viewBox="0 0 36 36" aria-hidden>
           <circle cx="18" cy="18" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3" />
           <circle cx="18" cy="18" r={r} fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
         </svg>
-        <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${complete ? 'text-emerald-800' : 'text-slate-700'}`}>{stepText}</span>
+        <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums ${tone.text}`}>{stepText}</span>
       </div>
     </div>
   )
@@ -1149,6 +1193,10 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
     ? PLAN_SETUP_CARDS.filter((card) => card.id !== 'katki' && card.id !== 'kesinti')
     : PLAN_SETUP_CARDS
 
+  const headerAgg = useMemo(() => aggregatePlanSetupHeader(visibleCards), [visibleCards])
+  const egpHeaderAgg = useMemo(() => aggregateEgpPlanHeader(PLAN_SETUP_CARDS_EGP), [])
+  const headerTone = planKonfigProgressTone(headerAgg.pct)
+
   const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
 
   const CardIcon = ({ name }) => {
@@ -1173,13 +1221,15 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
               <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
             </div>
           </div>
-          <PlanHeaderProgressRing pct={100} stepText="6/6" />
+          <PlanHeaderProgressRing pct={egpHeaderAgg.pct} stepText={egpHeaderAgg.score} />
         </div>
 
         <div className="flex-1 overflow-auto p-4 md:p-6">
           <h3 className="text-sm font-semibold text-slate-800 mb-4">Plan Konfigürasyonu</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
-            {PLAN_SETUP_CARDS_EGP.map((card) => (
+            {PLAN_SETUP_CARDS_EGP.map((card) => {
+              const tone = card.progress ? planKonfigProgressTone(card.progress.pct) : { bar: 'bg-slate-300', text: 'text-slate-500' }
+              return (
               <div
                 key={card.id}
                 role="button"
@@ -1219,14 +1269,9 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                       <div className="mt-3">
                         <div className="text-[10px] text-slate-500 mb-1">{card.progress.label}</div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${card.progress.pct >= 100 ? 'bg-emerald-600' : 'bg-blue-500'}`}
-                            style={{ width: `${card.progress.pct}%` }}
-                          />
+                          <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${card.progress.pct}%` }} />
                         </div>
-                        <div
-                          className={`text-[11px] text-right mt-1 font-medium tabular-nums ${card.progress.pct >= 100 ? 'text-emerald-700' : 'text-slate-500'}`}
-                        >
+                        <div className={`text-[11px] text-right mt-1 font-medium tabular-nums ${tone.text}`}>
                           %{card.progress.pct} {card.progress.score}
                         </div>
                       </div>
@@ -1251,7 +1296,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </div>
@@ -1273,30 +1318,39 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
         </div>
         <div className="min-w-[140px]">
           <div className="text-[10px] text-slate-400 uppercase tracking-wide text-right">Tamamlanma</div>
-          <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: '100%' }} /></div>
-          <div className="text-xs font-semibold text-emerald-700 text-right mt-1 tabular-nums">%100 6/6</div>
+          <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className={`h-full ${headerTone.bar}`} style={{ width: `${headerAgg.pct}%` }} />
+          </div>
+          <div className={`text-xs font-semibold text-right mt-1 tabular-nums ${headerTone.text}`}>
+            %{headerAgg.pct} {headerAgg.score}
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-3 md:p-4 bg-slate-50/30">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {visibleCards.map((card) => (
+          {visibleCards.map((card) => {
+            const tone = planKonfigProgressTone(card.bar)
+            const showCheck = card.score !== '0/6'
+            return (
             <button key={card.id} data-card-id={card.id} type="button" onClick={() => onOpenCard?.(card.id)} className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:border-violet-300 transition">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">{card.title}</h3>
                   <div className="text-[11px] text-slate-400 mt-0.5">Son Güncelleme Tarihi: {card.update}</div>
                 </div>
-                <span className="w-4 h-4 rounded-full border border-emerald-300 text-emerald-500 inline-flex items-center justify-center text-[10px]">✓</span>
+                {showCheck ? (
+                  <span className="w-4 h-4 rounded-full border border-emerald-300 text-emerald-500 inline-flex items-center justify-center text-[10px] shrink-0" aria-hidden>✓</span>
+                ) : (
+                  <span className="w-4 h-4 shrink-0" aria-hidden />
+                )}
               </div>
               <div className="mt-3">
                 <div className="text-[10px] text-slate-500 mb-1">TANIMLAMA</div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${card.color}`} style={{ width: `${card.bar}%` }} />
+                  <div className={`h-full ${tone.bar}`} style={{ width: `${card.bar}%` }} />
                 </div>
-                <div
-                  className={`text-[11px] text-right mt-1 font-medium tabular-nums ${card.bar >= 100 ? 'text-emerald-700' : 'text-slate-500'}`}
-                >
+                <div className={`text-[11px] text-right mt-1 font-medium tabular-nums ${tone.text}`}>
                   %{card.bar} {card.score}
                 </div>
               </div>
@@ -1304,7 +1358,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 {card.lines.map((line) => <div key={line}>{line}</div>)}
               </div>
             </button>
-          ))}
+          )})}
         </div>
       </div>
     </div>
