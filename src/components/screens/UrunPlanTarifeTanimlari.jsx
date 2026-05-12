@@ -562,6 +562,10 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewP
 }
 
 function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
+  const visibleCards = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
+    ? PLAN_SETUP_CARDS.filter((card) => card.id !== 'katki' && card.id !== 'kesinti')
+    : PLAN_SETUP_CARDS
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between">
@@ -584,7 +588,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
 
       <div className="flex-1 overflow-auto p-3 md:p-4 bg-slate-50/30">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {PLAN_SETUP_CARDS.map((card) => (
+          {visibleCards.map((card) => (
             <button key={card.id} data-card-id={card.id} type="button" onClick={() => onOpenCard?.(card.id)} className="text-left bg-white border border-slate-200 rounded-xl p-4 hover:border-violet-300 transition">
               <div className="flex items-start justify-between">
                 <div>
@@ -2866,7 +2870,9 @@ export default function UrunPlanTarifeTanimlari() {
       setProducts((prodPrev) => recalcCounts(selectedExistingProduct.id, prodPrev, nextMap))
       return nextMap
     })
-    if (selectedExistingProduct.sozlesmeTipi === 'Ferdi' && (selectedExistingProduct.tipler || '').toLowerCase().includes('bireysel emeklilik')) {
+    const isBireysel = (selectedExistingProduct.tipler || '').toLowerCase().includes('bireysel emeklilik')
+    const tip = (selectedExistingProduct.sozlesmeTipi || '').toUpperCase()
+    if (isBireysel && (tip === 'FERDI' || tip === 'OKS')) {
       setPlanSetupContext({ urun: selectedExistingProduct, plan: payload })
       setPlanSetupView('board')
     }
