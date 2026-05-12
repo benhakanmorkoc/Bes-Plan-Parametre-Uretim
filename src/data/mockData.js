@@ -134,6 +134,78 @@ export const egpAraOdeme = [
   { id: 1, kod: 'EGPAO-001', ad: 'EGP Ara Odeme Kurali', versiyon: '1', tarih: '01.01.2024', sayiAlt: '1', sayiUst: '5', tutarUst: '50000', oranBirikim: '25', oranMaas: '10' },
 ]
 
+/** Parametre — Ek Fayda Tanımları (plan Diğer Tanımlar / Ek Fayda lookup) */
+export const ekFaydaTanimlari = [
+  {
+    id: 1,
+    ekFaydaNo: '229',
+    resmiEkFaydaNo: '229',
+    ekFaydaTipi: 'Periyodik',
+    esasEkFayda: '—',
+    aciklama: 'Bonus Uygulaması 2 - FİĞK',
+    maliyetTarafi: 'Emeklilik Şirketi',
+    iadeTipi: 'Fiğ İadesi',
+    ilgiliFirma: '—',
+    tesvikliEkFayda: 'Evet',
+    odeme: 'İleriye Dönük',
+    revizyonNu: 1,
+    grubaOzel: 'Hayır',
+  },
+  {
+    id: 2,
+    ekFaydaNo: '3570',
+    resmiEkFaydaNo: '3570',
+    ekFaydaTipi: 'Periyodik',
+    esasEkFayda: '—',
+    aciklama: 'ING Bank ve İştirakleri',
+    maliyetTarafi: 'Emeklilik Şirketi',
+    iadeTipi: 'Bonus',
+    ilgiliFirma: '—',
+    tesvikliEkFayda: 'Evet',
+    odeme: 'İleriye Dönük',
+    revizyonNu: 1,
+    grubaOzel: 'Evet',
+  },
+  {
+    id: 3,
+    ekFaydaNo: '3571',
+    resmiEkFaydaNo: '3571',
+    ekFaydaTipi: 'Periyodik',
+    esasEkFayda: '—',
+    aciklama: 'Zurich Çalışan ve Yakınları',
+    maliyetTarafi: 'Emeklilik Şirketi',
+    iadeTipi: 'Bonus',
+    ilgiliFirma: '—',
+    tesvikliEkFayda: 'Evet',
+    odeme: 'İleriye Dönük',
+    revizyonNu: 2,
+    grubaOzel: 'Hayır',
+  },
+  {
+    id: 4,
+    ekFaydaNo: '3011',
+    resmiEkFaydaNo: '3011',
+    ekFaydaTipi: 'Periyodik',
+    esasEkFayda: '—',
+    aciklama: '1.00 Fiğ iadeli Ek Fayda_Tekfen',
+    maliyetTarafi: 'Emeklilik Şirketi',
+    iadeTipi: 'Fiğ İadesi',
+    ilgiliFirma: '—',
+    tesvikliEkFayda: 'Evet',
+    odeme: 'İleriye Dönük',
+    revizyonNu: 1,
+    grubaOzel: 'Evet',
+  },
+]
+
+/** Parametre — Satış kanalı listesi (plan Diğer Tanımlar / Satış Kanalı lookup) */
+export const satisKanaliTanimlari = [
+  { id: 1, kanalKodu: '1', kanalAdi: 'Test', aciklama: 'Acenta kanal testi' },
+  { id: 2, kanalKodu: '2', kanalAdi: 'İnternet', aciklama: 'Dijital satış kanalı' },
+  { id: 3, kanalKodu: '3', kanalAdi: 'Çağrı Merkezi', aciklama: 'Çağrı merkezi satış kanalı' },
+  { id: 4, kanalKodu: '4', kanalAdi: 'Banka', aciklama: 'Banka şube satış kanalı' },
+]
+
 // --- PLAN PARAM ---
 export const endeksTanimlari = [
   { id: 1, kod: 'TUFE', aciklama: 'Tuketici Fiyat Endeksi', inUse: true },
@@ -262,6 +334,7 @@ export const degisiklikTipleri = [
   { id: 204, brans: 'BES', zeyilKodu: '90', zeyilAdi: 'Sozlesmeden Cayma', yilLimit: '3', primDegistirir: 'Evet', uwVarMi: 'Hayir' },
   { id: 206, brans: 'BES', zeyilKodu: '99', zeyilAdi: 'Plan Degisikligi', yilLimit: '4', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
   { id: 207, brans: 'BES', zeyilKodu: '91', zeyilAdi: 'Fon Dagilimi Degisikligi', yilLimit: '12', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 208, brans: 'BES', zeyilKodu: 'KTK', zeyilAdi: 'Kanuni Temsilci Kaldirma Degisikligi', yilLimit: '3', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
 ]
 
 export const degisiklikTipleriDetaylari = {
@@ -283,6 +356,9 @@ export const degisiklikTipleriDetaylari = {
   '91': [
     { id: 1, parametre: 'Fon Dagilim Siniri', deger: '%100', not: 'Toplam dagilim kontrolu' },
     { id: 2, parametre: 'UW Kontrol', deger: 'Hayir', not: 'UW onayi gerektirmez' },
+  ],
+  KTK: [
+    { id: 1, parametre: 'Kanuni Temsilci', deger: 'Kaldirma', not: 'Kanuni temsilci degisikligi' },
   ],
 }
 

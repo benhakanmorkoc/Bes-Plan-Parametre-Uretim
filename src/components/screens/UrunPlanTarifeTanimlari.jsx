@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2 } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2, HelpCircle } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -16,6 +16,10 @@ import {
   egpGenel,
   egpGeriOdeme,
   egpAraOdeme,
+  odemeDonemiTurleri,
+  ekFaydaTanimlari,
+  satisKanaliTanimlari,
+  degisiklikTipleri,
 } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -577,6 +581,248 @@ function formatIsoToTrDate(iso) {
   return s
 }
 
+/** Plan — Diğer Tanımlar / Endeksler tablosu için ay seçenekleri */
+const TURKCE_AYLAR = [
+  { value: '1', label: 'Ocak' },
+  { value: '2', label: 'Şubat' },
+  { value: '3', label: 'Mart' },
+  { value: '4', label: 'Nisan' },
+  { value: '5', label: 'Mayıs' },
+  { value: '6', label: 'Haziran' },
+  { value: '7', label: 'Temmuz' },
+  { value: '8', label: 'Ağustos' },
+  { value: '9', label: 'Eylül' },
+  { value: '10', label: 'Ekim' },
+  { value: '11', label: 'Kasım' },
+  { value: '12', label: 'Aralık' },
+]
+
+function planEndeksTipiTableLabel(hesapKodu) {
+  const h = katkiPayiHesaplama.find((x) => String(x.hesapKodu) === String(hesapKodu))
+  if (!h) return String(hesapKodu || '—')
+  const ad = h.hesapAdi
+  if (ad === 'TEFE1') return 'TEFE'
+  if (ad === 'TUFE') return 'TÜFE'
+  if (ad === 'Artissiz') return 'Artışsız'
+  return ad
+}
+
+const PLAN_ENDEKS_ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+const INITIAL_PLAN_ENDEKS_ROWS = [
+  { id: 'pl-end-1', hesapKodu: '1', artisTipi: 'Dönem', artisDonemi: '1', ekstraOranUst: 5, gecerlilikTarihi: '2024-01-01' },
+  { id: 'pl-end-2', hesapKodu: '2', artisTipi: 'Ay', artisDonemi: '3', ekstraOranUst: 3.5, gecerlilikTarihi: '2024-03-01' },
+  { id: 'pl-end-3', hesapKodu: '7', artisTipi: 'Dönem', artisDonemi: '4', ekstraOranUst: 0, gecerlilikTarihi: '2024-06-01' },
+]
+
+const PLAN_ENDEKS_FORM_DEFAULT = () => ({
+  hesapKodu: '',
+  artisTipi: '',
+  artisDonemi: '',
+  ekstraOran: '0.00',
+  gecerlilikTarihi: '',
+})
+
+const EK_FAYDA_PLAN_ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+const INITIAL_EK_FAYDA_PLAN_ROWS = [
+  {
+    id: 'efp-1',
+    tanimId: null,
+    planKod: 'EF001',
+    katalogNo: '501',
+    revizyonNu: 1,
+    aciklama: 'Vefat Teminatı',
+    durum: 'Aktif',
+    grubaOzel: 'Hayır',
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+  },
+  {
+    id: 'efp-2',
+    tanimId: null,
+    planKod: 'EF002',
+    katalogNo: '502',
+    revizyonNu: 2,
+    aciklama: 'Maluliyet Teminatı',
+    durum: 'Pasif',
+    grubaOzel: 'Evet',
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+  },
+  {
+    id: 'efp-3',
+    tanimId: null,
+    planKod: 'EF003',
+    katalogNo: '503',
+    revizyonNu: 3,
+    aciklama: 'Kaza Sonucu Vefat',
+    durum: 'Aktif',
+    grubaOzel: 'Hayır',
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+  },
+]
+
+function nextEkFaydaPlanKod(rows) {
+  let maxN = 0
+  rows.forEach((r) => {
+    const m = /^EF(\d+)$/i.exec(String(r.planKod || ''))
+    if (m) maxN = Math.max(maxN, Number(m[1]))
+  })
+  return `EF${String(maxN + 1).padStart(3, '0')}`
+}
+
+function formatPlanEkFaydaAuditLine(name, isoDate) {
+  if (!name && !isoDate) return '—'
+  return `${name || '—'} ${isoDate ? formatIsoToTrDate(isoDate) : ''}`.trim()
+}
+
+const EK_FAYDA_FORM_DEFAULT = () => ({
+  tanimId: null,
+  katalogNo: '',
+  revizyonNu: '',
+  aciklama: '',
+  durum: '',
+  grubaOzel: '',
+})
+
+function applyEkFaydaTanimToFormFields(t) {
+  return {
+    tanimId: t.id,
+    katalogNo: String(t.ekFaydaNo ?? ''),
+    revizyonNu: String(t.revizyonNu ?? ''),
+    aciklama: t.aciklama || '',
+    grubaOzel: t.grubaOzel || 'Hayır',
+  }
+}
+
+const SATIS_KANALI_PLAN_ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+const SATIS_ADEDI_SECENEKLER = [1, 2, 5, 9, 10, 15, 20, 25, 50, 75, 100, 150, 200, 500]
+
+const INITIAL_SATIS_KANALI_PLAN_ROWS = [
+  {
+    id: 'sk-1',
+    tanimId: 1,
+    kanalKodu: '1',
+    kanalAdi: 'Test',
+    satisAdedi: 9,
+    baslangic: '2025-01-01',
+    bitis: '2025-01-01',
+    sozlesmeBasimi: 'Evet',
+  },
+  {
+    id: 'sk-2',
+    tanimId: 2,
+    kanalKodu: '2',
+    kanalAdi: 'İnternet',
+    satisAdedi: 100,
+    baslangic: '2025-01-01',
+    bitis: '2025-01-01',
+    sozlesmeBasimi: 'Hayır',
+  },
+  {
+    id: 'sk-3',
+    tanimId: null,
+    kanalKodu: '3',
+    kanalAdi: 'Test',
+    satisAdedi: 20,
+    baslangic: '2025-01-01',
+    bitis: '2025-01-01',
+    sozlesmeBasimi: 'Evet',
+  },
+]
+
+const SATIS_KANALI_FORM_DEFAULT = () => ({
+  tanimId: null,
+  kanalKodu: '',
+  kanalAdi: '',
+  baslangic: '',
+  bitis: '',
+  satisAdedi: '',
+  sozlesmeBasimi: 'Hayır',
+})
+
+const DEGISIKLIK_PLAN_ROW_ACTIONS = [
+  { key: 'cikar', label: 'Çıkar', icon: 'delete', danger: true },
+  { key: 'bagliKanallar', label: 'Bağlı Kanallar', icon: 'link' },
+]
+
+function degisiklikKisaKoduFromTip(tip) {
+  const z = String(tip.zeyilKodu)
+  if (z === '91') return 'FND'
+  if (z === '99') return 'PLN'
+  if (z === 'KTK') return 'KTK'
+  return z
+}
+
+function degisiklikPlanAdiTr(tip) {
+  const m = {
+    207: 'Fon Dağılımı Değişikliği',
+    206: 'Plan Değişikliği',
+    208: 'Kanuni Temsilci Kaldırma Değişikliği',
+    201: 'Emeklilik',
+    202: 'Sistemden Çıkış',
+    204: 'Sözleşmeden Cayma',
+  }
+  return m[tip.id] || tip.zeyilAdi
+}
+
+const INITIAL_DEGISIKLIK_PLAN_ROWS = [
+  {
+    id: 'deg-1',
+    tanimId: 207,
+    degisiklikKodu: 'FND',
+    degisiklikAdi: 'Fon Dağılımı Değişikliği',
+    degisiklikAdedi: 12,
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+    bagliKanallar: { hepsi: false, kanalKodlari: ['1'] },
+  },
+  {
+    id: 'deg-2',
+    tanimId: 206,
+    degisiklikKodu: 'PLN',
+    degisiklikAdi: 'Plan Değişikliği',
+    degisiklikAdedi: 6,
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+    bagliKanallar: { hepsi: true, kanalKodlari: [] },
+  },
+  {
+    id: 'deg-3',
+    tanimId: 208,
+    degisiklikKodu: 'KTK',
+    degisiklikAdi: 'Kanuni Temsilci Kaldırma Değişikliği',
+    degisiklikAdedi: 3,
+    eklemeBy: 'Ali Simit',
+    eklemeTarih: '2026-01-01',
+    guncelBy: 'Ali Simit',
+    guncelTarih: '2026-01-01',
+    bagliKanallar: { hepsi: false, kanalKodlari: ['2'] },
+  },
+]
+
 /** Plan kaydındaki durum metnini Tarife Plan Durum parametre koduna çevirir */
 function planDurumToKod(durum) {
   const s = String(durum || '').toLowerCase()
@@ -1053,6 +1299,39 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
   const [istisnaEditingId, setIstisnaEditingId] = useState(null)
   const [istisnaForm, setIstisnaForm] = useState({ planId: '', baslangic: '', bitis: '' })
 
+  const [endeksRows, setEndeksRows] = useState(() => INITIAL_PLAN_ENDEKS_ROWS.map((r) => ({ ...r })))
+  const [endeksModalOpen, setEndeksModalOpen] = useState(false)
+  const [endeksEditingId, setEndeksEditingId] = useState(null)
+  const [endeksForm, setEndeksForm] = useState(() => PLAN_ENDEKS_FORM_DEFAULT())
+
+  const [ekFaydaRows, setEkFaydaRows] = useState(() => INITIAL_EK_FAYDA_PLAN_ROWS.map((r) => ({ ...r })))
+  const [ekFaydaTanimlanmayacak, setEkFaydaTanimlanmayacak] = useState(false)
+  const [ekFaydaSearch, setEkFaydaSearch] = useState('')
+  const [ekFaydaModalOpen, setEkFaydaModalOpen] = useState(false)
+  const [ekFaydaEditingId, setEkFaydaEditingId] = useState(null)
+  const [ekFaydaForm, setEkFaydaForm] = useState(() => EK_FAYDA_FORM_DEFAULT())
+  const [ekFaydaPickerOpen, setEkFaydaPickerOpen] = useState(false)
+
+  const [satisKanaliRows, setSatisKanaliRows] = useState(() => INITIAL_SATIS_KANALI_PLAN_ROWS.map((r) => ({ ...r })))
+  const [satisKanaliSearch, setSatisKanaliSearch] = useState('')
+  const [satisKanaliModalOpen, setSatisKanaliModalOpen] = useState(false)
+  const [satisKanaliEditingId, setSatisKanaliEditingId] = useState(null)
+  const [satisKanaliForm, setSatisKanaliForm] = useState(() => SATIS_KANALI_FORM_DEFAULT())
+  const [satisKanaliPickerOpen, setSatisKanaliPickerOpen] = useState(false)
+
+  const [degisiklikRows, setDegisiklikRows] = useState(() => INITIAL_DEGISIKLIK_PLAN_ROWS.map((r) => ({ ...r, bagliKanallar: { ...r.bagliKanallar, kanalKodlari: [...(r.bagliKanallar?.kanalKodlari || [])] } })))
+  const [degisiklikSearch, setDegisiklikSearch] = useState('')
+  const [degisiklikSelectedIds, setDegisiklikSelectedIds] = useState([])
+  const [degisiklikEkleModalOpen, setDegisiklikEkleModalOpen] = useState(false)
+  const [degisiklikModalSearch, setDegisiklikModalSearch] = useState('')
+  const [degisiklikModalSecIds, setDegisiklikModalSecIds] = useState([])
+  const [degisiklikKanalModalOpen, setDegisiklikKanalModalOpen] = useState(false)
+  const [kanalModalHepsi, setKanalModalHepsi] = useState(true)
+  const [kanalModalKodSec, setKanalModalKodSec] = useState({})
+  const [degisiklikAdetEditing, setDegisiklikAdetEditing] = useState(null)
+  const [degisiklikAdetDraft, setDegisiklikAdetDraft] = useState('')
+  const [bagliKanallarModalRow, setBagliKanallarModalRow] = useState(null)
+
   const planLookupOptions = useMemo(() => {
     const out = []
     Object.entries(urunPlanlari).forEach(([, plans]) => {
@@ -1068,6 +1347,155 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
     if (!q) return istisnaRows
     return istisnaRows.filter((r) => r.planAdi.toLowerCase().includes(q))
   }, [istisnaRows, istisnaSearch])
+
+  const filteredEkFayda = useMemo(() => {
+    const q = ekFaydaSearch.trim().toLowerCase()
+    if (!q) return ekFaydaRows
+    return ekFaydaRows.filter((r) => {
+      const blob = `${r.planKod} ${r.katalogNo} ${r.aciklama} ${r.durum} ${r.grubaOzel}`.toLowerCase()
+      return blob.includes(q)
+    })
+  }, [ekFaydaRows, ekFaydaSearch])
+
+  const filteredSatisKanali = useMemo(() => {
+    const q = satisKanaliSearch.trim().toLowerCase()
+    if (!q) return satisKanaliRows
+    return satisKanaliRows.filter((r) => {
+      const blob = `${r.kanalKodu} ${r.kanalAdi} ${r.satisAdedi} ${r.sozlesmeBasimi}`.toLowerCase()
+      return blob.includes(q)
+    })
+  }, [satisKanaliRows, satisKanaliSearch])
+
+  const filteredDegisiklik = useMemo(() => {
+    const q = degisiklikSearch.trim().toLowerCase()
+    if (!q) return degisiklikRows
+    return degisiklikRows.filter((r) => {
+      const blob = `${r.degisiklikKodu} ${r.degisiklikAdi} ${r.degisiklikAdedi}`.toLowerCase()
+      return blob.includes(q)
+    })
+  }, [degisiklikRows, degisiklikSearch])
+
+  const filteredDegisiklikTipleriModal = useMemo(() => {
+    const q = degisiklikModalSearch.trim().toLowerCase()
+    if (!q) return degisiklikTipleri
+    return degisiklikTipleri.filter((t) => {
+      const blob = `${t.brans} ${t.zeyilKodu} ${t.zeyilAdi} ${degisiklikPlanAdiTr(t)}`.toLowerCase()
+      return blob.includes(q)
+    })
+  }, [degisiklikModalSearch])
+
+  const degisiklikKanalSecimiAktif = degisiklikSelectedIds.length > 0
+
+  const toggleDegisiklikRowSelect = (rowId) => {
+    setDegisiklikSelectedIds((prev) => (prev.includes(rowId) ? prev.filter((x) => x !== rowId) : [...prev, rowId]))
+  }
+
+  const toggleDegisiklikSelectAllFiltered = () => {
+    const ids = filteredDegisiklik.map((r) => r.id)
+    const allOn = ids.length > 0 && ids.every((id) => degisiklikSelectedIds.includes(id))
+    if (allOn) {
+      setDegisiklikSelectedIds((prev) => prev.filter((id) => !ids.includes(id)))
+    } else {
+      setDegisiklikSelectedIds((prev) => [...new Set([...prev, ...ids])])
+    }
+  }
+
+  const openDegisiklikEkleModal = () => {
+    setDegisiklikModalSearch('')
+    setDegisiklikModalSecIds([])
+    setDegisiklikEkleModalOpen(true)
+  }
+
+  const toggleDegisiklikModalSec = (tipId) => {
+    setDegisiklikModalSecIds((prev) => (prev.includes(tipId) ? prev.filter((x) => x !== tipId) : [...prev, tipId]))
+  }
+
+  const applyDegisiklikModalSec = () => {
+    if (degisiklikModalSecIds.length === 0) return alert('En az bir değişiklik tipi seçiniz.')
+    const today = new Date().toISOString().slice(0, 10)
+    setDegisiklikRows((prev) => {
+      const existingTanim = new Set(prev.map((r) => r.tanimId))
+      const additions = []
+      for (const tipId of degisiklikModalSecIds) {
+        if (existingTanim.has(tipId)) continue
+        const tip = degisiklikTipleri.find((t) => t.id === tipId)
+        if (!tip) continue
+        const yil = Number(String(tip.yilLimit).trim())
+        additions.push({
+          id: `deg-${Date.now()}-${tipId}`,
+          tanimId: tip.id,
+          degisiklikKodu: degisiklikKisaKoduFromTip(tip),
+          degisiklikAdi: degisiklikPlanAdiTr(tip),
+          degisiklikAdedi: Number.isNaN(yil) ? 1 : yil,
+          eklemeBy: 'Ali Simit',
+          eklemeTarih: today,
+          guncelBy: 'Ali Simit',
+          guncelTarih: today,
+          bagliKanallar: { hepsi: true, kanalKodlari: [] },
+        })
+      }
+      if (additions.length === 0) {
+        alert('Seçilen tipler planda zaten tanımlı.')
+        return prev
+      }
+      return [...prev, ...additions]
+    })
+    setDegisiklikEkleModalOpen(false)
+    setDegisiklikModalSecIds([])
+  }
+
+  const openDegisiklikKanalModal = () => {
+    const sel = degisiklikRows.filter((r) => degisiklikSelectedIds.includes(r.id))
+    const first = sel[0]
+    if (first?.bagliKanallar?.hepsi) {
+      setKanalModalHepsi(true)
+      setKanalModalKodSec({})
+    } else {
+      setKanalModalHepsi(false)
+      const m = {}
+      satisKanaliTanimlari.forEach((c) => {
+        m[c.kanalKodu] = (first?.bagliKanallar?.kanalKodlari || []).includes(c.kanalKodu)
+      })
+      setKanalModalKodSec(m)
+    }
+    setDegisiklikKanalModalOpen(true)
+  }
+
+  const saveDegisiklikKanalModal = () => {
+    const bagli = kanalModalHepsi
+      ? { hepsi: true, kanalKodlari: [] }
+      : {
+          hepsi: false,
+          kanalKodlari: satisKanaliTanimlari.filter((c) => kanalModalKodSec[c.kanalKodu]).map((c) => c.kanalKodu),
+        }
+    if (!kanalModalHepsi && bagli.kanalKodlari.length === 0) {
+      return alert('Kanal seçin veya "Tüm Satış Kanalları (Hepsi)" seçeneğini işaretleyin.')
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    setDegisiklikRows((prev) =>
+      prev.map((r) =>
+        degisiklikSelectedIds.includes(r.id)
+          ? { ...r, bagliKanallar: bagli, guncelBy: 'Ali Simit', guncelTarih: today }
+          : r,
+      ),
+    )
+    setDegisiklikKanalModalOpen(false)
+  }
+
+  const commitDegisiklikAdet = (rowId) => {
+    const n = Number(String(degisiklikAdetDraft).trim())
+    if (degisiklikAdetDraft === '' || Number.isNaN(n) || n < 0) {
+      setDegisiklikAdetEditing(null)
+      return
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    setDegisiklikRows((prev) =>
+      prev.map((r) =>
+        r.id === rowId ? { ...r, degisiklikAdedi: n, guncelBy: 'Ali Simit', guncelTarih: today } : r,
+      ),
+    )
+    setDegisiklikAdetEditing(null)
+  }
 
   const openIstisnaModalNew = () => {
     setIstisnaEditingId(null)
@@ -1111,6 +1539,175 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
       ])
     }
     setIstisnaModalOpen(false)
+  }
+
+  const openEndeksModalNew = () => {
+    setEndeksEditingId(null)
+    setEndeksForm(PLAN_ENDEKS_FORM_DEFAULT())
+    setEndeksModalOpen(true)
+  }
+
+  const openEndeksModalEdit = (row) => {
+    setEndeksEditingId(row.id)
+    setEndeksForm({
+      hesapKodu: String(row.hesapKodu ?? ''),
+      artisTipi: row.artisTipi || '',
+      artisDonemi: String(row.artisDonemi ?? ''),
+      ekstraOran: row.ekstraOranUst != null ? String(row.ekstraOranUst).replace('.', ',') : '0,00',
+      gecerlilikTarihi: row.gecerlilikTarihi || '',
+    })
+    setEndeksModalOpen(true)
+  }
+
+  const saveEndeksModal = () => {
+    if (!endeksForm.hesapKodu) return alert('Tip seçiniz.')
+    if (!endeksForm.artisTipi) return alert('Artış tipi seçiniz.')
+    if (!String(endeksForm.artisDonemi).trim()) return alert('Artış dönemi seçiniz.')
+    if (!endeksForm.gecerlilikTarihi) return alert('Geçerlilik tarihi zorunludur.')
+    const rawOran = String(endeksForm.ekstraOran).trim().replace(',', '.')
+    if (rawOran === '' || Number.isNaN(Number(rawOran))) return alert('Ekstra artış oranı geçerli bir sayı olmalıdır.')
+    const payload = {
+      id: endeksEditingId || `pl-end-${Date.now()}`,
+      hesapKodu: endeksForm.hesapKodu,
+      artisTipi: endeksForm.artisTipi,
+      artisDonemi: endeksForm.artisDonemi,
+      ekstraOranUst: Number(rawOran),
+      gecerlilikTarihi: endeksForm.gecerlilikTarihi,
+    }
+    if (endeksEditingId) {
+      setEndeksRows((prev) => prev.map((r) => (r.id === endeksEditingId ? payload : r)))
+    } else {
+      setEndeksRows((prev) => [...prev, payload])
+    }
+    setEndeksModalOpen(false)
+  }
+
+  const openEkFaydaModalNew = () => {
+    setEkFaydaEditingId(null)
+    setEkFaydaForm(EK_FAYDA_FORM_DEFAULT())
+    setEkFaydaModalOpen(true)
+  }
+
+  const openEkFaydaModalEdit = (row) => {
+    setEkFaydaEditingId(row.id)
+    setEkFaydaForm({
+      tanimId: row.tanimId,
+      katalogNo: String(row.katalogNo ?? ''),
+      revizyonNu: String(row.revizyonNu ?? ''),
+      aciklama: row.aciklama || '',
+      durum: row.durum || '',
+      grubaOzel: row.grubaOzel || '',
+    })
+    setEkFaydaModalOpen(true)
+  }
+
+  const pickEkFaydaTanim = (t) => {
+    const picked = applyEkFaydaTanimToFormFields(t)
+    setEkFaydaForm((f) => ({
+      ...picked,
+      durum: f.durum || '',
+    }))
+    setEkFaydaPickerOpen(false)
+  }
+
+  const saveEkFaydaModal = () => {
+    if (!String(ekFaydaForm.katalogNo).trim()) return alert('Ek fayda tanımı seçiniz (Ek Fayda No).')
+    if (!ekFaydaForm.durum) return alert('Durum seçiniz.')
+    const rev = Number(String(ekFaydaForm.revizyonNu).trim())
+    if (ekFaydaForm.revizyonNu === '' || Number.isNaN(rev)) return alert('Revizyon bilgisi geçersiz.')
+    const today = new Date().toISOString().slice(0, 10)
+    if (ekFaydaEditingId) {
+      setEkFaydaRows((prev) =>
+        prev.map((r) =>
+          r.id === ekFaydaEditingId
+            ? {
+                ...r,
+                tanimId: ekFaydaForm.tanimId,
+                katalogNo: ekFaydaForm.katalogNo,
+                revizyonNu: rev,
+                aciklama: ekFaydaForm.aciklama,
+                durum: ekFaydaForm.durum,
+                grubaOzel: ekFaydaForm.grubaOzel,
+                guncelBy: 'Ali Simit',
+                guncelTarih: today,
+              }
+            : r,
+        ),
+      )
+    } else {
+      setEkFaydaRows((prev) => [
+        ...prev,
+        {
+          id: `efp-${Date.now()}`,
+          tanimId: ekFaydaForm.tanimId,
+          planKod: nextEkFaydaPlanKod(prev),
+          katalogNo: ekFaydaForm.katalogNo,
+          revizyonNu: rev,
+          aciklama: ekFaydaForm.aciklama,
+          durum: ekFaydaForm.durum,
+          grubaOzel: ekFaydaForm.grubaOzel,
+          eklemeBy: 'Ali Simit',
+          eklemeTarih: today,
+          guncelBy: 'Ali Simit',
+          guncelTarih: today,
+        },
+      ])
+    }
+    setEkFaydaModalOpen(false)
+  }
+
+  const openSatisKanaliModalNew = () => {
+    setSatisKanaliEditingId(null)
+    setSatisKanaliForm(SATIS_KANALI_FORM_DEFAULT())
+    setSatisKanaliModalOpen(true)
+  }
+
+  const openSatisKanaliModalEdit = (row) => {
+    setSatisKanaliEditingId(row.id)
+    setSatisKanaliForm({
+      tanimId: row.tanimId,
+      kanalKodu: String(row.kanalKodu ?? ''),
+      kanalAdi: row.kanalAdi || '',
+      baslangic: row.baslangic || '',
+      bitis: row.bitis || '',
+      satisAdedi: String(row.satisAdedi ?? ''),
+      sozlesmeBasimi: row.sozlesmeBasimi || 'Hayır',
+    })
+    setSatisKanaliModalOpen(true)
+  }
+
+  const pickSatisKanaliTanim = (t) => {
+    setSatisKanaliForm((f) => ({
+      ...f,
+      tanimId: t.id,
+      kanalKodu: String(t.kanalKodu ?? ''),
+      kanalAdi: t.kanalAdi || '',
+    }))
+    setSatisKanaliPickerOpen(false)
+  }
+
+  const saveSatisKanaliModal = () => {
+    if (!String(satisKanaliForm.kanalKodu).trim()) return alert('Kanal seçiniz.')
+    if (!satisKanaliForm.baslangic) return alert('Başlangıç tarihi zorunludur.')
+    const adet = Number(String(satisKanaliForm.satisAdedi).trim())
+    if (satisKanaliForm.satisAdedi === '' || Number.isNaN(adet)) return alert('Satış adedi seçiniz.')
+    if (!satisKanaliForm.sozlesmeBasimi) return alert('Sözleşme basımı seçiniz.')
+    const payload = {
+      id: satisKanaliEditingId || `sk-${Date.now()}`,
+      tanimId: satisKanaliForm.tanimId,
+      kanalKodu: satisKanaliForm.kanalKodu,
+      kanalAdi: satisKanaliForm.kanalAdi,
+      satisAdedi: adet,
+      baslangic: satisKanaliForm.baslangic,
+      bitis: satisKanaliForm.bitis || satisKanaliForm.baslangic,
+      sozlesmeBasimi: satisKanaliForm.sozlesmeBasimi,
+    }
+    if (satisKanaliEditingId) {
+      setSatisKanaliRows((prev) => prev.map((r) => (r.id === satisKanaliEditingId ? payload : r)))
+    } else {
+      setSatisKanaliRows((prev) => [...prev, payload])
+    }
+    setSatisKanaliModalOpen(false)
   }
 
   const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
@@ -1253,6 +1850,386 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
                 </table>
               </div>
             </div>
+          ) : activeMenu === 'endeks' ? (
+            <div className="max-w-5xl">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-violet-700">Endeksler</h3>
+                <PrimaryButton onClick={openEndeksModalNew} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4" /> Ekle
+                </PrimaryButton>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[640px]">
+                  <thead>
+                    <tr>
+                      <th>Endeks Tipi</th>
+                      <th>Artış Tipi</th>
+                      <th className="text-right whitespace-nowrap">Ekstra Artış Oranı Üst Limit</th>
+                      <th className="whitespace-nowrap">Geçerlilik Tarihi</th>
+                      <th className="text-right w-28">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {endeksRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{planEndeksTipiTableLabel(row.hesapKodu)}</td>
+                        <td>{row.artisTipi}</td>
+                        <td className="text-right tabular-nums">
+                          {Number(row.ekstraOranUst).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td>{formatIsoToTrDate(row.gecerlilikTarihi)}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={PLAN_ENDEKS_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openEndeksModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setEndeksRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeMenu === 'ekFayda' ? (
+            <div className="max-w-6xl">
+              <h3 className="text-sm font-semibold text-violet-700 mb-4">Ek Fayda</h3>
+              <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara..."
+                    value={ekFaydaSearch}
+                    onChange={(e) => setEkFaydaSearch(e.target.value)}
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0 lg:ml-4">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-violet-600"
+                    checked={ekFaydaTanimlanmayacak}
+                    onChange={(e) => setEkFaydaTanimlanmayacak(e.target.checked)}
+                  />
+                  Ekfayda Tanımlanmayacak
+                </label>
+                <div className="lg:ml-auto">
+                  <PrimaryButton
+                    disabled={ekFaydaTanimlanmayacak}
+                    onClick={openEkFaydaModalNew}
+                    className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    <Plus className="w-4 h-4" /> Yeni Ekle
+                  </PrimaryButton>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[960px]">
+                  <thead>
+                    <tr>
+                      <th>Ek Fayda Nu</th>
+                      <th className="text-right whitespace-nowrap">Revizyon Nu</th>
+                      <th>Açıklama</th>
+                      <th>Durum</th>
+                      <th>Gruba Özel</th>
+                      <th className="whitespace-nowrap">Ekleme</th>
+                      <th className="whitespace-nowrap">Güncelleme</th>
+                      <th className="text-right w-24">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEkFayda.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <button
+                            type="button"
+                            className="text-blue-600 font-medium hover:underline"
+                            onClick={() => openEkFaydaModalEdit(row)}
+                          >
+                            {row.planKod}
+                          </button>
+                        </td>
+                        <td className="text-right tabular-nums">{row.revizyonNu}</td>
+                        <td>{row.aciklama}</td>
+                        <td>
+                          {row.durum === 'Aktif' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                              Aktif
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-rose-50 text-rose-700 border-rose-200">
+                              Pasif
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {row.grubaOzel === 'Evet' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                              Evet
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-200">
+                              Hayır
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-slate-600 whitespace-nowrap text-xs">{formatPlanEkFaydaAuditLine(row.eklemeBy, row.eklemeTarih)}</td>
+                        <td className="text-slate-600 whitespace-nowrap text-xs">{formatPlanEkFaydaAuditLine(row.guncelBy, row.guncelTarih)}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={EK_FAYDA_PLAN_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openEkFaydaModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setEkFaydaRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredEkFayda.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="text-center text-slate-500 py-8">
+                          {ekFaydaSearch ? 'Arama sonucu bulunamadı.' : 'Kayıt yok.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeMenu === 'satisKanali' ? (
+            <div className="max-w-6xl">
+              <h3 className="text-sm font-semibold text-violet-700 mb-4">Satış Kanalı</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara..."
+                    value={satisKanaliSearch}
+                    onChange={(e) => setSatisKanaliSearch(e.target.value)}
+                  />
+                </div>
+                <div className="sm:ml-auto">
+                  <PrimaryButton onClick={openSatisKanaliModalNew} className="bg-violet-600 hover:bg-violet-700">
+                    <Plus className="w-4 h-4" /> Yeni Ekle
+                  </PrimaryButton>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[860px]">
+                  <thead>
+                    <tr>
+                      <th>Kanal Kodu</th>
+                      <th>Kanal Adı</th>
+                      <th className="text-right whitespace-nowrap">Satış Adedi</th>
+                      <th className="whitespace-nowrap">Başlangıç Tarihi</th>
+                      <th className="whitespace-nowrap">Bitiş Tarihi</th>
+                      <th>Sözleşme Basımı</th>
+                      <th className="text-right w-24">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSatisKanali.map((row) => (
+                      <tr key={row.id}>
+                        <td className="tabular-nums">{row.kanalKodu}</td>
+                        <td>{row.kanalAdi}</td>
+                        <td className="text-right tabular-nums">{row.satisAdedi}</td>
+                        <td>{formatIsoToTrDate(row.baslangic)}</td>
+                        <td>{formatIsoToTrDate(row.bitis)}</td>
+                        <td>
+                          {row.sozlesmeBasimi === 'Evet' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                              Evet
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-200">
+                              Hayır
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={SATIS_KANALI_PLAN_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openSatisKanaliModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setSatisKanaliRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredSatisKanali.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="text-center text-slate-500 py-8">
+                          {satisKanaliSearch ? 'Arama sonucu bulunamadı.' : 'Kayıt yok.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeMenu === 'degisiklik' ? (
+            <div className="max-w-6xl">
+              <h3 className="text-sm font-semibold text-violet-700 mb-4">Değişiklik Tanımları</h3>
+              <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara..."
+                    value={degisiklikSearch}
+                    onChange={(e) => setDegisiklikSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+                  <OutlineButton
+                    type="button"
+                    onClick={openDegisiklikEkleModal}
+                    className="border-violet-300 text-violet-700 hover:bg-violet-50"
+                  >
+                    <Plus className="w-4 h-4" /> Yeni Ekle
+                  </OutlineButton>
+                  <PrimaryButton
+                    type="button"
+                    disabled={!degisiklikKanalSecimiAktif}
+                    onClick={openDegisiklikKanalModal}
+                    className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Link2 className="w-4 h-4" /> Kanal Bağla
+                  </PrimaryButton>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[900px]">
+                  <thead>
+                    <tr>
+                      <th className="w-10">
+                        {(() => {
+                          const ids = filteredDegisiklik.map((r) => r.id)
+                          const allOn = ids.length > 0 && ids.every((id) => degisiklikSelectedIds.includes(id))
+                          const someOn = ids.some((id) => degisiklikSelectedIds.includes(id)) && !allOn
+                          return (
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300 text-violet-600"
+                              checked={allOn}
+                              ref={(el) => {
+                                if (el) el.indeterminate = someOn
+                              }}
+                              onChange={toggleDegisiklikSelectAllFiltered}
+                              aria-label="Tümünü seç"
+                            />
+                          )
+                        })()}
+                      </th>
+                      <th>Değişiklik Kodu</th>
+                      <th>Değişiklik Adı</th>
+                      <th className="whitespace-nowrap">Değişiklik Adedi</th>
+                      <th className="whitespace-nowrap">Ekleme</th>
+                      <th className="whitespace-nowrap">Güncelleme</th>
+                      <th className="text-right w-24">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDegisiklik.map((row) => (
+                      <tr key={row.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-violet-600"
+                            checked={degisiklikSelectedIds.includes(row.id)}
+                            onChange={() => toggleDegisiklikRowSelect(row.id)}
+                            aria-label="Satır seç"
+                          />
+                        </td>
+                        <td className="font-medium text-slate-800">{row.degisiklikKodu}</td>
+                        <td>{row.degisiklikAdi}</td>
+                        <td>
+                          {degisiklikAdetEditing === row.id ? (
+                            <div className="inline-flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-20 h-9 border border-violet-300 rounded-md px-2 text-sm tabular-nums"
+                                value={degisiklikAdetDraft}
+                                autoFocus
+                                onChange={(e) => setDegisiklikAdetDraft(e.target.value)}
+                                onBlur={() => commitDegisiklikAdet(row.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') commitDegisiklikAdet(row.id)
+                                  if (e.key === 'Escape') setDegisiklikAdetEditing(null)
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 tabular-nums">
+                              {row.degisiklikAdedi}
+                              <button
+                                type="button"
+                                className="p-1 rounded text-violet-600 hover:bg-violet-50"
+                                aria-label="Değişiklik adedi düzenle"
+                                onClick={() => {
+                                  setDegisiklikAdetEditing(row.id)
+                                  setDegisiklikAdetDraft(String(row.degisiklikAdedi))
+                                }}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-slate-600 whitespace-nowrap text-xs">{formatPlanEkFaydaAuditLine(row.eklemeBy, row.eklemeTarih)}</td>
+                        <td className="text-slate-600 whitespace-nowrap text-xs">{formatPlanEkFaydaAuditLine(row.guncelBy, row.guncelTarih)}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={DEGISIKLIK_PLAN_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'cikar') {
+                                if (!window.confirm('Satır plandan çıkarılsın mı?')) return
+                                setDegisiklikRows((prev) => prev.filter((x) => x.id !== r.id))
+                                setDegisiklikSelectedIds((prev) => prev.filter((id) => id !== r.id))
+                              }
+                              if (key === 'bagliKanallar') setBagliKanallarModalRow(r)
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredDegisiklik.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="text-center text-slate-500 py-8">
+                          {degisiklikSearch ? 'Arama sonucu bulunamadı.' : 'Kayıt yok.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <span>Listelenen: {filteredDegisiklik.length}</span>
+                <span className="text-slate-400">Sayfa başına: 10</span>
+              </div>
+            </div>
           ) : (
             <div className="max-w-2xl rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
               <p className="font-medium text-slate-700 mb-1">{DIGER_TANIMLAR_MENU.find((m) => m.id === activeMenu)?.label}</p>
@@ -1261,6 +2238,486 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
           )}
         </main>
       </div>
+
+      <Modal
+        open={satisKanaliModalOpen}
+        onClose={() => setSatisKanaliModalOpen(false)}
+        title={satisKanaliEditingId ? 'Satış Kanalı Güncelle' : 'Satış Kanalı Ekle'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setSatisKanaliModalOpen(false)} className="border-violet-300 text-violet-700 hover:bg-violet-50">
+              İptal
+            </OutlineButton>
+            <PrimaryButton type="button" onClick={saveSatisKanaliModal} className="bg-violet-600 hover:bg-violet-700">
+              Kaydet
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <span className="block text-xs font-medium text-slate-600 mb-1">Kanal</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                className="form-input flex-1 cursor-pointer"
+                placeholder="Seçiniz"
+                value={satisKanaliForm.kanalKodu ? `${satisKanaliForm.kanalKodu} — ${satisKanaliForm.kanalAdi}` : ''}
+                onClick={() => setSatisKanaliPickerOpen(true)}
+              />
+              <button
+                type="button"
+                className="shrink-0 h-10 w-10 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-600"
+                aria-label="Satış kanalı listesi"
+                onClick={() => setSatisKanaliPickerOpen(true)}
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">
+                Başlangıç Tarihi <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="date"
+                className="form-input"
+                value={satisKanaliForm.baslangic}
+                onChange={(e) => setSatisKanaliForm((f) => ({ ...f, baslangic: e.target.value }))}
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Bitiş Tarihi</span>
+              <input
+                type="date"
+                className="form-input"
+                value={satisKanaliForm.bitis}
+                onChange={(e) => setSatisKanaliForm((f) => ({ ...f, bitis: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                Satış Adedi
+                <span title="Bu kanal için planda tanımlanan satış adedi üst limiti." className="text-slate-400 cursor-help">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+              </span>
+              <select
+                className="form-select"
+                value={satisKanaliForm.satisAdedi}
+                onChange={(e) => setSatisKanaliForm((f) => ({ ...f, satisAdedi: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                {SATIS_ADEDI_SECENEKLER.map((n) => (
+                  <option key={n} value={String(n)}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
+                Sözleşme Basımı
+                <span title="Bu kanalda sözleşme basımı yapılıp yapılmayacağı." className="text-slate-400 cursor-help">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+              </span>
+              <select
+                className="form-select"
+                value={satisKanaliForm.sozlesmeBasimi}
+                onChange={(e) => setSatisKanaliForm((f) => ({ ...f, sozlesmeBasimi: e.target.value }))}
+              >
+                <option value="Hayır">Hayır</option>
+                <option value="Evet">Evet</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={satisKanaliPickerOpen}
+        onClose={() => setSatisKanaliPickerOpen(false)}
+        size="lg"
+        title="Satış Kanalı Listesi"
+        description="Seçmek için satıra çift tıklayın."
+        footer={<OutlineButton type="button" onClick={() => setSatisKanaliPickerOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="rounded-lg border border-slate-200 overflow-x-auto max-h-[55vh]">
+          <table className="w-full text-sm min-w-[520px]">
+            <thead className="bg-slate-100 text-slate-700 sticky top-0">
+              <tr>
+                <th className="text-left font-semibold px-3 py-2.5">Kanal Kodu</th>
+                <th className="text-left font-semibold px-3 py-2.5">Kanal Adı</th>
+                <th className="text-left font-semibold px-3 py-2.5">Açıklama</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satisKanaliTanimlari.map((t) => (
+                <tr
+                  key={t.id}
+                  className="border-t border-slate-100 hover:bg-violet-50/50 cursor-pointer"
+                  onDoubleClick={() => pickSatisKanaliTanim(t)}
+                >
+                  <td className="px-3 py-2 tabular-nums">{t.kanalKodu}</td>
+                  <td className="px-3 py-2">{t.kanalAdi}</td>
+                  <td className="px-3 py-2 text-slate-700">{t.aciklama}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+
+      <Modal
+        open={degisiklikEkleModalOpen}
+        onClose={() => setDegisiklikEkleModalOpen(false)}
+        size="xl"
+        title="Planda Yapılabilecek Değişiklik Tanımı Ekle"
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setDegisiklikEkleModalOpen(false)}>İptal</OutlineButton>
+            <PrimaryButton type="button" onClick={applyDegisiklikModalSec} className="bg-violet-600 hover:bg-violet-700">
+              Seç
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="Değişiklik adı veya tipi ile ara..."
+              value={degisiklikModalSearch}
+              onChange={(e) => setDegisiklikModalSearch(e.target.value)}
+            />
+          </div>
+          <div className="rounded-lg border border-slate-200 overflow-x-auto max-h-[50vh]">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10">
+                <tr>
+                  <th className="text-left font-semibold px-2 py-2 w-12">Seç</th>
+                  <th className="text-left font-semibold px-2 py-2">Branş Kodu</th>
+                  <th className="text-left font-semibold px-2 py-2">Branş</th>
+                  <th className="text-left font-semibold px-2 py-2">Zeyil Kodu</th>
+                  <th className="text-left font-semibold px-2 py-2 min-w-[180px]">Zeyil Adı</th>
+                  <th className="text-right font-semibold px-2 py-2 whitespace-nowrap">Yılda Kaç Kez Yapılabilir?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDegisiklikTipleriModal.map((tip) => (
+                  <tr
+                    key={tip.id}
+                    className="border-t border-slate-100 hover:bg-violet-50/40 cursor-pointer"
+                    onDoubleClick={() => toggleDegisiklikModalSec(tip.id)}
+                  >
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-violet-600"
+                        checked={degisiklikModalSecIds.includes(tip.id)}
+                        onChange={() => toggleDegisiklikModalSec(tip.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="px-2 py-2">{tip.brans}</td>
+                    <td className="px-2 py-2">
+                      <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        {tip.brans}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 tabular-nums">{tip.zeyilKodu}</td>
+                    <td className="px-2 py-2">{degisiklikPlanAdiTr(tip)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{tip.yilLimit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-slate-500">Çift tıklama ile seçim kutusunu işaretleyebilirsiniz.</p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={degisiklikKanalModalOpen}
+        onClose={() => setDegisiklikKanalModalOpen(false)}
+        title="Satış Kanalları"
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setDegisiklikKanalModalOpen(false)}>İptal</OutlineButton>
+            <PrimaryButton type="button" onClick={saveDegisiklikKanalModal} className="bg-violet-600 hover:bg-violet-700">
+              Kaydet
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm text-slate-800 cursor-pointer">
+            <input
+              type="checkbox"
+              className="rounded border-slate-300 text-violet-600"
+              checked={kanalModalHepsi}
+              onChange={(e) => {
+                setKanalModalHepsi(e.target.checked)
+                if (e.target.checked) setKanalModalKodSec({})
+              }}
+            />
+            Tüm Satış Kanalları (Hepsi)
+          </label>
+          <div className={`space-y-2 pl-1 border-t border-slate-100 pt-3 ${kanalModalHepsi ? 'opacity-50 pointer-events-none' : ''}`}>
+            {satisKanaliTanimlari.map((c) => (
+              <label key={c.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 text-violet-600"
+                  disabled={kanalModalHepsi}
+                  checked={!!kanalModalKodSec[c.kanalKodu]}
+                  onChange={(e) =>
+                    setKanalModalKodSec((prev) => ({
+                      ...prev,
+                      [c.kanalKodu]: e.target.checked,
+                    }))
+                  }
+                />
+                {c.kanalAdi}
+              </label>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!bagliKanallarModalRow}
+        onClose={() => setBagliKanallarModalRow(null)}
+        title="Bağlı Kanallar"
+        footer={<OutlineButton type="button" onClick={() => setBagliKanallarModalRow(null)}>Kapat</OutlineButton>}
+      >
+        {bagliKanallarModalRow && (
+          <div className="text-sm text-slate-700 space-y-2">
+            <p>
+              <span className="text-slate-500">Değişiklik: </span>
+              <span className="font-medium">{bagliKanallarModalRow.degisiklikKodu} — {bagliKanallarModalRow.degisiklikAdi}</span>
+            </p>
+            {bagliKanallarModalRow.bagliKanallar?.hepsi ? (
+              <p>Tüm satış kanalları</p>
+            ) : (
+              <ul className="list-disc pl-5 space-y-1">
+                {(bagliKanallarModalRow.bagliKanallar?.kanalKodlari || []).length === 0 ? (
+                  <li className="text-slate-500">Kanal tanımlı değil</li>
+                ) : (
+                  bagliKanallarModalRow.bagliKanallar.kanalKodlari.map((k) => {
+                    const c = satisKanaliTanimlari.find((x) => x.kanalKodu === k)
+                    return (
+                      <li key={k}>{c ? `${c.kanalAdi} (${k})` : k}</li>
+                    )
+                  })
+                )}
+              </ul>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={ekFaydaModalOpen}
+        onClose={() => setEkFaydaModalOpen(false)}
+        title={ekFaydaEditingId ? 'Ek Fayda Güncelle' : 'Ek Fayda Ekle'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setEkFaydaModalOpen(false)}>İptal</OutlineButton>
+            <PrimaryButton type="button" onClick={saveEkFaydaModal} className="bg-violet-600 hover:bg-violet-700">Kaydet</PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span className="block text-xs font-medium text-slate-600 mb-1">Ek Fayda No</span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  className="form-input flex-1 cursor-pointer"
+                  placeholder="Seçiniz"
+                  value={ekFaydaForm.katalogNo}
+                  onClick={() => setEkFaydaPickerOpen(true)}
+                />
+                <button
+                  type="button"
+                  className="shrink-0 h-10 w-10 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-600"
+                  aria-label="Ek fayda tanımlarında ara"
+                  onClick={() => setEkFaydaPickerOpen(true)}
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Revizyon No</span>
+              <input type="text" className="form-input bg-slate-50" disabled value={ekFaydaForm.revizyonNu} />
+            </label>
+          </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Açıklama</span>
+            <textarea className="form-input min-h-[88px] resize-y bg-slate-50" disabled rows={4} value={ekFaydaForm.aciklama} readOnly />
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Durum</span>
+              <select
+                className="form-select"
+                value={ekFaydaForm.durum}
+                onChange={(e) => setEkFaydaForm((f) => ({ ...f, durum: e.target.value }))}
+              >
+                <option value="">Seçiniz</option>
+                <option value="Aktif">Aktif</option>
+                <option value="Pasif">Pasif</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Gruba Özel</span>
+              <input type="text" className="form-input bg-slate-50" disabled value={ekFaydaForm.grubaOzel} />
+            </label>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={ekFaydaPickerOpen}
+        onClose={() => setEkFaydaPickerOpen(false)}
+        size="xl"
+        title="Ek Fayda Tanımları"
+        description="Kayıt seçmek için satıra çift tıklayın."
+        footer={<OutlineButton type="button" onClick={() => setEkFaydaPickerOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="rounded-lg border border-slate-200 overflow-x-auto max-h-[60vh]">
+          <table className="w-full text-sm min-w-[1200px]">
+            <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10">
+              <tr>
+                <th className="text-left font-semibold px-2 py-2">Ek Fayda No</th>
+                <th className="text-left font-semibold px-2 py-2">Resmi Ek Fayda No</th>
+                <th className="text-left font-semibold px-2 py-2">Ek Fayda Tipi</th>
+                <th className="text-left font-semibold px-2 py-2">Esas Ek Fayda</th>
+                <th className="text-left font-semibold px-2 py-2 min-w-[200px]">Açıklama</th>
+                <th className="text-left font-semibold px-2 py-2">Maliyeti Karşılayan Taraf</th>
+                <th className="text-left font-semibold px-2 py-2">Ek Fayda İade Tipi</th>
+                <th className="text-left font-semibold px-2 py-2">İlgili Firma</th>
+                <th className="text-left font-semibold px-2 py-2">Teşvikli Ek Fayda</th>
+                <th className="text-left font-semibold px-2 py-2">Ödeme</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ekFaydaTanimlari.map((t) => (
+                <tr
+                  key={t.id}
+                  className="border-t border-slate-100 hover:bg-violet-50/40 cursor-pointer"
+                  onDoubleClick={() => pickEkFaydaTanim(t)}
+                >
+                  <td className="px-2 py-2 tabular-nums">{t.ekFaydaNo}</td>
+                  <td className="px-2 py-2 tabular-nums">{t.resmiEkFaydaNo}</td>
+                  <td className="px-2 py-2">{t.ekFaydaTipi}</td>
+                  <td className="px-2 py-2">{t.esasEkFayda}</td>
+                  <td className="px-2 py-2">{t.aciklama}</td>
+                  <td className="px-2 py-2">{t.maliyetTarafi}</td>
+                  <td className="px-2 py-2">{t.iadeTipi}</td>
+                  <td className="px-2 py-2">{t.ilgiliFirma}</td>
+                  <td className="px-2 py-2">{t.tesvikliEkFayda}</td>
+                  <td className="px-2 py-2">{t.odeme}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+
+      <Modal
+        open={endeksModalOpen}
+        onClose={() => setEndeksModalOpen(false)}
+        title={endeksEditingId ? 'Endeks Tanımları Güncelle' : 'Endeks Tanımları Ekle'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setEndeksModalOpen(false)}>Vazgeç</OutlineButton>
+            <PrimaryButton type="button" onClick={saveEndeksModal} className="bg-violet-600 hover:bg-violet-700">Kaydet</PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Tip <span className="text-red-500">*</span>
+            </span>
+            <select
+              className="form-select"
+              value={endeksForm.hesapKodu}
+              onChange={(e) => setEndeksForm((f) => ({ ...f, hesapKodu: e.target.value }))}
+            >
+              <option value="">Seçiniz...</option>
+              {katkiPayiHesaplama.map((h) => (
+                <option key={h.id} value={String(h.hesapKodu)}>
+                  {h.hesapAdi} ({h.hesapKodu})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Artış tipi</span>
+            <select
+              className="form-select"
+              value={endeksForm.artisTipi}
+              onChange={(e) => setEndeksForm((f) => ({ ...f, artisTipi: e.target.value, artisDonemi: '' }))}
+            >
+              <option value="">Seçiniz...</option>
+              <option value="Ay">Ay</option>
+              <option value="Dönem">Dönem</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Artış dönemi</span>
+            <select
+              className="form-select"
+              value={endeksForm.artisDonemi}
+              onChange={(e) => setEndeksForm((f) => ({ ...f, artisDonemi: e.target.value }))}
+              disabled={!endeksForm.artisTipi}
+            >
+              <option value="">Seçiniz...</option>
+              {endeksForm.artisTipi === 'Ay' &&
+                TURKCE_AYLAR.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              {endeksForm.artisTipi === 'Dönem' &&
+                odemeDonemiTurleri.map((o) => (
+                  <option key={o.id} value={String(o.id)}>{o.aciklama}</option>
+                ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Ekstra artış oranı</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0.00"
+              value={endeksForm.ekstraOran}
+              onChange={(e) => setEndeksForm((f) => ({ ...f, ekstraOran: e.target.value }))}
+            />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geçerlilik Tarihi <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="date"
+              className="form-input"
+              value={endeksForm.gecerlilikTarihi}
+              onChange={(e) => setEndeksForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))}
+            />
+          </label>
+        </div>
+      </Modal>
 
       <Modal
         open={istisnaModalOpen}
