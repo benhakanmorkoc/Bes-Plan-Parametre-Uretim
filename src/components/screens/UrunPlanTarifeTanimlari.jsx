@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, CheckCircle2, SlidersHorizontal, FileText } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -454,6 +454,70 @@ function kurTipiEtiket(row) {
   return m[row.kod] || row.aciklama
 }
 
+/** OKS Genel Bilgiler — çoklu seçim, kapalıyken "N tane seçildi" özeti */
+function OksMultiSelectDropdown({ label, required, options, selectedKodlar, onChange }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const n = selectedKodlar.length
+  const summary = n === 0 ? 'Seçiniz' : `${n} tane seçildi`
+
+  const toggle = (kod) => {
+    const next = selectedKodlar.includes(kod)
+      ? selectedKodlar.filter((k) => k !== kod)
+      : [...selectedKodlar, kod]
+    onChange([...new Set(next)])
+  }
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <span className="block text-xs font-medium text-slate-600 mb-1">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </span>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full min-h-10 px-3 py-2 border border-slate-300 rounded-md text-sm text-left bg-white flex items-center justify-between gap-2 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span className={n === 0 ? 'text-slate-400' : 'text-slate-800'}>{summary}</span>
+        <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          className="absolute z-40 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-[0_8px_24px_rgba(15,23,42,0.12)] max-h-56 overflow-y-auto py-1"
+          role="listbox"
+        >
+          {options.map((opt) => (
+            <label
+              key={opt.kod}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                className="rounded border-slate-300 w-4 h-4 text-violet-600 focus:ring-violet-500"
+                checked={selectedKodlar.includes(opt.kod)}
+                onChange={() => toggle(opt.kod)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlanHeaderProgressRing({ pct = 20, stepText = '2/6' }) {
   const r = 15.5
   const c = 2 * Math.PI * r
@@ -847,7 +911,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
     const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
     return {
       sozlesmeTipi: urun?.sozlesmeTipi || 'Ferdi',
-      versiyonNo: oks ? '0' : '1',
+      versiyonNo: '0',
       planKodu: plan?.id || '',
       kategoriKodu: oks ? '' : 'BES-AP',
       planAdi: plan?.ad || '',
@@ -857,12 +921,10 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       hazineTescilTarihi: '',
       egmPlanKodu: '',
       egmYururlukTarihi: '',
-      basvuruTipi: '',
       basvuruKod: '',
       durum: plan?.durum || 'Taslak',
       durumKod: planDurumToKod(plan?.durum),
       doviz: '',
-      kurTipi: '',
       kurTipKod: '',
       minGirisYasi: '',
       maxGirisYasi: '',
@@ -870,9 +932,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       gecerliSozlesmeCinsi: '',
       vakifAktarim: '',
       vakifAktarimSuresi: '',
-      odemeAraclari: '',
       odemeAraciKodlari: [],
-      bosTipleri: '',
       borcTipiKodlari: [],
       katilimEsasli: Boolean(plan?.katilimEsasli),
       vatandaslikPlani: false,
@@ -1019,54 +1079,21 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                 </label>
               </div>
 
-              <div className="md:col-span-4 rounded-lg border border-slate-200 p-3">
-                <span className="block text-xs font-medium text-slate-600 mb-2">Ödeme Araçları <span className="text-slate-400 font-normal">(çoklu seçim)</span></span>
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {odemeAraclari.map((o) => (
-                    <label key={o.kod} className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-300"
-                        checked={form.odemeAraciKodlari.includes(o.kod)}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setForm((prev) => ({
-                            ...prev,
-                            odemeAraciKodlari: checked
-                              ? [...new Set([...prev.odemeAraciKodlari, o.kod])]
-                              : prev.odemeAraciKodlari.filter((k) => k !== o.kod),
-                          }))
-                        }}
-                      />
-                      <span>{o.ad} <span className="text-slate-400">({o.kod})</span></span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="md:col-span-4 rounded-lg border border-slate-200 p-3">
-                <span className="block text-xs font-medium text-slate-600 mb-2">Borç Tipleri <span className="text-slate-400 font-normal">(çoklu seçim)</span></span>
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {borcTipleri.map((b) => (
-                    <label key={b.kod} className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-300"
-                        checked={form.borcTipiKodlari.includes(b.kod)}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setForm((prev) => ({
-                            ...prev,
-                            borcTipiKodlari: checked
-                              ? [...new Set([...prev.borcTipiKodlari, b.kod])]
-                              : prev.borcTipiKodlari.filter((k) => k !== b.kod),
-                          }))
-                        }}
-                      />
-                      <span>{b.ad} <span className="text-slate-400">({b.kod})</span></span>
-                    </label>
-                  ))}
-                </div>
+              <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <OksMultiSelectDropdown
+                  label="Ödeme Araçları"
+                  required
+                  options={odemeAraclari.map((o) => ({ kod: o.kod, label: `${o.ad} (${o.kod})` }))}
+                  selectedKodlar={form.odemeAraciKodlari}
+                  onChange={(kodlar) => setForm((prev) => ({ ...prev, odemeAraciKodlari: kodlar }))}
+                />
+                <OksMultiSelectDropdown
+                  label="Borç Tipleri"
+                  required
+                  options={borcTipleri.map((b) => ({ kod: b.kod, label: `${b.ad} (${b.kod})` }))}
+                  selectedKodlar={form.borcTipiKodlari}
+                  onChange={(kodlar) => setForm((prev) => ({ ...prev, borcTipiKodlari: kodlar }))}
+                />
               </div>
 
               <label className="block md:col-span-4">
@@ -1125,15 +1152,15 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Sözleşme Tipi *</span>
-              <input className="form-input bg-slate-50" value={form.sozlesmeTipi} disabled />
+              <input className="form-input bg-slate-50 text-slate-800" value={form.sozlesmeTipi} readOnly disabled />
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Versiyon No</span>
-              <input className="form-input" value={form.versiyonNo} onChange={(e) => setValue('versiyonNo', e.target.value)} />
+              <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" value={form.versiyonNo} readOnly disabled title="Sistem yönetiminde tanımlıdır" />
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Plan Kodu *</span>
-              <input className="form-input bg-slate-50" value={form.planKodu} disabled />
+              <input className="form-input bg-slate-50" value={form.planKodu} readOnly disabled />
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Kategori Kodu</span>
@@ -1151,76 +1178,132 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
 
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Başlangıç Tarihi *</span>
-              <input className="form-input" value={form.baslangicTarihi} onChange={(e) => setValue('baslangicTarihi', e.target.value)} />
+              <input type="date" className="form-input" value={form.baslangicTarihi} onChange={(e) => setValue('baslangicTarihi', e.target.value)} />
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Hazine Plan Kodu *</span>
               <input className="form-input" value={form.hazinePlanKodu} onChange={(e) => setValue('hazinePlanKodu', e.target.value)} />
             </label>
-            <label className="block">
+            <label className="block md:col-span-2">
               <span className="block text-xs text-slate-600 mb-1">Hazine Tescil Tarihi *</span>
               <input className="form-input" placeholder="dd......yyyy" value={form.hazineTescilTarihi} onChange={(e) => setValue('hazineTescilTarihi', e.target.value)} />
-            </label>
-            <label className="inline-flex items-center gap-2 h-11 mt-5 text-sm text-slate-700">
-              <input type="checkbox" checked={form.katilimEsasli} onChange={(e) => setValue('katilimEsasli', e.target.checked)} />
-              Katılım Esaslı
             </label>
 
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Başvuru Tipi *</span>
-              <select className="form-select" value={form.basvuruTipi} onChange={(e) => setValue('basvuruTipi', e.target.value)}><option value="">Seçiniz</option></select>
+              <select className="form-select" value={form.basvuruKod} onChange={(e) => setValue('basvuruKod', e.target.value)}>
+                <option value="">Seçiniz</option>
+                {basvuruTipleri.map((b) => (
+                  <option key={b.kod} value={b.kod}>{b.aciklama}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Durum</span>
-              <select className="form-select" value={form.durum} onChange={(e) => setValue('durum', e.target.value)}><option value="Taslak">Taslak</option><option value="Yururlukte">Yürürlükte</option></select>
+              <span className="block text-xs text-slate-600 mb-1">Durum *</span>
+              <select className="form-select" value={form.durumKod} onChange={(e) => setValue('durumKod', e.target.value)}>
+                {OKS_PLAN_DURUM_SECENEKLERI.map((d) => (
+                  <option key={d.kod} value={d.kod}>{d.label}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Döviz *</span>
-              <select className="form-select" value={form.doviz} onChange={(e) => setValue('doviz', e.target.value)}><option value="">Seçiniz</option><option value="TL">TL</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+              <select className="form-select" value={form.doviz} onChange={(e) => setValue('doviz', e.target.value)}>
+                <option value="">Seçiniz</option>
+                <option value="TL">TL</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Kur Tipi *</span>
-              <select className="form-select" value={form.kurTipi} onChange={(e) => setValue('kurTipi', e.target.value)}><option value="">Seçiniz</option></select>
+              <select className="form-select" value={form.kurTipKod} onChange={(e) => setValue('kurTipKod', e.target.value)}>
+                <option value="">Seçiniz</option>
+                {kurTipleri.map((k) => (
+                  <option key={k.kod} value={k.kod}>{kurTipiEtiket(k)}</option>
+                ))}
+              </select>
             </label>
 
-            <label className="block"><span className="block text-xs text-slate-600 mb-1">Min. Giriş Yaşı</span><input className="form-input" value={form.minGirisYasi} onChange={(e) => setValue('minGirisYasi', e.target.value)} /></label>
-            <label className="block"><span className="block text-xs text-slate-600 mb-1">Max. Giriş Yaşı</span><input className="form-input" value={form.maxGirisYasi} onChange={(e) => setValue('maxGirisYasi', e.target.value)} /></label>
-            <label className="block md:col-span-2"><span className="block text-xs text-slate-600 mb-1">Emanet Fon</span><select className="form-select" value={form.emanetFon} onChange={(e) => setValue('emanetFon', e.target.value)}><option value="FON1">FON1</option></select></label>
+            <div className="md:col-span-4 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+              <span className="block text-xs font-medium text-slate-600 mb-1">Katılım Esaslı</span>
+              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={form.katilimEsasli} disabled className="rounded border-slate-300 opacity-80 cursor-not-allowed" />
+                <span>{form.katilimEsasli ? 'Evet' : 'Hayır'}</span>
+                <span className="text-[11px] text-slate-400">(önceki adımdan, değiştirilemez)</span>
+              </label>
+            </div>
 
-            <label className="block md:col-span-2">
-              <span className="block text-xs text-slate-600 mb-1">Geçerli Sözleşme Cinsi</span>
-              <select className="form-select" value={form.gecerliSozlesmeCinsi} onChange={(e) => setValue('gecerliSozlesmeCinsi', e.target.value)}><option value="">Seçiniz</option></select>
+            {!form.katilimEsasli ? (
+              <label className="block md:col-span-2">
+                <span className="block text-xs text-slate-600 mb-1">Emanet Fon</span>
+                <select className="form-select" value={form.emanetFon} onChange={(e) => setValue('emanetFon', e.target.value)}>
+                  <option value="FON1">FON1</option>
+                </select>
+              </label>
+            ) : null}
+
+            <label className="block">
+              <span className="block text-xs text-slate-600 mb-1">Min. Giriş Yaşı</span>
+              <input className="form-input" value={form.minGirisYasi} onChange={(e) => setValue('minGirisYasi', e.target.value)} />
             </label>
-            <div className="md:col-span-2" />
+            <label className="block">
+              <span className="block text-xs text-slate-600 mb-1">Max. Giriş Yaşı</span>
+              <input className="form-input" value={form.maxGirisYasi} onChange={(e) => setValue('maxGirisYasi', e.target.value)} />
+            </label>
 
-            <div className="md:col-span-2">
-              <div className="text-xs text-slate-600 mb-1">Özellikler</div>
+            <div className="md:col-span-4">
+              <div className="text-xs font-medium text-slate-600 mb-2">Özellikler</div>
               <div className="flex flex-wrap gap-4 text-xs text-slate-700">
-                <label className="inline-flex items-center gap-1"><input type="checkbox" checked={form.katilimEsasli} onChange={(e) => setValue('katilimEsasli', e.target.checked)} /> Katılım Esaslı</label>
-                <label className="inline-flex items-center gap-1"><input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} /> Vatandaşlık Planı</label>
-                <label className="inline-flex items-center gap-1"><input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} /> Aktarıma Özel Plan</label>
-                <label className="inline-flex items-center gap-1"><input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} /> Masraflı Satış</label>
-                <label className="inline-flex items-center gap-1"><input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} /> Betas</label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
+                  Vatandaşlık Planı
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
+                  Aktarıma Özel Plan
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
+                  Masraflı Satış
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
+                  Betas
+                </label>
               </div>
             </div>
 
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Vakf Aktarımı</span>
-              <select className="form-select" value={form.vakifAktarim} onChange={(e) => setValue('vakifAktarim', e.target.value)}><option value="">Seçiniz</option><option value="yes">Vakıf Aktarımı</option></select>
+              <select className="form-select" value={form.vakifAktarim} onChange={(e) => setValue('vakifAktarim', e.target.value)}>
+                <option value="">Seçiniz</option>
+                <option value="yes">Vakıf Aktarımı</option>
+              </select>
             </label>
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Vakf. Aktarım Süresi</span>
-              <select className="form-select" value={form.vakifAktarimSuresi} onChange={(e) => setValue('vakifAktarimSuresi', e.target.value)}><option value="">Seçiniz</option></select>
+              <select className="form-select" value={form.vakifAktarimSuresi} onChange={(e) => setValue('vakifAktarimSuresi', e.target.value)}>
+                <option value="">Seçiniz</option>
+              </select>
             </label>
 
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Ödeme Araçları *</span>
-              <select className="form-select" value={form.odemeAraclari} onChange={(e) => setValue('odemeAraclari', e.target.value)}><option value="">Seçiniz</option></select>
-            </label>
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Boş Tipleri *</span>
-              <select className="form-select" value={form.bosTipleri} onChange={(e) => setValue('bosTipleri', e.target.value)}><option value="">Seçiniz</option></select>
-            </label>
+            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <OksMultiSelectDropdown
+                label="Ödeme Araçları"
+                required
+                options={odemeAraclari.map((o) => ({ kod: o.kod, label: `${o.ad} (${o.kod})` }))}
+                selectedKodlar={form.odemeAraciKodlari}
+                onChange={(kodlar) => setForm((prev) => ({ ...prev, odemeAraciKodlari: kodlar }))}
+              />
+              <OksMultiSelectDropdown
+                label="Borç Tipleri"
+                required
+                options={borcTipleri.map((b) => ({ kod: b.kod, label: `${b.ad} (${b.kod})` }))}
+                selectedKodlar={form.borcTipiKodlari}
+                onChange={(kodlar) => setForm((prev) => ({ ...prev, borcTipiKodlari: kodlar }))}
+              />
+            </div>
 
             <label className="block md:col-span-4">
               <span className="block text-xs text-slate-600 mb-1">Hedef Kitle Açıklaması *</span>
