@@ -3771,9 +3771,15 @@ function PlanBelgeleriScreen({ onBack, rows, onRowsChange }) {
   )
 }
 
+const GRUP_GECERLI_SOZLESME_TURU_SECENEKLERI = [
+  { kod: 'IGES', label: 'İGES' },
+  { kod: 'GBB', label: 'GBB' },
+]
+
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
   const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
+  const isGrupProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'GRUP'
   const [form, setForm] = useState(() => {
     const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
     return {
@@ -3802,6 +3808,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       odemeAraciKodlari: [],
       borcTipiKodlari: [],
       katilimEsasli: Boolean(plan?.katilimEsasli),
+      gecerliSozlesmeTurleri: [],
       vatandaslikPlani: false,
       aktarimaOzelPlan: false,
       masrafliSatis: false,
@@ -4093,6 +4100,33 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               </select>
             </label>
 
+            {isGrupProduct ? (
+              <div className="md:col-span-4 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
+                <span className="block text-xs font-medium text-slate-600 mb-2">Geçerli Sözleşme Türleri <span className="text-red-500">*</span></span>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+                  {GRUP_GECERLI_SOZLESME_TURU_SECENEKLERI.map(({ kod, label }) => (
+                    <label key={kod} className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.gecerliSozlesmeTurleri.includes(kod)}
+                        onChange={(e) => {
+                          const on = e.target.checked
+                          setForm((prev) => ({
+                            ...prev,
+                            gecerliSozlesmeTurleri: on
+                              ? [...prev.gecerliSozlesmeTurleri, kod]
+                              : prev.gecerliSozlesmeTurleri.filter((x) => x !== kod),
+                          }))
+                        }}
+                        className="rounded border-slate-300"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="md:col-span-4 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
               <span className="block text-xs font-medium text-slate-600 mb-1">Katılım Esaslı</span>
               <label className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -4123,22 +4157,28 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
             <div className="md:col-span-4">
               <div className="text-xs font-medium text-slate-600 mb-2">Özellikler</div>
               <div className="flex flex-wrap gap-4 text-xs text-slate-700">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
-                  Vatandaşlık Planı
-                </label>
+                {!isGrupProduct ? (
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
+                    Vatandaşlık Planı
+                  </label>
+                ) : null}
                 <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
                   Aktarım Özel Planı
                 </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
-                  Mesafeli Satış
-                </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
-                  BEFAS
-                </label>
+                {!isGrupProduct ? (
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
+                    Mesafeli Satış
+                  </label>
+                ) : null}
+                {!isGrupProduct ? (
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
+                    BEFAS
+                  </label>
+                ) : null}
               </div>
             </div>
 
@@ -6276,7 +6316,7 @@ export default function UrunPlanTarifeTanimlari() {
     })
     const isBireysel = (selectedExistingProduct.tipler || '').toLowerCase().includes('bireysel emeklilik')
     const tip = (selectedExistingProduct.sozlesmeTipi || '').toUpperCase()
-    if (isBireysel && (tip === 'FERDI' || tip === 'OKS' || tip === 'EGP' || tip === 'OKS-EGP')) {
+    if (isBireysel && (tip === 'FERDI' || tip === 'GRUP' || tip === 'OKS' || tip === 'EGP' || tip === 'OKS-EGP')) {
       setPlanSetupContext({ urun: selectedExistingProduct, plan: payload })
       setPlanSetupView(tip === 'OKS' ? 'genel' : 'board')
     }
