@@ -841,9 +841,10 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
 }
 
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
-  const isOksEgp = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS-EGP'
+  /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
+  const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
   const [form, setForm] = useState(() => {
-    const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS-EGP'
+    const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
     return {
       sozlesmeTipi: urun?.sozlesmeTipi || 'Ferdi',
       versiyonNo: oks ? '0' : '1',
@@ -889,7 +890,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
 
   const headerSubtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
 
-  if (isOksEgp) {
+  if (isOksProduct) {
     return (
       <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-start justify-between gap-4">
@@ -3313,7 +3314,7 @@ export default function UrunPlanTarifeTanimlari() {
     const tip = (selectedExistingProduct.sozlesmeTipi || '').toUpperCase()
     if (isBireysel && (tip === 'FERDI' || tip === 'OKS' || tip === 'EGP' || tip === 'OKS-EGP')) {
       setPlanSetupContext({ urun: selectedExistingProduct, plan: payload })
-      setPlanSetupView(tip === 'OKS-EGP' ? 'genel' : 'board')
+      setPlanSetupView(tip === 'OKS' ? 'genel' : 'board')
     }
     closeCreateWizard()
   }
