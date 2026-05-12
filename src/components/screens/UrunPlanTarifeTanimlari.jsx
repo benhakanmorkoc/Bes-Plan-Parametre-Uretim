@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2, HelpCircle } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2, HelpCircle, Download } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -52,12 +52,12 @@ const BRANCH_OPTIONS = [
 
 const SOZLESME_TIPLERI = ['Ferdi', 'Grup', 'EGP', 'OKS', 'OKS-EGP']
 const PLAN_SETUP_CARDS = [
-  { id: 'genel', title: 'Genel Bilgiler', update: '20.02.2025', bar: 32, score: '2/6', color: 'bg-orange-500', lines: ['Kategori Kodu: BES-AD', 'Sözleşme Tipi: Ferdi'] },
-  { id: 'fonlar', title: 'Fonlar ve Fon Karmaları', update: '30.12.2023', bar: 34, score: '2/6', color: 'bg-orange-500', lines: ['TANIMLANAN FON: 5 Adet', 'DEVLET KATKI FONU', 'ACİL EMEKLİLİK FONU'] },
-  { id: 'katki', title: 'Katkı Payı Tanımları', update: '30.12.2025', bar: 8, score: '0/6', color: 'bg-red-500', lines: ['TANIMLANAN KATKI PAYI', '5 Adet', 'ASGARİ KATKI PAYI 1200 TL'] },
-  { id: 'kesinti', title: 'Kesintiler', update: '10.12.2025', bar: 55, score: '3/6', color: 'bg-yellow-400', lines: ['ÖZET', 'Giriş Aidatı, YKG tanımlanmıştır', 'ÇIKIŞ AİDATI', 'Çıkışa erteleme'] },
-  { id: 'diger', title: 'Diğer Tanımlar', update: '10.12.2025', bar: 82, score: '3/6', color: 'bg-lime-500', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
-  { id: 'belge', title: 'Plan Belgeleri', update: '10.12.2025', bar: 100, score: '6/6', color: 'bg-emerald-500', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
+  { id: 'genel', title: 'Genel Bilgiler', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['Kategori Kodu: BES-AD', 'Sözleşme Tipi: Ferdi'] },
+  { id: 'fonlar', title: 'Fonlar ve Fon Karmaları', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['TANIMLANAN FON: 5 Adet', 'DEVLET KATKI FONU', 'ACİL EMEKLİLİK FONU'] },
+  { id: 'katki', title: 'Katkı Payı Tanımları', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['TANIMLANAN KATKI PAYI', '5 Adet', 'ASGARİ KATKI PAYI 1200 TL'] },
+  { id: 'kesinti', title: 'Kesintiler', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['ÖZET', 'Giriş Aidatı, YKG tanımlanmıştır', 'ÇIKIŞ AİDATI', 'Çıkışa erteleme'] },
+  { id: 'diger', title: 'Diğer Tanımlar', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
+  { id: 'belge', title: 'Plan Belgeleri', update: '30.12.2023', bar: 100, score: '6/6', color: 'bg-emerald-600', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
 ]
 
 /** EGP emeklilik gelir planı — kart ızgarası (referans UI) */
@@ -65,46 +65,50 @@ const PLAN_SETUP_CARDS_EGP = [
   {
     id: 'genel',
     title: 'Genel Bilgiler',
-    update: '30.12.2025',
+    update: '30.12.2023',
     icon: 'settings',
     iconClass: 'from-violet-500 to-violet-700',
-    progress: { label: 'TANIMLAMA', pct: 70, score: '2/6' },
+    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
     lines: ['Kategori Kodu: BES-EGP', 'Sözleşme Tipi: EGP'],
   },
   {
     id: 'fonlar',
     title: 'Fonlar ve Fon Karmaları',
-    update: '30.12.2025',
+    update: '30.12.2023',
     icon: 'check',
     iconClass: 'from-emerald-500 to-teal-600',
+    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
     lines: ['TANIMLANAN FON', '5 Adet', 'DEVLET KATKISI FONU', 'AGITO KATKI EMEKLİLİK FONU'],
     footerChips: ['Fon Karması'],
   },
   {
     id: 'egpDetay',
     title: 'EGP Detay Parametreleri',
-    update: '30.12.2025',
+    update: '30.12.2023',
     icon: 'sliders',
     iconClass: 'from-violet-500 to-indigo-700',
+    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
     lines: ['EGP özel parametreleri tanımlanmıştır', 'GELİR PLANI TİPİ: Ömür Boyu Gelir'],
     footerChips: ['EGP Genel Parametreler', 'Geri Ödeme Tipleri', 'Ara Ödeme Parametreleri'],
   },
   {
     id: 'diger',
     title: 'Diğer Tanımlar',
-    update: '30.12.2025',
+    update: '30.12.2023',
     icon: 'check',
     iconClass: 'from-emerald-500 to-teal-600',
+    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
     lines: ['İstisna Planları, Endeksler, Ek Faydalar, Kurallar ve Sevkiyatlar tanımlanmıştır.'],
     footerChips: ['İstisna Planlar', 'Endeksler', 'Ek Fayda', '+2'],
   },
   {
     id: 'belge',
     title: 'Plana Ait Belgeler',
-    update: '30.12.2025',
+    update: '30.12.2023',
     icon: 'file',
     iconClass: 'from-emerald-500 to-teal-600',
-    lines: ['Belge tanımı yapılmamıştır', 'TANIMLANAN BELGE SAYISI: 0 Adet'],
+    progress: { label: 'TANIMLAMA', pct: 100, score: '6/6' },
+    lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'],
   },
 ]
 
@@ -117,6 +121,21 @@ const DIGER_TANIMLAR_MENU = [
   { id: 'gonderi', label: 'Gönderi/Basım' },
   { id: 'degisiklik', label: 'Değişiklik Tanımları' },
 ]
+
+/** Plan Belgeleri — yeni belge formu (Belge Türü) */
+const PLAN_BELGE_TURU_OPTIONS = [
+  'Hazine Planı',
+  'Sözleşme',
+  'KVKK Metni',
+  'Teklif',
+  'Pazarlama İçeriği',
+  'Ek Fayda Detay',
+  'Test Onay Dokümanı',
+]
+
+function planBelgeleriStorageKey(urun, plan) {
+  return `${urun?.id || ''}::${plan?.id || ''}`
+}
 
 const INITIAL_ISTISNA_PLAN_ROWS = [
   { id: 'ist-1', planId: '', planAdi: 'Emeklilik Fonu A Tipi Plan', baslangic: '2026-01-09', bitis: '2026-01-09' },
@@ -613,9 +632,9 @@ const PLAN_ENDEKS_ROW_ACTIONS = [
 ]
 
 const INITIAL_PLAN_ENDEKS_ROWS = [
-  { id: 'pl-end-1', hesapKodu: '1', artisTipi: 'Dönem', artisDonemi: '1', ekstraOranUst: 5, gecerlilikTarihi: '2024-01-01' },
-  { id: 'pl-end-2', hesapKodu: '2', artisTipi: 'Ay', artisDonemi: '3', ekstraOranUst: 3.5, gecerlilikTarihi: '2024-03-01' },
-  { id: 'pl-end-3', hesapKodu: '7', artisTipi: 'Dönem', artisDonemi: '4', ekstraOranUst: 0, gecerlilikTarihi: '2024-06-01' },
+  { id: 'pl-end-1', hesapKodu: '1', artisTipi: 'Dönem', artisDonemi: '1', ekstraOranUst: 5 },
+  { id: 'pl-end-2', hesapKodu: '2', artisTipi: 'Ay', artisDonemi: '3', ekstraOranUst: 3.5 },
+  { id: 'pl-end-3', hesapKodu: '7', artisTipi: 'Dönem', artisDonemi: '4', ekstraOranUst: 0 },
 ]
 
 const PLAN_ENDEKS_FORM_DEFAULT = () => ({
@@ -623,7 +642,6 @@ const PLAN_ENDEKS_FORM_DEFAULT = () => ({
   artisTipi: '',
   artisDonemi: '',
   ekstraOran: '0.00',
-  gecerlilikTarihi: '',
 })
 
 const EK_FAYDA_PLAN_ROW_ACTIONS = [
@@ -713,8 +731,6 @@ const SATIS_KANALI_PLAN_ROW_ACTIONS = [
   { key: 'edit', label: 'Güncelle', icon: 'edit' },
   { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
 ]
-
-const SATIS_ADEDI_SECENEKLER = [1, 2, 5, 9, 10, 15, 20, 25, 50, 75, 100, 150, 200, 500]
 
 const INITIAL_SATIS_KANALI_PLAN_ROWS = [
   {
@@ -908,18 +924,20 @@ function PlanHeaderProgressRing({ pct = 20, stepText = '2/6' }) {
   const r = 15.5
   const c = 2 * Math.PI * r
   const dash = (pct / 100) * c
+  const complete = pct >= 100
+  const stroke = complete ? '#059669' : '#7c3aed'
   return (
     <div className="flex items-center gap-3">
       <div className="text-right">
         <div className="text-[10px] text-slate-400 uppercase tracking-wide">Tamamlanma</div>
-        <div className="text-sm font-semibold text-slate-800">{pct}%</div>
+        <div className={`text-sm font-semibold ${complete ? 'text-emerald-700' : 'text-slate-800'}`}>{pct}%</div>
       </div>
       <div className="relative w-[52px] h-[52px] shrink-0">
         <svg className="w-[52px] h-[52px] -rotate-90" viewBox="0 0 36 36" aria-hidden>
           <circle cx="18" cy="18" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3" />
-          <circle cx="18" cy="18" r={r} fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
+          <circle cx="18" cy="18" r={r} fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-slate-700">{stepText}</span>
+        <span className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold ${complete ? 'text-emerald-800' : 'text-slate-700'}`}>{stepText}</span>
       </div>
     </div>
   )
@@ -1155,7 +1173,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
               <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
             </div>
           </div>
-          <PlanHeaderProgressRing pct={20} stepText="2/6" />
+          <PlanHeaderProgressRing pct={100} stepText="6/6" />
         </div>
 
         <div className="flex-1 overflow-auto p-4 md:p-6">
@@ -1166,18 +1184,11 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 key={card.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => {
-                  if (card.id === 'belge') {
-                    alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
-                    return
-                  }
-                  onOpenCard?.(card.id)
-                }}
+                onClick={() => onOpenCard?.(card.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    if (card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
-                    else onOpenCard?.(card.id)
+                    onOpenCard?.(card.id)
                   }
                 }}
                 className="text-left bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-violet-300 hover:shadow-md transition cursor-pointer"
@@ -1197,8 +1208,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                         className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (card.id === 'belge') alert('Düzenleme ekranı yakında.')
-                          else onOpenCard?.(card.id)
+                          onOpenCard?.(card.id)
                         }}
                       >
                         <Pencil className="w-4 h-4" />
@@ -1209,9 +1219,16 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                       <div className="mt-3">
                         <div className="text-[10px] text-slate-500 mb-1">{card.progress.label}</div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${card.progress.pct}%` }} />
+                          <div
+                            className={`h-full rounded-full ${card.progress.pct >= 100 ? 'bg-emerald-600' : 'bg-blue-500'}`}
+                            style={{ width: `${card.progress.pct}%` }}
+                          />
                         </div>
-                        <div className="text-[11px] text-slate-500 text-right mt-1">%{card.progress.pct} {card.progress.score}</div>
+                        <div
+                          className={`text-[11px] text-right mt-1 font-medium tabular-nums ${card.progress.pct >= 100 ? 'text-emerald-700' : 'text-slate-500'}`}
+                        >
+                          %{card.progress.pct} {card.progress.score}
+                        </div>
                       </div>
                     ) : null}
 
@@ -1256,8 +1273,8 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
         </div>
         <div className="min-w-[140px]">
           <div className="text-[10px] text-slate-400 uppercase tracking-wide text-right">Tamamlanma</div>
-          <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-yellow-400" style={{ width: '52%' }} /></div>
-          <div className="text-xs text-slate-600 text-right mt-1">%52 1/6</div>
+          <div className="mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: '100%' }} /></div>
+          <div className="text-xs font-semibold text-emerald-700 text-right mt-1 tabular-nums">%100 6/6</div>
         </div>
       </div>
 
@@ -1277,7 +1294,11 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div className={`h-full ${card.color}`} style={{ width: `${card.bar}%` }} />
                 </div>
-                <div className="text-[11px] text-slate-500 text-right mt-1">%{card.bar} {card.score}</div>
+                <div
+                  className={`text-[11px] text-right mt-1 font-medium tabular-nums ${card.bar >= 100 ? 'text-emerald-700' : 'text-slate-500'}`}
+                >
+                  %{card.bar} {card.score}
+                </div>
               </div>
               <div className="mt-3 text-[11px] text-slate-600 space-y-0.5">
                 {card.lines.map((line) => <div key={line}>{line}</div>)}
@@ -1554,7 +1575,6 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
       artisTipi: row.artisTipi || '',
       artisDonemi: String(row.artisDonemi ?? ''),
       ekstraOran: row.ekstraOranUst != null ? String(row.ekstraOranUst).replace('.', ',') : '0,00',
-      gecerlilikTarihi: row.gecerlilikTarihi || '',
     })
     setEndeksModalOpen(true)
   }
@@ -1563,7 +1583,6 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
     if (!endeksForm.hesapKodu) return alert('Tip seçiniz.')
     if (!endeksForm.artisTipi) return alert('Artış tipi seçiniz.')
     if (!String(endeksForm.artisDonemi).trim()) return alert('Artış dönemi seçiniz.')
-    if (!endeksForm.gecerlilikTarihi) return alert('Geçerlilik tarihi zorunludur.')
     const rawOran = String(endeksForm.ekstraOran).trim().replace(',', '.')
     if (rawOran === '' || Number.isNaN(Number(rawOran))) return alert('Ekstra artış oranı geçerli bir sayı olmalıdır.')
     const payload = {
@@ -1572,7 +1591,6 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
       artisTipi: endeksForm.artisTipi,
       artisDonemi: endeksForm.artisDonemi,
       ekstraOranUst: Number(rawOran),
-      gecerlilikTarihi: endeksForm.gecerlilikTarihi,
     }
     if (endeksEditingId) {
       setEndeksRows((prev) => prev.map((r) => (r.id === endeksEditingId ? payload : r)))
@@ -1689,8 +1707,8 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
   const saveSatisKanaliModal = () => {
     if (!String(satisKanaliForm.kanalKodu).trim()) return alert('Kanal seçiniz.')
     if (!satisKanaliForm.baslangic) return alert('Başlangıç tarihi zorunludur.')
-    const adet = Number(String(satisKanaliForm.satisAdedi).trim())
-    if (satisKanaliForm.satisAdedi === '' || Number.isNaN(adet)) return alert('Satış adedi seçiniz.')
+    const adet = Number(String(satisKanaliForm.satisAdedi).trim().replace(',', '.'))
+    if (satisKanaliForm.satisAdedi === '' || !Number.isFinite(adet) || adet < 0) return alert('Geçerli bir satış adedi giriniz.')
     if (!satisKanaliForm.sozlesmeBasimi) return alert('Sözleşme basımı seçiniz.')
     const payload = {
       id: satisKanaliEditingId || `sk-${Date.now()}`,
@@ -1859,13 +1877,12 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
                 </PrimaryButton>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
-                <table className="w-full grid-table text-sm min-w-[640px]">
+                <table className="w-full grid-table text-sm min-w-[520px]">
                   <thead>
                     <tr>
                       <th>Endeks Tipi</th>
                       <th>Artış Tipi</th>
                       <th className="text-right whitespace-nowrap">Ekstra Artış Oranı Üst Limit</th>
-                      <th className="whitespace-nowrap">Geçerlilik Tarihi</th>
                       <th className="text-right w-28">İşlemler</th>
                     </tr>
                   </thead>
@@ -1877,7 +1894,6 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
                         <td className="text-right tabular-nums">
                           {Number(row.ekstraOranUst).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td>{formatIsoToTrDate(row.gecerlilikTarihi)}</td>
                         <td className="text-right">
                           <RowActions
                             row={row}
@@ -2302,20 +2318,18 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
             <label className="block">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
                 Satış Adedi
-                <span title="Bu kanal için planda tanımlanan satış adedi üst limiti." className="text-slate-400 cursor-help">
+                <span title="Bu kanal için planda tanımlanan satış adedi." className="text-slate-400 cursor-help">
                   <HelpCircle className="w-3.5 h-3.5" />
                 </span>
               </span>
-              <select
-                className="form-select"
+              <input
+                type="text"
+                inputMode="decimal"
+                className="form-input tabular-nums"
+                placeholder="0"
                 value={satisKanaliForm.satisAdedi}
                 onChange={(e) => setSatisKanaliForm((f) => ({ ...f, satisAdedi: e.target.value }))}
-              >
-                <option value="">Seçiniz</option>
-                {SATIS_ADEDI_SECENEKLER.map((n) => (
-                  <option key={n} value={String(n)}>{n}</option>
-                ))}
-              </select>
+              />
             </label>
             <label className="block">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1">
@@ -2703,17 +2717,6 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
               placeholder="0.00"
               value={endeksForm.ekstraOran}
               onChange={(e) => setEndeksForm((f) => ({ ...f, ekstraOran: e.target.value }))}
-            />
-          </label>
-          <label className="block md:col-span-2">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Geçerlilik Tarihi <span className="text-red-500">*</span>
-            </span>
-            <input
-              type="date"
-              className="form-input"
-              value={endeksForm.gecerlilikTarihi}
-              onChange={(e) => setEndeksForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))}
             />
           </label>
         </div>
@@ -3481,6 +3484,231 @@ function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
                 onChange={(e) => setAraOdemeForm((f) => ({ ...f, oranBirikim: e.target.value }))}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">%</span>
+            </div>
+          </label>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function PlanBelgeleriScreen({ onBack, rows, onRowsChange }) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form, setForm] = useState({
+    belgeTuru: '',
+    belgeIcerigi: '',
+    yuklemeTarihi: toInputDateValue(new Date().toISOString().slice(0, 10)),
+  })
+  const [file, setFile] = useState(null)
+  const fileInputRef = useRef(null)
+
+  const openModal = () => {
+    setForm({
+      belgeTuru: '',
+      belgeIcerigi: '',
+      yuklemeTarihi: toInputDateValue(new Date().toISOString().slice(0, 10)),
+    })
+    setFile(null)
+    setModalOpen(true)
+  }
+
+  const saveModal = () => {
+    if (!form.belgeTuru) return alert('Belge türü seçiniz.')
+    if (!form.belgeIcerigi.trim()) return alert('Belge içeriği giriniz.')
+    if (!file) return alert('Dosya seçiniz.')
+    const yukleme = formatIsoToTrDate(form.yuklemeTarihi)
+    const row = {
+      id: `belge-${Date.now()}`,
+      belgeTuru: form.belgeTuru,
+      belgeIcerigi: form.belgeIcerigi.trim(),
+      dosyaAdi: file.name,
+      yuklemeTarihi: yukleme,
+    }
+    onRowsChange((list) => [...(list || []), row])
+    setModalOpen(false)
+  }
+
+  const removeRow = (id) => {
+    if (!window.confirm('Belge silinsin mi?')) return
+    onRowsChange((list) => (list || []).filter((r) => r.id !== id))
+  }
+
+  const pickFile = (f) => {
+    if (f) setFile(f)
+  }
+
+  return (
+    <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="max-w-5xl mx-auto rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-xs text-slate-500 mb-4 flex flex-wrap items-center gap-1">
+            <span>Ürün Yönetimi</span>
+            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
+            <span>Ürün Planları</span>
+            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
+            <span>Plan Detay Sayfası</span>
+            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
+            <span className="text-slate-700 font-medium">Plan Belgeleri</span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={onBack}
+                className="shrink-0 w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 inline-flex items-center justify-center shadow-sm"
+                aria-label="Geri"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-lg font-bold text-slate-900">Plan Belgeleri</h2>
+            </div>
+            <button
+              type="button"
+              onClick={openModal}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Belge Ekle
+            </button>
+          </div>
+
+          <div className="overflow-auto border border-slate-200 rounded-lg">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>Belge Türü</th>
+                  <th>Belge İçeriği</th>
+                  <th>Dosya Adı</th>
+                  <th>Yükleme Tarihi</th>
+                  <th className="text-right w-36">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(rows || []).length ? (
+                  (rows || []).map((row) => (
+                    <tr key={row.id}>
+                      <td className="font-medium text-slate-800">{row.belgeTuru}</td>
+                      <td className="text-slate-700 max-w-[220px] truncate" title={row.belgeIcerigi}>
+                        {row.belgeIcerigi}
+                      </td>
+                      <td className="font-mono text-xs text-slate-600">{row.dosyaAdi}</td>
+                      <td className="tabular-nums text-slate-700">{row.yuklemeTarihi}</td>
+                      <td className="text-right">
+                        <div className="inline-flex items-center gap-0.5 justify-end">
+                          <button
+                            type="button"
+                            className="p-1.5 rounded-md text-violet-600 hover:bg-violet-50"
+                            title="Görüntüle"
+                            onClick={() =>
+                              alert(`Önizleme: ${row.belgeIcerigi}\nDosya: ${row.dosyaAdi}`)
+                            }
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50"
+                            title="İndir"
+                            onClick={() => alert(`İndirme simülasyonu: ${row.dosyaAdi}`)}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1.5 rounded-md text-red-600 hover:bg-red-50"
+                            title="Sil"
+                            onClick={() => removeRow(row.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center text-slate-500 py-10 text-sm">
+                      Henüz belge eklenmedi. &quot;Yeni Belge Ekle&quot; ile kayıt oluşturabilirsiniz.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Plan Belgeleri"
+        size="lg"
+        footer={
+          <>
+            <OutlineButton onClick={() => setModalOpen(false)}>Vazgeç</OutlineButton>
+            <PrimaryButton onClick={saveModal}>Kaydet</PrimaryButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <label className="block">
+            <span className="block text-xs font-semibold text-slate-600 mb-1">Belge Türü</span>
+            <select
+              className="form-input w-full"
+              value={form.belgeTuru}
+              onChange={(e) => setForm((f) => ({ ...f, belgeTuru: e.target.value }))}
+            >
+              <option value="">Seçiniz</option>
+              {PLAN_BELGE_TURU_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-semibold text-slate-600 mb-1">Belge İçeriği</span>
+            <textarea
+              className="form-input w-full min-h-[100px] resize-y"
+              placeholder="Belge içeriğini giriniz..."
+              value={form.belgeIcerigi}
+              onChange={(e) => setForm((f) => ({ ...f, belgeIcerigi: e.target.value }))}
+            />
+          </label>
+          <div>
+            <span className="block text-xs font-semibold text-slate-600 mb-1">Dosya</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="sr-only"
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                pickFile(e.dataTransfer.files?.[0])
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full border-2 border-dashed border-slate-200 rounded-lg py-10 px-4 text-center hover:border-violet-300 hover:bg-violet-50/30 transition cursor-pointer bg-slate-50/50"
+            >
+              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <div className="text-sm text-slate-600 font-medium">Sürükle Bırak veya Dosyadan Seç</div>
+              {file ? <div className="text-xs text-violet-700 mt-2 font-medium">{file.name}</div> : null}
+            </button>
+          </div>
+          <label className="block">
+            <span className="block text-xs font-semibold text-slate-600 mb-1">Yükleme Tarihi</span>
+            <div className="relative">
+              <input
+                type="date"
+                className="form-input w-full pr-10"
+                value={form.yuklemeTarihi}
+                onChange={(e) => setForm((f) => ({ ...f, yuklemeTarihi: e.target.value }))}
+              />
+              <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </label>
         </div>
@@ -5826,6 +6054,7 @@ export default function UrunPlanTarifeTanimlari() {
   const [planForm, setPlanForm] = useState({ planAdi: '', planKodu: '', baslangicTarihi: normalizeDate(), katilimEsasli: false, hedefKitle: '' })
   const [planSetupContext, setPlanSetupContext] = useState(null)
   const [planSetupView, setPlanSetupView] = useState('board')
+  const [planBelgeleriByPlanKey, setPlanBelgeleriByPlanKey] = useState({})
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
   const [menuOpenId, setMenuOpenId] = useState(null)
 
@@ -6142,6 +6371,24 @@ export default function UrunPlanTarifeTanimlari() {
     if (planSetupView === 'egpDetay') {
       return <EgpDetayParametreleriScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
+    if (planSetupView === 'belgeler') {
+      const belgeKey = planBelgeleriStorageKey(planSetupContext.urun, planSetupContext.plan)
+      return (
+        <PlanBelgeleriScreen
+          plan={planSetupContext.plan}
+          urun={planSetupContext.urun}
+          onBack={() => setPlanSetupView('board')}
+          rows={planBelgeleriByPlanKey[belgeKey] || []}
+          onRowsChange={(updater) => {
+            setPlanBelgeleriByPlanKey((prev) => {
+              const cur = prev[belgeKey] || []
+              const next = typeof updater === 'function' ? updater(cur) : updater
+              return { ...prev, [belgeKey]: next }
+            })
+          }}
+        />
+      )
+    }
     return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
       else if (cardId === 'fonlar') setPlanSetupView('fonlar')
@@ -6149,6 +6396,7 @@ export default function UrunPlanTarifeTanimlari() {
       else if (cardId === 'kesinti') setPlanSetupView('kesinti')
       else if (cardId === 'diger') setPlanSetupView('diger')
       else if (cardId === 'egpDetay') setPlanSetupView('egpDetay')
+      else if (cardId === 'belge') setPlanSetupView('belgeler')
       else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
     }} />
   }
