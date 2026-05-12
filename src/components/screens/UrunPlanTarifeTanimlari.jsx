@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, CheckCircle2, SlidersHorizontal, FileText } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari, katkiPayiTemplateleri } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -38,6 +38,54 @@ const PLAN_SETUP_CARDS = [
   { id: 'kesinti', title: 'Kesintiler', update: '10.12.2025', bar: 55, score: '3/6', color: 'bg-yellow-400', lines: ['ÖZET', 'Giriş Aidatı, YKG tanımlanmıştır', 'ÇIKIŞ AİDATI', 'Çıkışa erteleme'] },
   { id: 'diger', title: 'Diğer Tanımlar', update: '10.12.2025', bar: 82, score: '3/6', color: 'bg-lime-500', lines: ['İstisna Planları, Endeksler, Ek göstergeler tanımlanmıştır.'] },
   { id: 'belge', title: 'Plan Belgeleri', update: '10.12.2025', bar: 100, score: '6/6', color: 'bg-emerald-500', lines: ['Kayıtlı belge listesi mevcuttur', 'TANIMLANAN BELGE SAYISI', '1 Adet'] },
+]
+
+/** EGP emeklilik gelir planı — kart ızgarası (referans UI) */
+const PLAN_SETUP_CARDS_EGP = [
+  {
+    id: 'genel',
+    title: 'Genel Bilgiler',
+    update: '30.12.2025',
+    icon: 'settings',
+    iconClass: 'from-violet-500 to-violet-700',
+    progress: { label: 'TANIMLAMA', pct: 70, score: '2/6' },
+    lines: ['Kategori Kodu: BES-EGP', 'Sözleşme Tipi: EGP'],
+  },
+  {
+    id: 'fonlar',
+    title: 'Fonlar ve Fon Karmaları',
+    update: '30.12.2025',
+    icon: 'check',
+    iconClass: 'from-emerald-500 to-teal-600',
+    lines: ['TANIMLANAN FON', '5 Adet', 'DEVLET KATKISI FONU', 'AGITO KATKI EMEKLİLİK FONU'],
+    footerChips: ['Fon Karması'],
+  },
+  {
+    id: 'egpDetay',
+    title: 'EGP Detay Parametreleri',
+    update: '30.12.2025',
+    icon: 'sliders',
+    iconClass: 'from-violet-500 to-indigo-700',
+    lines: ['EGP özel parametreleri tanımlanmıştır', 'GELİR PLANI TİPİ: Ömür Boyu Gelir'],
+    footerChips: ['EGP Genel Parametreler', 'Geri Ödeme Tipleri', 'Ara Ödeme Parametreleri'],
+  },
+  {
+    id: 'diger',
+    title: 'Diğer Tanımlar',
+    update: '30.12.2025',
+    icon: 'check',
+    iconClass: 'from-emerald-500 to-teal-600',
+    lines: ['İstisna Planları, Endeksler, Ek Faydalar, Kurallar ve Sevkiyatlar tanımlanmıştır.'],
+    footerChips: ['İstisna Planlar', 'Endeksler', 'Ek Fayda', '+2'],
+  },
+  {
+    id: 'belge',
+    title: 'Plana Ait Belgeler',
+    update: '30.12.2025',
+    icon: 'file',
+    iconClass: 'from-emerald-500 to-teal-600',
+    lines: ['Belge tanımı yapılmamıştır', 'TANIMLANAN BELGE SAYISI: 0 Adet'],
+  },
 ]
 
 const FON_DELETE_ACTION = [{ key: 'delete', label: 'Sil', icon: 'delete', danger: true }]
@@ -362,6 +410,45 @@ function normalizeDate(value) {
   return value || new Date().toLocaleDateString('tr-TR')
 }
 
+function branchLabelFromUrun(urun) {
+  const parts = (urun?.tipler || '').split('·').map((s) => s.trim()).filter(Boolean)
+  return parts[parts.length - 1] || 'Bireysel Emeklilik'
+}
+
+function toHeaderIsoDate(raw) {
+  if (!raw) return new Date().toISOString().slice(0, 10)
+  const s = String(raw)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const p = s.split('.')
+  if (p.length === 3) return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`
+  return new Date().toISOString().slice(0, 10)
+}
+
+function toInputDateValue(raw) {
+  return toHeaderIsoDate(raw)
+}
+
+function PlanHeaderProgressRing({ pct = 20, stepText = '2/6' }) {
+  const r = 15.5
+  const c = 2 * Math.PI * r
+  const dash = (pct / 100) * c
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-right">
+        <div className="text-[10px] text-slate-400 uppercase tracking-wide">Tamamlanma</div>
+        <div className="text-sm font-semibold text-slate-800">{pct}%</div>
+      </div>
+      <div className="relative w-[52px] h-[52px] shrink-0">
+        <svg className="w-[52px] h-[52px] -rotate-90" viewBox="0 0 36 36" aria-hidden>
+          <circle cx="18" cy="18" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3" />
+          <circle cx="18" cy="18" r={r} fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${dash} ${c}`} />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-slate-700">{stepText}</span>
+      </div>
+    </div>
+  )
+}
+
 function normalizeProduct(payload, source = {}) {
   const toplam = Number(payload.toplam ?? source.toplam ?? 0)
   const aktif = Number(payload.aktif ?? source.aktif ?? 0)
@@ -562,9 +649,121 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewP
 }
 
 function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
-  const visibleCards = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
+  const tip = (urun?.sozlesmeTipi || '').toUpperCase()
+  const isEgp = tip === 'EGP'
+  const visibleCards = tip === 'OKS'
     ? PLAN_SETUP_CARDS.filter((card) => card.id !== 'katki' && card.id !== 'kesinti')
     : PLAN_SETUP_CARDS
+
+  const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
+
+  const CardIcon = ({ name }) => {
+    const cls = 'w-5 h-5 text-white'
+    if (name === 'check') return <CheckCircle2 className={cls} />
+    if (name === 'sliders') return <SlidersHorizontal className={cls} />
+    if (name === 'file') return <FileText className={cls} />
+    return <Settings className={cls} />
+  }
+
+  if (isEgp) {
+    return (
+      <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <button type="button" onClick={onBack} className="mt-1 text-slate-500 hover:text-slate-700 shrink-0"><ArrowLeft className="w-5 h-5" /></button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
+                <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold shrink-0">Taslak</span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
+            </div>
+          </div>
+          <PlanHeaderProgressRing pct={20} stepText="2/6" />
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          <h3 className="text-sm font-semibold text-slate-800 mb-4">Plan Konfigürasyonu</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
+            {PLAN_SETUP_CARDS_EGP.map((card) => (
+              <div
+                key={card.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') {
+                    alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
+                    return
+                  }
+                  onOpenCard?.(card.id)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
+                    else onOpenCard?.(card.id)
+                  }
+                }}
+                className="text-left bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-violet-300 hover:shadow-md transition cursor-pointer"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-11 h-11 rounded-lg bg-gradient-to-br ${card.iconClass} shrink-0 inline-flex items-center justify-center shadow-sm`}>
+                    <CardIcon name={card.icon} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-800">{card.title}</h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Son Güncelleme Tarihi: {card.update}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (card.id === 'egpDetay' || card.id === 'diger' || card.id === 'belge') alert('Düzenleme ekranı yakında.')
+                          else onOpenCard?.(card.id)
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {card.progress ? (
+                      <div className="mt-3">
+                        <div className="text-[10px] text-slate-500 mb-1">{card.progress.label}</div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${card.progress.pct}%` }} />
+                        </div>
+                        <div className="text-[11px] text-slate-500 text-right mt-1">%{card.progress.pct} {card.progress.score}</div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3">
+                      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Özet</div>
+                      <div className="text-[11px] text-slate-600 space-y-1">
+                        {card.lines.map((line) => (
+                          <div key={line}>{line}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {card.footerChips?.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {card.footerChips.map((chip) => (
+                          <span key={chip} className="px-2.5 py-1 rounded-md border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-700">{chip}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
@@ -576,7 +775,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
               <h2 className="text-xl font-semibold text-slate-900">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
               <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">TASLAK</span>
             </div>
-            <div className="text-xs text-slate-500 mt-1">{plan?.id || '-'}  ·  {urun?.sozlesmeTipi || 'Ferdi'}  ·  {plan?.tarih || normalizeDate()}</div>
+            <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
           </div>
         </div>
         <div className="min-w-[140px]">
@@ -616,38 +815,183 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
 }
 
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
-  const [form, setForm] = useState({
-    sozlesmeTipi: urun?.sozlesmeTipi || 'Ferdi',
-    versiyonNo: '1',
-    planKodu: plan?.id || '',
-    kategoriKodu: 'BES-AP',
-    planAdi: plan?.ad || '',
-    planKisaAdi: '',
-    baslangicTarihi: plan?.tarih || normalizeDate(),
-    hazinePlanKodu: '',
-    hazineTescilTarihi: '',
-    basvuruTipi: '',
-    durum: plan?.durum || 'Taslak',
-    doviz: '',
-    kurTipi: '',
-    minGirisYasi: '',
-    maxGirisYasi: '',
-    emanetFon: 'FON1',
-    gecerliSozlesmeCinsi: '',
-    vakifAktarim: '',
-    vakifAktarimSuresi: '',
-    odemeAraclari: '',
-    bosTipleri: '',
-    katilimEsasli: Boolean(plan?.katilimEsasli),
-    vatandaslikPlani: false,
-    aktarimaOzelPlan: false,
-    masrafliSatis: false,
-    betas: false,
-    hedefKitle: plan?.hedefKitle || '',
-    mevzuatIstisnaMetni: '',
+  const isOksEgp = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS-EGP'
+  const [form, setForm] = useState(() => {
+    const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS-EGP'
+    return {
+      sozlesmeTipi: urun?.sozlesmeTipi || 'Ferdi',
+      versiyonNo: oks ? '0' : '1',
+      planKodu: plan?.id || '',
+      kategoriKodu: oks ? '' : 'BES-AP',
+      planAdi: plan?.ad || '',
+      planKisaAdi: '',
+      baslangicTarihi: toInputDateValue(plan?.tarih),
+      hazinePlanKodu: '',
+      hazineTescilTarihi: '',
+      egmPlanKodu: '',
+      egmYururlukTarihi: '',
+      basvuruTipi: '',
+      durum: plan?.durum || 'Taslak',
+      doviz: '',
+      kurTipi: '',
+      minGirisYasi: '',
+      maxGirisYasi: '',
+      emanetFon: 'FON1',
+      gecerliSozlesmeCinsi: '',
+      vakifAktarim: '',
+      vakifAktarimSuresi: '',
+      odemeAraclari: '',
+      bosTipleri: '',
+      katilimEsasli: Boolean(plan?.katilimEsasli),
+      vatandaslikPlani: false,
+      aktarimaOzelPlan: false,
+      vakifAktarimCheck: false,
+      masrafliSatis: false,
+      betas: false,
+      hedefKitle: plan?.hedefKitle || '',
+      mevzuatIstisnaMetni: '',
+      mevzuatFarkliUygulama: '',
+    }
   })
 
   const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
+
+  const headerSubtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
+
+  if (isOksEgp) {
+    return (
+      <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg md:text-xl font-semibold text-slate-900">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
+              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold">Taslak</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{headerSubtitle}</p>
+          </div>
+          <PlanHeaderProgressRing pct={20} stepText="2/6" />
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="max-w-5xl mx-auto rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-6">
+              <button type="button" onClick={onBack} className="text-slate-500 hover:text-slate-800 p-1 -ml-1 rounded-md hover:bg-slate-100" aria-label="Geri">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h3 className="text-base font-semibold text-slate-800">Genel Bilgiler</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Sözleşme Tipi <span className="text-red-500">*</span></span>
+                <div className="form-input bg-slate-50 flex items-center gap-2 text-slate-800 h-10">
+                  <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" aria-hidden />
+                  <span className="truncate">{form.sozlesmeTipi}</span>
+                </div>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Versiyon No</span>
+                <input className="form-input bg-slate-50" value={form.versiyonNo} onChange={(e) => setValue('versiyonNo', e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Plan Kodu <span className="text-red-500">*</span></span>
+                <input className="form-input bg-slate-50" value={form.planKodu} readOnly />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Kategori Kodu <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="" value={form.kategoriKodu} onChange={(e) => setValue('kategoriKodu', e.target.value)} />
+              </label>
+
+              <label className="block md:col-span-4">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Plan Adı <span className="text-red-500">*</span></span>
+                <input className="form-input" value={form.planAdi} onChange={(e) => setValue('planAdi', e.target.value)} />
+              </label>
+
+              <label className="block md:col-span-4">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Plan kısa adı <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Plan kısa adını giriniz" value={form.planKisaAdi} onChange={(e) => setValue('planKisaAdi', e.target.value)} />
+              </label>
+
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Başlangıç Tarihi <span className="text-red-500">*</span></span>
+                <input type="date" className="form-input" value={form.baslangicTarihi} onChange={(e) => setValue('baslangicTarihi', e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">EGM Plan Kodu</span>
+                <input className="form-input" value={form.egmPlanKodu} onChange={(e) => setValue('egmPlanKodu', e.target.value)} />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="block text-xs font-medium text-slate-600 mb-1">EGM Yürürlük Tarihi</span>
+                <input type="date" className="form-input" value={form.egmYururlukTarihi} onChange={(e) => setValue('egmYururlukTarihi', e.target.value)} />
+              </label>
+
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Başvuru Tipi <span className="text-red-500">*</span></span>
+                <select className="form-select" value={form.basvuruTipi} onChange={(e) => setValue('basvuruTipi', e.target.value)}>
+                  <option value="">Seçiniz</option>
+                  <option value="bireysel">Bireysel</option>
+                  <option value="kurumsal">Kurumsal</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Durum <span className="text-red-500">*</span></span>
+                <select className="form-select" value={form.durum} onChange={(e) => setValue('durum', e.target.value)}>
+                  <option value="Taslak">Taslak</option>
+                  <option value="Yururlukte">Yürürlükte</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Döviz <span className="text-red-500">*</span></span>
+                <select className="form-select" value={form.doviz} onChange={(e) => setValue('doviz', e.target.value)}>
+                  <option value="">Seçiniz</option>
+                  <option value="TL">TL</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Kur Tipi</span>
+                <select className="form-select" value={form.kurTipi} onChange={(e) => setValue('kurTipi', e.target.value)}>
+                  <option value="">Seçiniz</option>
+                  <option value="tcmb">TCMB</option>
+                  <option value="satis">Satış</option>
+                </select>
+              </label>
+
+              <div className="md:col-span-4 flex flex-wrap gap-6 pt-1 text-sm text-slate-700">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.katilimEsasli} onChange={(e) => setValue('katilimEsasli', e.target.checked)} className="rounded border-slate-300" />
+                  Katılım Esaslı
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
+                  Aktarım Özel Planı
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.vakifAktarimCheck} onChange={(e) => setValue('vakifAktarimCheck', e.target.checked)} className="rounded border-slate-300" />
+                  Vakıf Aktarım
+                </label>
+              </div>
+
+              <label className="block md:col-span-4">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Hedef Kitle Açıklaması</span>
+                <textarea className="form-input min-h-[88px]" placeholder="Hedef kitle açıklaması..." value={form.hedefKitle} onChange={(e) => setValue('hedefKitle', e.target.value)} />
+              </label>
+              <label className="block md:col-span-4">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Mevzuat Farklı Uygulama</span>
+                <textarea className="form-input min-h-[88px]" placeholder="Mevzuat farklı uygulama açıklaması..." value={form.mevzuatFarkliUygulama} onChange={(e) => setValue('mevzuatFarkliUygulama', e.target.value)} />
+              </label>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
+              <button type="button" className="text-sm font-medium text-slate-600 hover:text-slate-900 px-2">İptal</button>
+              <PrimaryButton>Kaydet</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
@@ -659,7 +1003,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               <h2 className="text-xl font-semibold text-slate-900">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
               <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">TASLAK</span>
             </div>
-            <div className="text-xs text-slate-500 mt-1">{plan?.id || '-'}  ·  {urun?.sozlesmeTipi || 'Ferdi'}  ·  {plan?.tarih || normalizeDate()}</div>
+            <div className="text-xs text-slate-500 mt-1">{headerSubtitle}</div>
           </div>
         </div>
         <div className="min-w-[140px]">
@@ -2872,9 +3216,9 @@ export default function UrunPlanTarifeTanimlari() {
     })
     const isBireysel = (selectedExistingProduct.tipler || '').toLowerCase().includes('bireysel emeklilik')
     const tip = (selectedExistingProduct.sozlesmeTipi || '').toUpperCase()
-    if (isBireysel && (tip === 'FERDI' || tip === 'OKS')) {
+    if (isBireysel && (tip === 'FERDI' || tip === 'OKS' || tip === 'EGP' || tip === 'OKS-EGP')) {
       setPlanSetupContext({ urun: selectedExistingProduct, plan: payload })
-      setPlanSetupView('board')
+      setPlanSetupView(tip === 'OKS-EGP' ? 'genel' : 'board')
     }
     closeCreateWizard()
   }

@@ -17,7 +17,7 @@ const PLAN_LOOKUP_IDS = new Set([
   'odemeAraclari', 'degisiklikTipleri', 'gecerliSozlesmeCinsi', 'basvuruTipleri', 'tarifePlanDurum',
   'kurTipleri', 'vakifUyeKurum', 'odemeDonemiTurleri', 'girisAidatiTurleri', 'tarifeOzguBelgeTipleri',
   'altBranslar', 'yuvarlamaTipleri', 'ygkYilTipi', 'ygkLimitTutarTipi', 'ygkKademeTipi',
-  'ygkYillikKademeDonemi', 'ygkYillikOdemeDonemi', 'araVermeTip', 'egpBireyTipi',
+  'ygkYillikKademeDonemi', 'ygkYillikOdemeDonemi', 'araVermeTip', 'egpBireyTipi', 'egpGeriOdemeTipleri',
   'soruTipleri', 'cevapTipleri', 'soruBankasi', 'soruKumeleri',
 ])
 
@@ -81,6 +81,7 @@ const menu = [
       { id: 'ygkYillikOdemeDonemi', label: 'YGK Yillik Odeme Donemi' },
       { id: 'araVermeTip', label: 'Ara Verme Tip' },
       { id: 'egpBireyTipi', label: 'EGP Birey Tipi' },
+      { id: 'egpGeriOdemeTipleri', label: 'EGP Geri Odeme Tipleri' },
     ],
   },
   {

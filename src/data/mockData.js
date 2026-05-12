@@ -679,6 +679,13 @@ export const egpBireyTipiDetaylari = {
   ],
 }
 
+export const egpGeriOdemeTipleri = [
+  { id: 1, tanimAdi: 'Sureye Bagli' },
+  { id: 2, tanimAdi: 'Tutara Bagli' },
+  { id: 3, tanimAdi: 'Mevduat' },
+  { id: 4, tanimAdi: 'Kira' },
+]
+
 // --- ANKET / SORU ---
 export const soruTipleri = [
   { id: 1, ad: '1', aciklama: 'Saglik' },

@@ -6,23 +6,7 @@ import SozlesmeTipi from './SozlesmeTipi'
 import BorcTipleri from './BorcTipleri'
 import OdemeAraclari from './OdemeAraclari'
 import DegisiklikTipleri from './DegisiklikTipleri'
-import GecerliSozlesmeCinsi from './GecerliSozlesmeCinsi'
-import BasvuruTipleri from './BasvuruTipleri'
-import TarifePlanDurum from './TarifePlanDurum'
-import KurTipleri from './KurTipleri'
-import VakifUyeKurum from './VakifUyeKurum'
-import OdemeDonemiTurleri from './OdemeDonemiTurleri'
-import GirisAidatiTurleri from './GirisAidatiTurleri'
 import TarifeOzguBelgeTipleri from './TarifeOzguBelgeTipleri'
-import AltBranslar from './AltBranslar'
-import YuvarlamaTipleri from './YuvarlamaTipleri'
-import YgkYilTipi from './YgkYilTipi'
-import YgkLimitTutarTipi from './YgkLimitTutarTipi'
-import YgkKademeTipi from './YgkKademeTipi'
-import YgkYillikKademeDonemi from './YgkYillikKademeDonemi'
-import YgkYillikOdemeDonemi from './YgkYillikOdemeDonemi'
-import AraVermeTip from './AraVermeTip'
-import EgpBireyTipi from './EgpBireyTipi'
 import SoruTipleri from './SoruTipleri'
 import CevapTipleri from './CevapTipleri'
 import SoruBankasi from './SoruBankasi'
@@ -202,6 +186,11 @@ const REGISTRY = {
     data: data.egpBireyTipi,
     columns: [{ key: 'kod', label: 'Kod' }, { key: 'ad', label: 'Ad' }, { key: 'aciklama', label: 'Aciklama' }],
   },
+  egpGeriOdemeTipleri: {
+    title: 'EGP Geri Odeme Tipleri Tablosu',
+    data: data.egpGeriOdemeTipleri,
+    columns: [{ key: 'tanimAdi', label: 'Tanim Adi' }],
+  },
   soruTipleri: {
     title: 'Soru Tipleri',
     data: data.soruTipleri,
@@ -239,23 +228,7 @@ export default function PlanLookupRouter({ id }) {
   if (id === 'borcTipleri') return <BorcTipleri />
   if (id === 'odemeAraclari') return <OdemeAraclari />
   if (id === 'degisiklikTipleri') return <DegisiklikTipleri />
-  if (id === 'gecerliSozlesmeCinsi') return <GecerliSozlesmeCinsi />
-  if (id === 'basvuruTipleri') return <BasvuruTipleri />
-  if (id === 'tarifePlanDurum') return <TarifePlanDurum />
-  if (id === 'kurTipleri') return <KurTipleri />
-  if (id === 'vakifUyeKurum') return <VakifUyeKurum />
-  if (id === 'odemeDonemiTurleri') return <OdemeDonemiTurleri />
-  if (id === 'girisAidatiTurleri') return <GirisAidatiTurleri />
   if (id === 'tarifeOzguBelgeTipleri') return <TarifeOzguBelgeTipleri />
-  if (id === 'altBranslar') return <AltBranslar />
-  if (id === 'yuvarlamaTipleri') return <YuvarlamaTipleri />
-  if (id === 'ygkYilTipi') return <YgkYilTipi />
-  if (id === 'ygkLimitTutarTipi') return <YgkLimitTutarTipi />
-  if (id === 'ygkKademeTipi') return <YgkKademeTipi />
-  if (id === 'ygkYillikKademeDonemi') return <YgkYillikKademeDonemi />
-  if (id === 'ygkYillikOdemeDonemi') return <YgkYillikOdemeDonemi />
-  if (id === 'araVermeTip') return <AraVermeTip />
-  if (id === 'egpBireyTipi') return <EgpBireyTipi />
   if (id === 'soruTipleri') return <SoruTipleri />
   if (id === 'cevapTipleri') return <CevapTipleri />
   if (id === 'soruBankasi') return <SoruBankasi />

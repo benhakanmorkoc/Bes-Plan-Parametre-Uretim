@@ -5,9 +5,20 @@ import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import { degisiklikTipleri as seedRows } from '../../data/mockData'
 
 const AVAILABLE_PLANS = [
+  { no: '003', ad: 'ESNEK PLAN', versiyon: '1', durum: 'Taslak', baslangic: '01.01.2025' },
+  { no: '004', ad: 'AILE PLANI', versiyon: '1', durum: 'Taslak', baslangic: '01.02.2025' },
   { no: '001', ad: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', baslangic: '01.01.2025' },
   { no: '002', ad: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', baslangic: '15.03.2025' },
   { no: '005', ad: 'TSK MENSUPLARI EMEKLILIK PLANI', versiyon: '3', durum: 'Taslak', baslangic: '01.06.2025' },
+  { no: '006', ad: 'GRUBA BAGLI BIREYSEL EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', baslangic: '11.06.2025' },
+  { no: '007', ad: '0007 NOLU EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', baslangic: '20.06.2025' },
+  { no: '008', ad: 'GRUBA BAGLI BIREYSEL EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', baslangic: '25.06.2025' },
+]
+
+const INITIAL_SELECTED_PLANS = [
+  { no: '001', ad: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', baslangic: '01.01.2025' },
+  { no: '002', ad: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', baslangic: '15.03.2025' },
+  { no: '005-1', ad: 'ASLAN BIREYSEL EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', baslangic: '01.07.2025' },
 ]
 
 const AVAILABLE_GONDERI = [
@@ -32,8 +43,87 @@ export default function DegisiklikTipleri() {
   const [selectedIds, setSelectedIds] = useState([])
   const [planBindOpen, setPlanBindOpen] = useState(false)
   const [gonderiBindOpen, setGonderiBindOpen] = useState(false)
-  const [boundPlans, setBoundPlans] = useState(AVAILABLE_PLANS)
-  const [boundGonderi, setBoundGonderi] = useState(AVAILABLE_GONDERI.slice(0, 3))
+  const [leftPlans, setLeftPlans] = useState(() => AVAILABLE_PLANS.filter((p) => !INITIAL_SELECTED_PLANS.some((s) => s.no === p.no)))
+  const [rightPlans, setRightPlans] = useState(INITIAL_SELECTED_PLANS)
+  const [leftPlanSelected, setLeftPlanSelected] = useState([])
+  const [rightPlanSelected, setRightPlanSelected] = useState([])
+  const [planKodFilter, setPlanKodFilter] = useState('')
+
+  const [leftGonderi, setLeftGonderi] = useState(AVAILABLE_GONDERI)
+  const [rightGonderi, setRightGonderi] = useState([])
+  const [leftGonderiSelected, setLeftGonderiSelected] = useState([])
+  const [rightGonderiSelected, setRightGonderiSelected] = useState([])
+  const [gonderiFilter, setGonderiFilter] = useState({ sistem: '', kategori: '', ad: '', sebep: '' })
+
+  const filteredLeftPlans = useMemo(() => {
+    if (!planKodFilter.trim()) return leftPlans
+    const q = planKodFilter.toLowerCase()
+    return leftPlans.filter((p) => p.no.toLowerCase().includes(q) || p.ad.toLowerCase().includes(q))
+  }, [leftPlans, planKodFilter])
+
+  const filteredLeftGonderi = useMemo(() => {
+    return leftGonderi.filter((g) => {
+      const s = !gonderiFilter.sistem || g.sistem === gonderiFilter.sistem
+      const k = !gonderiFilter.kategori || g.kategori === gonderiFilter.kategori
+      const a = !gonderiFilter.ad.trim() || g.ad.toLowerCase().includes(gonderiFilter.ad.toLowerCase())
+      const se = !gonderiFilter.sebep || g.sebep === gonderiFilter.sebep
+      return s && k && a && se
+    })
+  }, [leftGonderi, gonderiFilter])
+
+  const movePlanOneRight = () => {
+    const selectedRows = leftPlans.filter((p) => leftPlanSelected.includes(p.no))
+    if (!selectedRows.length) return
+    setRightPlans((prev) => [...prev, ...selectedRows])
+    setLeftPlans((prev) => prev.filter((p) => !leftPlanSelected.includes(p.no)))
+    setLeftPlanSelected([])
+  }
+  const movePlanAllRight = () => {
+    if (!leftPlans.length) return
+    setRightPlans((prev) => [...prev, ...leftPlans])
+    setLeftPlans([])
+    setLeftPlanSelected([])
+  }
+  const movePlanOneLeft = () => {
+    const selectedRows = rightPlans.filter((p) => rightPlanSelected.includes(p.no))
+    if (!selectedRows.length) return
+    setLeftPlans((prev) => [...prev, ...selectedRows])
+    setRightPlans((prev) => prev.filter((p) => !rightPlanSelected.includes(p.no)))
+    setRightPlanSelected([])
+  }
+  const movePlanAllLeft = () => {
+    if (!rightPlans.length) return
+    setLeftPlans((prev) => [...prev, ...rightPlans])
+    setRightPlans([])
+    setRightPlanSelected([])
+  }
+
+  const moveGonderiOneRight = () => {
+    const selectedRows = leftGonderi.filter((g) => leftGonderiSelected.includes(g.id))
+    if (!selectedRows.length) return
+    setRightGonderi((prev) => [...prev, ...selectedRows])
+    setLeftGonderi((prev) => prev.filter((g) => !leftGonderiSelected.includes(g.id)))
+    setLeftGonderiSelected([])
+  }
+  const moveGonderiAllRight = () => {
+    if (!leftGonderi.length) return
+    setRightGonderi((prev) => [...prev, ...leftGonderi])
+    setLeftGonderi([])
+    setLeftGonderiSelected([])
+  }
+  const moveGonderiOneLeft = () => {
+    const selectedRows = rightGonderi.filter((g) => rightGonderiSelected.includes(g.id))
+    if (!selectedRows.length) return
+    setLeftGonderi((prev) => [...prev, ...selectedRows])
+    setRightGonderi((prev) => prev.filter((g) => !rightGonderiSelected.includes(g.id)))
+    setRightGonderiSelected([])
+  }
+  const moveGonderiAllLeft = () => {
+    if (!rightGonderi.length) return
+    setLeftGonderi((prev) => [...prev, ...rightGonderi])
+    setRightGonderi([])
+    setRightGonderiSelected([])
+  }
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -208,42 +298,91 @@ export default function DegisiklikTipleri() {
       <Modal
         open={planBindOpen}
         onClose={() => setPlanBindOpen(false)}
-        title="Bağlı Planlar(Değişiklik Tipleri)"
+        title="Planlara Bağla(Değişiklik Tipleri)"
         size="xl"
-        footer={<><OutlineButton onClick={() => setPlanBindOpen(false)}>İptal</OutlineButton><OutlineButton>Temizle</OutlineButton><PrimaryButton onClick={() => setPlanBindOpen(false)}>Kaydet</PrimaryButton></>}
+        footer={
+          <>
+            <OutlineButton onClick={() => setPlanBindOpen(false)}>İptal</OutlineButton>
+            <OutlineButton onClick={() => { setLeftPlans(AVAILABLE_PLANS); setRightPlans([]); setLeftPlanSelected([]); setRightPlanSelected([]); setPlanKodFilter('') }}>Temizle</OutlineButton>
+            <PrimaryButton onClick={() => setPlanBindOpen(false)}>Kaydet</PrimaryButton>
+          </>
+        }
       >
-        <div className="space-y-3">
-          <div>
-            <OutlineButton>Filtre Seçenekleri</OutlineButton>
-          </div>
-          <div className="border border-slate-200 rounded-md overflow-hidden">
-            <table className="w-full grid-table text-sm">
-              <thead>
-                <tr>
-                  <th>Plan Kodu / Adı</th>
-                  <th>Durumu</th>
-                  <th>Plan Versiyonu</th>
-                  <th>Plan Versiyon Başlangıç Tarihi</th>
-                  <th className="text-right">İşlemler</th>
-                </tr>
-              </thead>
-              <tbody>
-                {boundPlans.map((p) => (
-                  <tr key={p.no}>
-                    <td className="font-semibold">{p.no} - {p.ad}</td>
-                    <td><span className={`px-2 py-0.5 rounded text-xs ${p.durum === 'Yürürlükte' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{p.durum}</span></td>
-                    <td>{p.versiyon}</td>
-                    <td>{p.baslangic}</td>
-                    <td className="text-right">
-                      <div className="inline-flex items-center gap-3">
-                        <button type="button" className="text-blue-600 hover:text-blue-800"><Pencil className="w-4 h-4" /></button>
-                        <button type="button" className="text-red-500 hover:text-red-700" onClick={() => setBoundPlans((prev) => prev.filter((x) => x.no !== p.no))}><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </td>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-3 items-start">
+          <div className="border border-slate-200 rounded-md p-2">
+            <div className="text-center text-sm font-semibold text-red-700 mb-2">Seçilmemiş Taslak Planlar</div>
+            <div className="flex items-end gap-2 mb-2">
+              <div className="flex-1">
+                <div className="text-xs text-slate-600 mb-1">Kod :</div>
+                <select className="w-full h-9 border border-slate-300 rounded px-2 text-sm" value={planKodFilter} onChange={(e) => setPlanKodFilter(e.target.value)}>
+                  <option value="">Seçiniz...</option>
+                  {[...new Set(leftPlans.map((p) => p.no))].map((kod) => <option key={kod} value={kod}>{kod}</option>)}
+                </select>
+              </div>
+              <PrimaryButton onClick={() => {}}>Ara</PrimaryButton>
+            </div>
+            <div className="max-h-[330px] overflow-auto border border-slate-200 rounded">
+              <table className="w-full grid-table text-sm">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Plan No</th>
+                    <th>Plan Adı</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredLeftPlans.map((p) => (
+                    <tr key={p.no}>
+                      <td><input type="checkbox" checked={leftPlanSelected.includes(p.no)} onChange={() => setLeftPlanSelected((prev) => prev.includes(p.no) ? prev.filter((x) => x !== p.no) : [...prev, p.no])} /></td>
+                      <td>{p.no}</td>
+                      <td>{p.ad}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 pt-20">
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={movePlanOneRight}>--&gt;</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={movePlanAllRight}>&gt;&gt;</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={movePlanOneLeft}>&lt;--</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={movePlanAllLeft}>&lt;&lt;</button>
+          </div>
+          <div className="border border-slate-200 rounded-md p-2">
+            <div className="text-center text-sm font-semibold text-emerald-700 mb-2">Seçilmiş Planlar</div>
+            <div className="flex items-end gap-2 mb-2">
+              <div className="flex-1">
+                <div className="text-xs text-slate-600 mb-1">Kod :</div>
+                <select className="w-full h-9 border border-slate-300 rounded px-2 text-sm">
+                  <option value="">Seçiniz...</option>
+                </select>
+              </div>
+              <PrimaryButton onClick={() => {}}>Ara</PrimaryButton>
+            </div>
+            <div className="max-h-[330px] overflow-auto border border-slate-200 rounded">
+              <table className="w-full grid-table text-sm">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Plan No</th>
+                    <th>Plan Adı</th>
+                    <th>Versiyon</th>
+                    <th>Plan Durumu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rightPlans.map((p) => (
+                    <tr key={p.no}>
+                      <td><input type="checkbox" checked={rightPlanSelected.includes(p.no)} onChange={() => setRightPlanSelected((prev) => prev.includes(p.no) ? prev.filter((x) => x !== p.no) : [...prev, p.no])} /></td>
+                      <td>{p.no}</td>
+                      <td>{p.ad}</td>
+                      <td>{p.versiyon}</td>
+                      <td><span className={`px-1.5 py-0.5 rounded text-xs ${p.durum === 'Yürürlükte' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{p.durum}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </Modal>
@@ -251,31 +390,74 @@ export default function DegisiklikTipleri() {
       <Modal
         open={gonderiBindOpen}
         onClose={() => setGonderiBindOpen(false)}
-        title="Bağlı Gönderiler"
+        title="Gönderi Tiplerine Bağla"
         size="xl"
-        footer={null}
+        footer={
+          <>
+            <OutlineButton onClick={() => setGonderiBindOpen(false)}>İptal</OutlineButton>
+            <OutlineButton onClick={() => { setLeftGonderi(AVAILABLE_GONDERI); setRightGonderi([]); setLeftGonderiSelected([]); setRightGonderiSelected([]); setGonderiFilter({ sistem: '', kategori: '', ad: '', sebep: '' }) }}>Temizle</OutlineButton>
+            <PrimaryButton onClick={() => setGonderiBindOpen(false)}>Kaydet</PrimaryButton>
+          </>
+        }
       >
-        <div className="space-y-3">
-          <div className="grid grid-cols-4 gap-2">
-            <select className="h-9 border border-slate-300 rounded-md px-2 text-sm"><option>Sistem (Tümü)</option></select>
-            <select className="h-9 border border-slate-300 rounded-md px-2 text-sm"><option>Kategori (Tümü)</option></select>
-            <input className="h-9 border border-slate-300 rounded-md px-2 text-sm" placeholder="Gönderi Adı" />
-            <select className="h-9 border border-slate-300 rounded-md px-2 text-sm"><option>Gönderi Sebebi (Tümü)</option></select>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-3 items-start">
+          <div className="border border-slate-200 rounded-md p-2">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <select className="h-9 border border-slate-300 rounded-md px-2 text-sm" value={gonderiFilter.sistem} onChange={(e) => setGonderiFilter((p) => ({ ...p, sistem: e.target.value }))}>
+                <option value="">Sistem (Tümü)</option>
+                {[...new Set(AVAILABLE_GONDERI.map((g) => g.sistem))].map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <select className="h-9 border border-slate-300 rounded-md px-2 text-sm" value={gonderiFilter.kategori} onChange={(e) => setGonderiFilter((p) => ({ ...p, kategori: e.target.value }))}>
+                <option value="">Kategori (Tümü)</option>
+                {[...new Set(AVAILABLE_GONDERI.map((g) => g.kategori))].map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+              <input className="h-9 border border-slate-300 rounded-md px-2 text-sm" placeholder="Gönderi Adı" value={gonderiFilter.ad} onChange={(e) => setGonderiFilter((p) => ({ ...p, ad: e.target.value }))} />
+              <select className="h-9 border border-slate-300 rounded-md px-2 text-sm" value={gonderiFilter.sebep} onChange={(e) => setGonderiFilter((p) => ({ ...p, sebep: e.target.value }))}>
+                <option value="">Gönderi Sebebi (Tümü)</option>
+                {[...new Set(AVAILABLE_GONDERI.map((g) => g.sebep))].map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </div>
+            <div className="max-h-[330px] overflow-auto border border-slate-200 rounded">
+              <table className="w-full grid-table text-sm">
+                <thead><tr><th></th><th>Sistem</th><th>Kategori</th><th>Gönderi Adı</th><th>Gönderi Sebebi</th></tr></thead>
+                <tbody>
+                  {filteredLeftGonderi.map((g) => (
+                    <tr key={g.id}>
+                      <td><input type="checkbox" checked={leftGonderiSelected.includes(g.id)} onChange={() => setLeftGonderiSelected((prev) => prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id])} /></td>
+                      <td>{g.sistem}</td>
+                      <td>{g.kategori}</td>
+                      <td>{g.ad}</td>
+                      <td>{g.sebep}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="border border-slate-200 rounded-md overflow-hidden">
-            <table className="w-full grid-table text-sm">
-              <thead><tr><th>Sistem</th><th>Kategori</th><th>Gönderi Adı</th><th>Gönderi Sebebi</th></tr></thead>
-              <tbody>
-                {boundGonderi.map((g) => (
-                  <tr key={g.id}>
-                    <td>{g.sistem}</td>
-                    <td>{g.kategori}</td>
-                    <td>{g.ad}</td>
-                    <td>{g.sebep}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-2 pt-20">
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={moveGonderiOneRight}>--&gt;</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={moveGonderiAllRight}>&gt;&gt;</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={moveGonderiOneLeft}>&lt;--</button>
+            <button type="button" className="h-8 px-3 rounded bg-blue-500 text-white text-sm" onClick={moveGonderiAllLeft}>&lt;&lt;</button>
+          </div>
+          <div className="border border-slate-200 rounded-md p-2">
+            <div className="text-sm font-semibold text-emerald-700 mb-2">Seçilmiş Gönderi Tipleri</div>
+            <div className="max-h-[370px] overflow-auto border border-slate-200 rounded">
+              <table className="w-full grid-table text-sm">
+                <thead><tr><th></th><th>Sistem</th><th>Kategori</th><th>Gönderi Adı</th><th>Gönderi Sebebi</th></tr></thead>
+                <tbody>
+                  {rightGonderi.map((g) => (
+                    <tr key={g.id}>
+                      <td><input type="checkbox" checked={rightGonderiSelected.includes(g.id)} onChange={() => setRightGonderiSelected((prev) => prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id])} /></td>
+                      <td>{g.sistem}</td>
+                      <td>{g.kategori}</td>
+                      <td>{g.ad}</td>
+                      <td>{g.sebep}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </Modal>
