@@ -1,211 +1,183 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
-import Modal from '../ui/Modal'
+import { ArrowLeft, MoreVertical, Plus, Search } from 'lucide-react'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
-import {
-  sozlesmeTipi as seedRows,
-  sozlesmeTipiDetaylari as seedDetaylar,
-} from '../../data/mockData'
+import { sozlesmeTipi as seedRows } from '../../data/mockData'
+
+const BRANS_OPTIONS = ['Bireysel Emeklilik', 'Hayat', 'Sağlık', 'Elementer']
 
 function emptyForm() {
-  return { id: null, brans: '', kod: '', aciklama: '' }
+  return { id: null, brans: 'Bireysel Emeklilik', kod: '', aciklama: '' }
 }
 
 export default function SozlesmeTipi() {
   const [rows, setRows] = useState(() => seedRows.map((x) => ({ ...x })))
-  const [detailMap, setDetailMap] = useState(() => ({ ...seedDetaylar }))
-  const [selectedKod, setSelectedKod] = useState(seedRows[0]?.kod || '')
-  const [search, setSearch] = useState('')
+  const [view, setView] = useState('list')
+  const [editingId, setEditingId] = useState(null)
   const [menuId, setMenuId] = useState(null)
+  const [filterBrans, setFilterBrans] = useState('Tümü')
+  const [filterKod, setFilterKod] = useState('')
   const [form, setForm] = useState(emptyForm())
-  const [formOpen, setFormOpen] = useState(false)
-  const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows
-    const q = search.toLowerCase()
-    return rows.filter((r) => `${r.brans} ${r.kod} ${r.aciklama}`.toLowerCase().includes(q))
-  }, [rows, search])
-
-  const selectedRow = rows.find((r) => r.kod === selectedKod) || filteredRows[0] || null
-  const selectedDetails = selectedRow ? detailMap[selectedRow.kod] || [] : []
+    return rows.filter((r) => {
+      const bransOk = filterBrans === 'Tümü' || r.brans === filterBrans
+      const kodOk = !filterKod.trim() || String(r.kod).toLowerCase().includes(filterKod.toLowerCase())
+      return bransOk && kodOk
+    })
+  }, [rows, filterBrans, filterKod])
 
   const openCreate = () => {
+    setEditingId(null)
     setForm(emptyForm())
-    setFormOpen(true)
+    setView('create')
   }
 
   const openEdit = (row) => {
-    setForm({ ...row })
-    setFormOpen(true)
-    setMenuId(null)
-  }
-
-  const saveForm = () => {
-    if (!form.brans.trim()) return alert('Branş zorunludur.')
-    if (!form.kod.trim()) return alert('Kod zorunludur.')
-    if (!form.aciklama.trim()) return alert('Açıklama zorunludur.')
-
-    const payload = { ...form, id: form.id || Date.now() }
-    const existsByCode = rows.some((r) => r.kod === payload.kod && r.id !== payload.id)
-    if (existsByCode) return alert('Bu kod sistemde mevcut.')
-
-    const exists = rows.some((r) => r.id === payload.id)
-    if (exists) {
-      const old = rows.find((r) => r.id === payload.id)
-      setRows((prev) => prev.map((r) => (r.id === payload.id ? payload : r)))
-      if (old && old.kod !== payload.kod) {
-        setDetailMap((prev) => {
-          const oldDetails = prev[old.kod] || []
-          const { [old.kod]: _, ...rest } = prev
-          return { ...rest, [payload.kod]: oldDetails }
-        })
-      }
-    } else {
-      setRows((prev) => [...prev, payload])
-      setDetailMap((prev) => ({ ...prev, [payload.kod]: [] }))
-    }
-
-    setSelectedKod(payload.kod)
-    setFormOpen(false)
-  }
-
-  const openInspect = (row) => {
-    setInfoModal({
-      open: true,
-      title: 'Sözleşme Tipi İncele',
-      body: (
-        <div className="space-y-1 text-sm">
-          <p><strong>Branş:</strong> {row.brans}</p>
-          <p><strong>Kod:</strong> {row.kod}</p>
-          <p><strong>Açıklama:</strong> {row.aciklama}</p>
-        </div>
-      ),
-    })
-    setMenuId(null)
-  }
-
-  const openVersions = (row) => {
-    setInfoModal({
-      open: true,
-      title: 'Versiyonlar',
-      body: (
-        <ul className="list-disc pl-5 text-sm">
-          <li>{row.kod} - Versiyon 1</li>
-          <li>{row.kod} - Versiyon 2</li>
-        </ul>
-      ),
-    })
+    setEditingId(row.id)
+    setForm({ id: row.id, brans: row.brans, kod: row.kod, aciklama: row.aciklama })
+    setView('create')
     setMenuId(null)
   }
 
   const removeRow = (row) => {
     if (!window.confirm('Kayıt silinsin mi?')) return
-    setRows((prev) => prev.filter((r) => r.id !== row.id))
-    setDetailMap((prev) => {
-      const { [row.kod]: _, ...rest } = prev
-      return rest
-    })
-    if (selectedKod === row.kod) {
-      const next = rows.find((r) => r.id !== row.id)
-      setSelectedKod(next?.kod || '')
-    }
+    setRows((prev) => prev.filter((x) => x.id !== row.id))
     setMenuId(null)
+  }
+
+  const saveForm = () => {
+    if (!form.brans) return alert('Branş zorunludur.')
+    if (!String(form.kod).trim()) return alert('Sözleşme (Ürün Tipi) Kodu zorunludur.')
+    if (!String(form.aciklama).trim()) return alert('Açıklama zorunludur.')
+
+    const payload = {
+      id: form.id || Date.now(),
+      brans: form.brans,
+      kod: String(form.kod).trim().toUpperCase(),
+      aciklama: String(form.aciklama).trim(),
+    }
+
+    const existsByKod = rows.some((r) => r.kod === payload.kod && r.id !== payload.id)
+    if (existsByKod) return alert('Bu kod zaten mevcut.')
+
+    if (editingId) {
+      setRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)))
+    } else {
+      setRows((prev) => [...prev, payload])
+    }
+    setView('list')
+  }
+
+  if (view === 'create') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+          <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setView('list')}>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800">{editingId ? 'Sözleşme (Ürün) Tipi Güncelle' : 'Sözleşme (Ürün) Tipi Ekle'}</h2>
+            <p className="text-sm text-slate-500 mt-1">Sistem için sözleşme (ürün) tipi tanımlayın</p>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <label>
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Branş *</span>
+              <select className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.brans} onChange={(e) => setForm((f) => ({ ...f, brans: e.target.value }))}>
+                {BRANS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Sözleşme(Ürün Tipi) Kodu *</span>
+              <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.kod} onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))} />
+            </label>
+            <label className="md:col-span-2">
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Açıklama</span>
+              <textarea className="w-full min-h-[80px] border border-slate-300 rounded-md px-3 py-2 text-sm" value={form.aciklama} onChange={(e) => setForm((f) => ({ ...f, aciklama: e.target.value }))} />
+            </label>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <OutlineButton onClick={() => setView('list')}>İptal</OutlineButton>
+          <OutlineButton onClick={() => setForm(emptyForm())}>Temizle</OutlineButton>
+          <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
-        title="Sözleşme Tipi"
-        description="Sözleşme tipi ana tanımları ve alt parametre detayları"
+        title="Sözleşme (Ürün) Tipi Tanımları"
+        description="Sistemdeki ürün tiplerini ve açıklamalarını buradan yönetebilirsiniz."
         right={<PrimaryButton onClick={openCreate}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>}
       />
 
-      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100">
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
-            placeholder="Branş / kod / açıklama ara..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 flex-1 min-h-0">
-        <div className="overflow-auto border-r border-slate-200">
-          <table className="w-full grid-table">
-            <thead>
-              <tr>
-                <th>Branş</th><th>Kod</th><th>Açıklama</th><th className="w-12 text-right">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.id} className={selectedKod === row.kod ? 'bg-blue-50/50' : ''} onClick={() => setSelectedKod(row.kod)}>
-                  <td>{row.brans}</td><td>{row.kod}</td><td>{row.aciklama}</td>
-                  <td className="relative text-right" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800" onClick={() => setMenuId((prev) => (prev === row.id ? null : row.id))}>...</button>
-                    {menuId === row.id && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-20 text-left text-sm">
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openInspect(row)}>İncele</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openEdit(row)}>Güncelle</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openVersions(row)}>Versiyonlar</button>
-                        <button type="button" className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50" onClick={() => removeRow(row)}>Sil</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!filteredRows.length && <tr><td colSpan={4} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="overflow-auto">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-800">Alt Detay - {selectedRow ? `${selectedRow.kod} (${selectedRow.aciklama})` : 'Kayıt seçin'}</h3>
-            <p className="text-xs text-slate-500 mt-1">Seçili sözleşme tipine ait operasyonel parametreler</p>
+      <div className="px-6 py-4 border-b border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+          <div>
+            <span className="block text-xs text-slate-600 mb-1">Filtre - Branş</span>
+            <select className="w-full h-9 border border-slate-300 rounded-md px-3 text-sm" value={filterBrans} onChange={(e) => setFilterBrans(e.target.value)}>
+              <option>Tümü</option>
+              {BRANS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
-          <div className="p-4">
-            <div className="overflow-auto border border-slate-200 rounded-md">
-              <table className="w-full grid-table text-sm">
-                <thead><tr><th>Parametre</th><th>Değer</th><th>Not</th></tr></thead>
-                <tbody>
-                  {selectedDetails.map((d) => (
-                    <tr key={d.id}><td>{d.parametre}</td><td>{d.deger}</td><td>{d.not}</td></tr>
-                  ))}
-                  {!selectedDetails.length && <tr><td colSpan={3} className="py-6 text-sm text-slate-500 text-center">Seçili kayda ait alt detay yok.</td></tr>}
-                </tbody>
-              </table>
+          <div>
+            <span className="block text-xs text-slate-600 mb-1">Filtre - Kodu</span>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Kod ara..." value={filterKod} onChange={(e) => setFilterKod(e.target.value)} />
             </div>
           </div>
+          <div className="flex items-end">
+            <OutlineButton onClick={() => { setFilterBrans('Tümü'); setFilterKod('') }}>Temizle</OutlineButton>
+          </div>
         </div>
       </div>
 
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title="Sözleşme Tipi Kaydı"
-        footer={<><OutlineButton onClick={() => setFormOpen(false)}>Vazgeç</OutlineButton><PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton></>}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label><span className="block text-xs font-semibold text-slate-600 mb-1">Branş *</span><input className="form-input" value={form.brans} onChange={(e) => setForm((f) => ({ ...f, brans: e.target.value }))} /></label>
-          <label><span className="block text-xs font-semibold text-slate-600 mb-1">Kod *</span><input className="form-input" value={form.kod} onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))} /></label>
-          <label className="md:col-span-2"><span className="block text-xs font-semibold text-slate-600 mb-1">Açıklama *</span><input className="form-input" value={form.aciklama} onChange={(e) => setForm((f) => ({ ...f, aciklama: e.target.value }))} /></label>
-        </div>
-      </Modal>
-
-      <Modal
-        open={infoModal.open}
-        onClose={() => setInfoModal({ open: false, title: '', body: null })}
-        title={infoModal.title}
-        footer={<PrimaryButton onClick={() => setInfoModal({ open: false, title: '', body: null })}>Tamam</PrimaryButton>}
-      >
-        {infoModal.body}
-      </Modal>
+      <div className="flex-1 overflow-auto">
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th>Branş Adı</th>
+              <th>Sözleşme(Ürün Tipi) Kodu</th>
+              <th>Açıklama</th>
+              <th className="text-right">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((r) => (
+              <tr key={r.id}>
+                <td>{r.brans}</td>
+                <td><span className="px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700">{r.kod}</span></td>
+                <td>{r.aciklama}</td>
+                <td className="text-right">
+                  <div className="relative inline-block">
+                    <button type="button" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" onClick={() => setMenuId((p) => (p === r.id ? null : r.id))}>
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {menuId === r.id && (
+                      <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-md shadow-md z-20">
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50" onClick={() => openEdit(r)}>Güncelle</button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50" onClick={() => removeRow(r)}>Sil</button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!filteredRows.length && (
+              <tr>
+                <td colSpan={4} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

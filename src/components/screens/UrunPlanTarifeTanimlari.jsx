@@ -318,10 +318,10 @@ const YGK_BES30_MUAF_BANDS_BY_KOD = {
 
 const YGK_BES30_KP_ARALIK_BY_KOD = {
   'YB30-001': [
-    { id: '1', minKp: '500', maxKp: '2500', aciklama: 'Standart aralık' },
-    { id: '2', minKp: '2501', maxKp: '10000', aciklama: 'Yüksek katkı' },
+    { id: '1', minKp: '500', maxKp: '2500', oran: '0.08', tutar: '—' },
+    { id: '2', minKp: '2501', maxKp: '10000', oran: '0.10', tutar: '—' },
   ],
-  'YB30-002': [{ id: '1', minKp: '1000', maxKp: '999999', aciklama: 'Tüm aralık' }],
+  'YB30-002': [{ id: '1', minKp: '1000', maxKp: '999999', oran: '0.03', tutar: '—' }],
   'YB30-003': [],
 }
 
@@ -2652,7 +2652,8 @@ function KesintilerScreen({ plan, urun, onBack }) {
                     <tr>
                       <th>Min. KP</th>
                       <th>Max. KP</th>
-                      <th>Açıklama</th>
+                      <th>Oran</th>
+                      <th>Tutar</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2661,12 +2662,13 @@ function KesintilerScreen({ plan, urun, onBack }) {
                         <tr key={r.id}>
                           <td>{r.minKp}</td>
                           <td>{r.maxKp}</td>
-                          <td>{r.aciklama}</td>
+                          <td>{r.oran}</td>
+                          <td>{r.tutar}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="text-center text-slate-500 py-6">Tanımlı katkı payı aralığı yok.</td>
+                        <td colSpan={4} className="text-center text-slate-500 py-6">Tanımlı katkı payı aralığı yok.</td>
                       </tr>
                     )}
                   </tbody>

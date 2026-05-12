@@ -1,150 +1,149 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
-import Modal from '../ui/Modal'
+import { ArrowLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
-import { asgariUcretDetaylari as seedDetaylar, asgariUcretTablosu as seedRows } from '../../data/mockData'
+import { asgariUcretTablosu as seedRows } from '../../data/mockData'
+
+function toIsoDate(dateStr) {
+  if (!dateStr) return ''
+  if (dateStr.includes('-')) return dateStr
+  const parts = dateStr.split('.')
+  if (parts.length !== 3) return ''
+  return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+}
 
 function emptyForm() {
-  return {
-    id: null,
-    gecerlilikTarihi: '',
-    asgariUcret: '',
-    katkiPayiOrani: '',
-    girisAidatiOrani: '',
-  }
+  return { id: null, gecerlilikTarihi: '', asgariUcret: '', katkiPayiOrani: '0.00', girisAidatiOrani: '0.00' }
+}
+
+function formatMoney(value) {
+  const n = Number(String(value).replace(',', '.'))
+  if (!Number.isFinite(n)) return value
+  return `${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 }
 
 export default function AsgariUcretTablosu() {
-  const [rows, setRows] = useState(() => seedRows.map((x) => ({ ...x })))
-  const [detailMap, setDetailMap] = useState(() => ({ ...seedDetaylar }))
-  const [selectedTarih, setSelectedTarih] = useState(seedRows[0]?.gecerlilikTarihi || '')
-  const [search, setSearch] = useState('')
-  const [menuId, setMenuId] = useState(null)
+  const [rows, setRows] = useState(() =>
+    seedRows.map((x) => ({ ...x, gecerlilikTarihi: toIsoDate(x.gecerlilikTarihi) })).sort((a, b) => (a.gecerlilikTarihi < b.gecerlilikTarihi ? 1 : -1)),
+  )
+  const [view, setView] = useState('list')
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm())
-  const [formOpen, setFormOpen] = useState(false)
-  const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [minTutar, setMinTutar] = useState('')
+  const [maxTutar, setMaxTutar] = useState('')
+  const [appliedFilters, setAppliedFilters] = useState({ startDate: '', endDate: '', minTutar: '', maxTutar: '' })
+
+  const todayIso = new Date().toISOString().slice(0, 10)
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows
-    const q = search.toLowerCase()
-    return rows.filter((r) =>
-      `${r.gecerlilikTarihi} ${r.asgariUcret} ${r.katkiPayiOrani} ${r.girisAidatiOrani}`
-        .toLowerCase()
-        .includes(q),
-    )
-  }, [rows, search])
-
-  const selectedRow =
-    rows.find((r) => r.gecerlilikTarihi === selectedTarih) || filteredRows[0] || null
-  const selectedDetails = selectedRow ? detailMap[selectedRow.gecerlilikTarihi] || [] : []
+    return rows.filter((r) => {
+      const asgari = Number(String(r.asgariUcret).replace(',', '.'))
+      if (appliedFilters.startDate && r.gecerlilikTarihi < appliedFilters.startDate) return false
+      if (appliedFilters.endDate && r.gecerlilikTarihi > appliedFilters.endDate) return false
+      if (appliedFilters.minTutar && asgari < Number(appliedFilters.minTutar)) return false
+      if (appliedFilters.maxTutar && asgari > Number(appliedFilters.maxTutar)) return false
+      return true
+    })
+  }, [rows, appliedFilters])
 
   const openCreate = () => {
+    setEditingId(null)
     setForm(emptyForm())
-    setFormOpen(true)
+    setView('create')
   }
 
+  const canEditDelete = (row) => row.gecerlilikTarihi >= todayIso
+
   const openEdit = (row) => {
-    setForm({ ...row })
-    setFormOpen(true)
-    setMenuId(null)
+    if (!canEditDelete(row)) return
+    setEditingId(row.id)
+    setForm({
+      id: row.id,
+      gecerlilikTarihi: row.gecerlilikTarihi,
+      asgariUcret: String(row.asgariUcret),
+      katkiPayiOrani: String(row.katkiPayiOrani),
+      girisAidatiOrani: String(row.girisAidatiOrani),
+    })
+    setView('create')
   }
 
   const saveForm = () => {
-    if (!form.gecerlilikTarihi.trim()) {
-      alert('Geçerlilik Tarihi zorunludur.')
-      return
-    }
-    if (!form.asgariUcret.trim()) {
-      alert('Asgari Ücret zorunludur.')
-      return
-    }
-    const payload = { ...form, id: form.id || Date.now() }
-
-    const existsByDate = rows.some(
-      (r) => r.gecerlilikTarihi === payload.gecerlilikTarihi && r.id !== payload.id,
-    )
-    if (existsByDate) {
-      alert('Bu geçerlilik tarihinde kayıt mevcut.')
-      return
+    if (!form.gecerlilikTarihi) return alert('Geçerlilik Tarihi zorunludur.')
+    if (!String(form.asgariUcret).trim()) return alert('Asgari Ücret Tutarı zorunludur.')
+    const payload = {
+      id: form.id || Date.now(),
+      gecerlilikTarihi: form.gecerlilikTarihi,
+      asgariUcret: String(form.asgariUcret).trim(),
+      katkiPayiOrani: String(form.katkiPayiOrani || '0.00').trim(),
+      girisAidatiOrani: String(form.girisAidatiOrani || '0.00').trim(),
     }
 
-    const exists = rows.some((r) => r.id === payload.id)
-    if (exists) {
-      const old = rows.find((r) => r.id === payload.id)
-      setRows((prev) => prev.map((r) => (r.id === payload.id ? payload : r)))
-      if (old && old.gecerlilikTarihi !== payload.gecerlilikTarihi) {
-        setDetailMap((prev) => {
-          const oldDetails = prev[old.gecerlilikTarihi] || []
-          const { [old.gecerlilikTarihi]: _, ...rest } = prev
-          return { ...rest, [payload.gecerlilikTarihi]: oldDetails }
-        })
-      }
+    const existsByDate = rows.some((r) => r.gecerlilikTarihi === payload.gecerlilikTarihi && r.id !== payload.id)
+    if (existsByDate) return alert('Bu geçerlilik tarihinde kayıt mevcut.')
+
+    if (editingId) {
+      setRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)).sort((a, b) => (a.gecerlilikTarihi < b.gecerlilikTarihi ? 1 : -1)))
     } else {
-      setRows((prev) => [...prev, payload])
-      setDetailMap((prev) => ({ ...prev, [payload.gecerlilikTarihi]: [] }))
+      setRows((prev) => [payload, ...prev].sort((a, b) => (a.gecerlilikTarihi < b.gecerlilikTarihi ? 1 : -1)))
     }
-
-    setSelectedTarih(payload.gecerlilikTarihi)
-    setFormOpen(false)
-  }
-
-  const openInspect = (row) => {
-    setInfoModal({
-      open: true,
-      title: 'Asgari Ücret İncele',
-      body: (
-        <div className="space-y-1 text-sm">
-          <p>
-            <strong>Geçerlilik Tarihi:</strong> {row.gecerlilikTarihi}
-          </p>
-          <p>
-            <strong>Asgari Ücret:</strong> {row.asgariUcret}
-          </p>
-          <p>
-            <strong>Katkı Payı Oranı:</strong> {row.katkiPayiOrani}
-          </p>
-          <p>
-            <strong>Giriş Aidatı Oranı:</strong> {row.girisAidatiOrani}
-          </p>
-        </div>
-      ),
-    })
-    setMenuId(null)
-  }
-
-  const openVersions = (row) => {
-    setInfoModal({
-      open: true,
-      title: 'Versiyonlar',
-      body: (
-        <ul className="list-disc pl-5 text-sm">
-          <li>{row.gecerlilikTarihi} - Versiyon 1</li>
-          <li>{row.gecerlilikTarihi} - Versiyon 2</li>
-        </ul>
-      ),
-    })
-    setMenuId(null)
+    setView('list')
   }
 
   const removeRow = (row) => {
+    if (!canEditDelete(row)) return
     if (!window.confirm('Kayıt silinsin mi?')) return
     setRows((prev) => prev.filter((r) => r.id !== row.id))
-    setDetailMap((prev) => {
-      const { [row.gecerlilikTarihi]: _, ...rest } = prev
-      return rest
-    })
-    if (selectedTarih === row.gecerlilikTarihi) {
-      const next = rows.find((r) => r.id !== row.id)
-      setSelectedTarih(next?.gecerlilikTarihi || '')
-    }
-    setMenuId(null)
+  }
+
+  if (view === 'create') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+          <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setView('list')}>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-3xl font-bold text-slate-800">{editingId ? 'Asgari Ücret Güncelle' : 'Yeni Asgari Ücret Ekle'}</h2>
+            <p className="text-sm text-slate-500 mt-1">Sistem için asgari ücret tablosu tanımlayın</p>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Geçerlilik Tarihi *</span>
+              <input type="date" className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.gecerlilikTarihi} onChange={(e) => setForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Asgari Ücret Tutarı (TL) *</span>
+              <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" placeholder="Örn: 20002.50" value={form.asgariUcret} onChange={(e) => setForm((f) => ({ ...f, asgariUcret: e.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Katkı Payı Oranı</span>
+              <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.katkiPayiOrani} onChange={(e) => setForm((f) => ({ ...f, katkiPayiOrani: e.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Giriş Aidatı Oranı</span>
+              <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.girisAidatiOrani} onChange={(e) => setForm((f) => ({ ...f, girisAidatiOrani: e.target.value }))} />
+            </label>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+          <OutlineButton onClick={() => setView('list')}>İptal</OutlineButton>
+          <OutlineButton onClick={() => setForm(emptyForm())}>Temizle</OutlineButton>
+          <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
-        title="Asgari Ücret Tablosu"
-        description="Dönemsel asgari ücret ve oran tanımları ile alt kanal detayları"
+        title="Asgari Ücret Tablosu Yönetimi"
+        description="Asgari ücret ve oranlarının geçmişe yönelik tarihsel olarak tutulduğu yasal referans tablosudur."
         right={
           <PrimaryButton onClick={openCreate}>
             <Plus className="w-4 h-4" /> Yeni Ekle
@@ -152,150 +151,90 @@ export default function AsgariUcretTablosu() {
         }
       />
 
-      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100">
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
-            placeholder="Tarih / ücret / oran ara..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="px-6 py-4 border-b border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(0,1fr))_auto] gap-3">
+          <label>
+            <span className="text-xs text-slate-600 mb-1 block">Tarih (Başlangıç)</span>
+            <input type="date" className="w-full h-9 border border-slate-300 rounded-md px-3 text-sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </label>
+          <label>
+            <span className="text-xs text-slate-600 mb-1 block">Tarih (Bitiş)</span>
+            <input type="date" className="w-full h-9 border border-slate-300 rounded-md px-3 text-sm" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </label>
+          <label>
+            <span className="text-xs text-slate-600 mb-1 block">Min Tutar (TL)</span>
+            <input className="w-full h-9 border border-slate-300 rounded-md px-3 text-sm" placeholder="Örn: 10000" value={minTutar} onChange={(e) => setMinTutar(e.target.value)} />
+          </label>
+          <label>
+            <span className="text-xs text-slate-600 mb-1 block">Max Tutar (TL)</span>
+            <input className="w-full h-9 border border-slate-300 rounded-md px-3 text-sm" placeholder="Örn: 25000" value={maxTutar} onChange={(e) => setMaxTutar(e.target.value)} />
+          </label>
+          <div className="flex items-end gap-2">
+            <OutlineButton onClick={() => { setStartDate(''); setEndDate(''); setMinTutar(''); setMaxTutar(''); setAppliedFilters({ startDate: '', endDate: '', minTutar: '', maxTutar: '' }) }}>Temizle</OutlineButton>
+            <PrimaryButton onClick={() => setAppliedFilters({ startDate, endDate, minTutar, maxTutar })}><Search className="w-4 h-4" /> Ara</PrimaryButton>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 flex-1 min-h-0">
-        <div className="overflow-auto border-r border-slate-200">
-          <table className="w-full grid-table">
-            <thead>
-              <tr>
-                <th>Geçerlilik Tarihi</th>
-                <th>Asgari Ücret</th>
-                <th>Katkı Payı Oranı</th>
-                <th>Giriş Aidatı Oranı</th>
-                <th className="w-12 text-right">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={selectedTarih === row.gecerlilikTarihi ? 'bg-blue-50/50' : ''}
-                  onClick={() => setSelectedTarih(row.gecerlilikTarihi)}
-                >
+      <div className="flex-1 overflow-auto">
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th>Geçerlilik Tarihi</th>
+              <th>Asgari Ücret</th>
+              <th>Katkı Payı Oranı</th>
+              <th>Giriş Aidatı Oranı</th>
+              <th>Durum</th>
+              <th className="text-right">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((row) => {
+              const editable = canEditDelete(row)
+              return (
+                <tr key={row.id}>
                   <td>{row.gecerlilikTarihi}</td>
-                  <td>{row.asgariUcret}</td>
+                  <td className="font-semibold">{formatMoney(row.asgariUcret)}</td>
                   <td>{row.katkiPayiOrani}</td>
                   <td>{row.girisAidatiOrani}</td>
-                  <td className="relative text-right" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                      onClick={() => setMenuId((prev) => (prev === row.id ? null : row.id))}
-                    >
-                      ...
-                    </button>
-                    {menuId === row.id && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-20 text-left text-sm">
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openInspect(row)}>İncele</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openEdit(row)}>Güncelle</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openVersions(row)}>Versiyonlar</button>
-                        <button type="button" className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50" onClick={() => removeRow(row)}>Sil</button>
-                      </div>
-                    )}
+                  <td>
+                    <span className="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-600">
+                      {row.gecerlilikTarihi < todayIso ? 'Geçmiş Dönem' : 'Güncel Dönem'}
+                    </span>
+                  </td>
+                  <td className="text-right">
+                    <div className="inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        title={editable ? 'Güncelle' : 'Geçmiş kayıt güncellenemez'}
+                        disabled={!editable}
+                        onClick={() => openEdit(row)}
+                        className={`p-1 ${editable ? 'text-blue-600 hover:text-blue-800' : 'text-slate-300 cursor-not-allowed'}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title={editable ? 'Sil' : 'Geçmiş kayıt silinemez'}
+                        disabled={!editable}
+                        onClick={() => removeRow(row)}
+                        className={`p-1 ${editable ? 'text-red-500 hover:text-red-700' : 'text-slate-300 cursor-not-allowed'}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ))}
-              {!filteredRows.length && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="overflow-auto">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Alt Detay - {selectedRow ? selectedRow.gecerlilikTarihi : 'Kayıt seçin'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Kanal bazlı limit ve oran detayları</p>
-          </div>
-          <div className="p-4">
-            <div className="overflow-auto border border-slate-200 rounded-md">
-              <table className="w-full grid-table text-sm">
-                <thead>
-                  <tr>
-                    <th>Kanal</th>
-                    <th>Min. Katkı Payı</th>
-                    <th>Max. Giriş Aidatı</th>
-                    <th>Not</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedDetails.map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.kanal}</td>
-                      <td>{d.minKatkiPayi}</td>
-                      <td>{d.maxGirisAidati}</td>
-                      <td>{d.not}</td>
-                    </tr>
-                  ))}
-                  {!selectedDetails.length && (
-                    <tr>
-                      <td colSpan={4} className="py-6 text-sm text-slate-500 text-center">
-                        Seçili kayda ait alt detay yok.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+              )
+            })}
+            {!filteredRows.length && (
+              <tr>
+                <td colSpan={6} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title="Asgari Ücret Kaydı"
-        footer={
-          <>
-            <OutlineButton onClick={() => setFormOpen(false)}>Vazgeç</OutlineButton>
-            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
-          </>
-        }
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Geçerlilik Tarihi *</span>
-            <input className="form-input" value={form.gecerlilikTarihi} onChange={(e) => setForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Asgari Ücret *</span>
-            <input className="form-input" value={form.asgariUcret} onChange={(e) => setForm((f) => ({ ...f, asgariUcret: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Katkı Payı Oranı</span>
-            <input className="form-input" value={form.katkiPayiOrani} onChange={(e) => setForm((f) => ({ ...f, katkiPayiOrani: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Oranı</span>
-            <input className="form-input" value={form.girisAidatiOrani} onChange={(e) => setForm((f) => ({ ...f, girisAidatiOrani: e.target.value }))} />
-          </label>
-        </div>
-      </Modal>
-
-      <Modal
-        open={infoModal.open}
-        onClose={() => setInfoModal({ open: false, title: '', body: null })}
-        title={infoModal.title}
-        footer={<PrimaryButton onClick={() => setInfoModal({ open: false, title: '', body: null })}>Tamam</PrimaryButton>}
-      >
-        {infoModal.body}
-      </Modal>
     </div>
   )
 }

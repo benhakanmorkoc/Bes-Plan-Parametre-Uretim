@@ -1,232 +1,191 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
-import Modal from '../ui/Modal'
+import { ArrowLeft, List, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import { endeksDetaylari as seedDetaylar, endeksTanimlari as seedEndeksler } from '../../data/mockData'
 
-function emptyForm() {
-  return { id: null, kod: '', aciklama: '', inUse: true }
+function emptyRowForm() {
+  return { kod: '', aciklama: '' }
 }
+
+function emptyDataForm() {
+  return { tarih: '', tip: 'Tutar', deger: '', doviz: 'TL' }
+}
+
+const toDataRows = (details = []) =>
+  details.map((d) => ({
+    id: d.id,
+    tarih: d.gecerlilikTarihi,
+    deger: d.deger,
+    tip: Number(d.deger) < 1 ? 'Oran' : 'Tutar',
+    doviz: 'TL',
+  }))
 
 export default function EndeksTanimlari() {
   const [rows, setRows] = useState(() => seedEndeksler.map((x) => ({ ...x })))
   const [detailMap, setDetailMap] = useState(() => ({ ...seedDetaylar }))
-  const [search, setSearch] = useState('')
-  const [selectedKod, setSelectedKod] = useState(seedEndeksler[0]?.kod || '')
-  const [menuKod, setMenuKod] = useState(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState(emptyForm())
-  const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
+  const [view, setView] = useState('list')
+  const [kodFilter, setKodFilter] = useState('')
+  const [aciklamaFilter, setAciklamaFilter] = useState('')
+  const [newForm, setNewForm] = useState(emptyRowForm())
+  const [selectedRow, setSelectedRow] = useState(null)
+  const [dataForm, setDataForm] = useState(emptyDataForm())
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows
-    const q = search.toLowerCase()
-    return rows.filter((r) => `${r.kod} ${r.aciklama}`.toLowerCase().includes(q))
-  }, [rows, search])
-
-  const selectedRow = rows.find((r) => r.kod === selectedKod) || filteredRows[0] || null
-  const selectedDetails = selectedRow ? detailMap[selectedRow.kod] || [] : []
-
-  const openCreate = () => {
-    setForm(emptyForm())
-    setFormOpen(true)
-  }
-
-  const openEdit = (row) => {
-    setForm({ ...row })
-    setFormOpen(true)
-    setMenuKod(null)
-  }
-
-  const saveForm = () => {
-    if (!String(form.kod || '').trim()) {
-      alert('Endeks Kodu zorunludur.')
-      return
-    }
-    if (!String(form.aciklama || '').trim()) {
-      alert('Açıklama zorunludur.')
-      return
-    }
-
-    const payload = {
-      id: form.id || Date.now(),
-      kod: String(form.kod).trim().toUpperCase(),
-      aciklama: String(form.aciklama).trim(),
-      inUse: Boolean(form.inUse),
-    }
-
-    const existsByKod = rows.some((r) => r.kod === payload.kod && r.id !== payload.id)
-    if (existsByKod) {
-      alert('Bu endeks kodu sistemde mevcut.')
-      return
-    }
-
-    const exists = rows.some((r) => r.id === payload.id)
-    if (exists) {
-      const old = rows.find((r) => r.id === payload.id)
-      setRows((prev) => prev.map((r) => (r.id === payload.id ? payload : r)))
-      if (old && old.kod !== payload.kod) {
-        setDetailMap((prev) => {
-          const oldDetails = prev[old.kod] || []
-          const { [old.kod]: _, ...rest } = prev
-          return { ...rest, [payload.kod]: oldDetails }
-        })
-      }
-    } else {
-      setRows((prev) => [...prev, payload])
-      setDetailMap((prev) => ({ ...prev, [payload.kod]: [] }))
-    }
-
-    setSelectedKod(payload.kod)
-    setFormOpen(false)
-  }
-
-  const openVersions = (row) => {
-    const body = (
-      <div className="text-sm">
-        <p>Mock versiyon geçmişi:</p>
-        <ul className="list-disc pl-5 mt-2">
-          <li>{row.kod} - Versiyon 1</li>
-          <li>{row.kod} - Versiyon 2</li>
-        </ul>
-      </div>
-    )
-    setInfoModal({ open: true, title: 'Versiyonlar', body })
-    setMenuKod(null)
-  }
-
-  const openInspect = (row) => {
-    const body = (
-      <div className="space-y-1 text-sm">
-        <p><strong>Kod:</strong> {row.kod}</p>
-        <p><strong>Açıklama:</strong> {row.aciklama}</p>
-        <p><strong>Aktif:</strong> {row.inUse ? 'Evet' : 'Hayır'}</p>
-      </div>
-    )
-    setInfoModal({ open: true, title: 'Endeks İncele', body })
-    setMenuKod(null)
-  }
-
-  const removeRow = (row) => {
-    if (!window.confirm('Endeks kaydı silinsin mi?')) return
-    setRows((prev) => prev.filter((r) => r.id !== row.id))
-    setDetailMap((prev) => {
-      const { [row.kod]: _, ...rest } = prev
-      return rest
+    return rows.filter((r) => {
+      const matchesKod = !kodFilter.trim() || r.kod.toLowerCase().includes(kodFilter.toLowerCase())
+      const matchesAciklama = !aciklamaFilter.trim() || r.aciklama.toLowerCase().includes(aciklamaFilter.toLowerCase())
+      return matchesKod && matchesAciklama
     })
-    if (selectedKod === row.kod) {
-      const next = rows.find((r) => r.id !== row.id)
-      setSelectedKod(next?.kod || '')
-    }
-    setMenuKod(null)
+  }, [rows, kodFilter, aciklamaFilter])
+
+  const tableDataRows = useMemo(() => {
+    if (!selectedRow) return []
+    return toDataRows(detailMap[selectedRow.kod] || [])
+  }, [selectedRow, detailMap])
+
+  const saveNew = () => {
+    const kod = newForm.kod.trim().toUpperCase()
+    const aciklama = newForm.aciklama.trim()
+    if (!kod) return alert('Endeks tablo kodu zorunludur.')
+    if (!aciklama) return alert('Açıklama zorunludur.')
+    if (rows.some((r) => r.kod === kod)) return alert('Bu kod zaten tanımlı.')
+    setRows((prev) => [...prev, { id: Date.now(), kod, aciklama, inUse: false }])
+    setDetailMap((prev) => ({ ...prev, [kod]: [] }))
+    setView('list')
+    setNewForm(emptyRowForm())
   }
 
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
-      <ScreenHeader
-        title="Endeks Tanımları"
-        description="Plan parametrelerinde kullanılan endeks tanımları ve alt detay değerleri"
-        right={
-          <PrimaryButton onClick={openCreate}>
-            <Plus className="w-4 h-4" /> Yeni Ekle
-          </PrimaryButton>
-        }
-      />
+  const openDataPage = (row) => {
+    setSelectedRow(row)
+    setDataForm(emptyDataForm())
+    setView('tableData')
+  }
 
-      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100">
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
-            placeholder="Endeks kodu / açıklama ara..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+  const addDataRow = () => {
+    if (!selectedRow) return
+    if (!dataForm.tarih) return alert('Tarih zorunludur.')
+    if (!String(dataForm.deger).trim()) return alert('Oran / Tutar zorunludur.')
+    const next = {
+      id: Date.now(),
+      gecerlilikTarihi: dataForm.tarih,
+      deger: String(dataForm.deger).trim(),
+      kaynak: 'Manuel',
+      aciklama: dataForm.tip,
+    }
+    setDetailMap((prev) => ({
+      ...prev,
+      [selectedRow.kod]: [next, ...(prev[selectedRow.kod] || [])],
+    }))
+    setDataForm((f) => ({ ...f, deger: '' }))
+  }
+
+  const removeDataRow = (id) => {
+    if (!selectedRow) return
+    setDetailMap((prev) => ({
+      ...prev,
+      [selectedRow.kod]: (prev[selectedRow.kod] || []).filter((x) => x.id !== id),
+    }))
+  }
+
+  if (view === 'create') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+          <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setView('list')}>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-2xl font-bold text-slate-800">Yeni Endeks Tablosu</h2>
+        </div>
+
+        <div className="p-6">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+            <div className="text-lg font-semibold text-slate-800">1 Ana Tablo Bilgileri</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Endeks Tablo Kodu *</span>
+                <input
+                  className="mt-2 w-full h-11 border border-slate-300 rounded-md px-3 text-sm"
+                  value={newForm.kod}
+                  onChange={(e) => setNewForm((f) => ({ ...f, kod: e.target.value }))}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Açıklama *</span>
+                <input
+                  className="mt-2 w-full h-11 border border-slate-300 rounded-md px-3 text-sm"
+                  value={newForm.aciklama}
+                  onChange={(e) => setNewForm((f) => ({ ...f, aciklama: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <PrimaryButton onClick={saveNew}>Kaydet</PrimaryButton>
+            </div>
+          </div>
         </div>
       </div>
+    )
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 flex-1 min-h-0">
-        <div className="overflow-auto border-r border-slate-200">
-          <table className="w-full grid-table">
-            <thead>
-              <tr>
-                <th>Endeks Kodu</th>
-                <th>Açıklama</th>
-                <th>Aktif</th>
-                <th className="w-12 text-right">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={selectedKod === row.kod ? 'bg-blue-50/50' : ''}
-                  onClick={() => setSelectedKod(row.kod)}
-                >
-                  <td className="font-mono text-xs">{row.kod}</td>
-                  <td>{row.aciklama}</td>
-                  <td>{row.inUse ? 'Evet' : 'Hayır'}</td>
-                  <td className="relative text-right" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                      onClick={() => setMenuKod((prev) => (prev === row.kod ? null : row.kod))}
-                    >
-                      ...
-                    </button>
-                    {menuKod === row.kod && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-20 text-left text-sm">
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openInspect(row)}>İncele</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openEdit(row)}>Güncelle</button>
-                        <button type="button" className="w-full px-3 py-2 text-left hover:bg-slate-50" onClick={() => openVersions(row)}>Versiyonlar</button>
-                        <button type="button" className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50" onClick={() => removeRow(row)}>Sil</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!filteredRows.length && (
-                <tr>
-                  <td colSpan={4} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+  if (view === 'tableData' && selectedRow) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setView('list')}>
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-3xl font-bold text-slate-800">Tablo Verileri: {selectedRow.kod}</h2>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">{selectedRow.aciklama}</p>
         </div>
 
-        <div className="overflow-auto">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-800">
-              Alt Detay - {selectedRow ? `${selectedRow.kod} (${selectedRow.aciklama})` : 'Endeks seçin'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">Seçilen endeksin dönemsel değer geçmişi</p>
-          </div>
-          <div className="p-4">
-            <div className="overflow-auto border border-slate-200 rounded-md">
+        <div className="p-6">
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 font-semibold text-slate-800">Tarih ve Oran Girişi</div>
+            <div className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <input type="date" className="h-10 border border-slate-300 rounded-md px-3 text-sm" value={dataForm.tarih} onChange={(e) => setDataForm((f) => ({ ...f, tarih: e.target.value }))} />
+                <select className="h-10 border border-slate-300 rounded-md px-3 text-sm" value={dataForm.tip} onChange={(e) => setDataForm((f) => ({ ...f, tip: e.target.value }))}>
+                  <option>Tutar</option>
+                  <option>Oran</option>
+                </select>
+                <input className="h-10 border border-slate-300 rounded-md px-3 text-sm" placeholder="Oran / Tutar" value={dataForm.deger} onChange={(e) => setDataForm((f) => ({ ...f, deger: e.target.value }))} />
+                <select className="h-10 border border-slate-300 rounded-md px-3 text-sm" value={dataForm.doviz} onChange={(e) => setDataForm((f) => ({ ...f, doviz: e.target.value }))}>
+                  <option>TL</option>
+                  <option>USD</option>
+                  <option>EUR</option>
+                </select>
+                <PrimaryButton onClick={addDataRow}><Plus className="w-4 h-4" /> Listeye Ekle</PrimaryButton>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100">
               <table className="w-full grid-table text-sm">
                 <thead>
                   <tr>
-                    <th>Geçerlilik Tarihi</th>
-                    <th>Değer</th>
-                    <th>Kaynak</th>
-                    <th>Açıklama</th>
+                    <th>Tarih</th>
+                    <th>Oran / Tutar</th>
+                    <th>Döviz</th>
+                    <th className="text-right">İşlem</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedDetails.map((d) => (
+                  {tableDataRows.map((d) => (
                     <tr key={d.id}>
-                      <td>{d.gecerlilikTarihi}</td>
-                      <td>{d.deger}</td>
-                      <td>{d.kaynak}</td>
-                      <td>{d.aciklama}</td>
+                      <td>{d.tarih}</td>
+                      <td className="font-semibold text-blue-700">{d.deger}</td>
+                      <td>{d.doviz}</td>
+                      <td className="text-right">
+                        <button type="button" className="text-red-500 hover:text-red-700" onClick={() => removeDataRow(d.id)}>
+                          <Trash2 className="w-4 h-4 inline" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
-                  {!selectedDetails.length && (
+                  {!tableDataRows.length && (
                     <tr>
-                      <td colSpan={4} className="py-6 text-sm text-slate-500 text-center">
-                        Seçili endekse ait alt detay kaydı yok.
-                      </td>
+                      <td colSpan={4} className="py-6 text-center text-slate-500">Henüz veri yok.</td>
                     </tr>
                   )}
                 </tbody>
@@ -235,54 +194,86 @@ export default function EndeksTanimlari() {
           </div>
         </div>
       </div>
+    )
+  }
 
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title="Endeks Tanımı"
-        footer={
-          <>
-            <OutlineButton onClick={() => setFormOpen(false)}>Vazgeç</OutlineButton>
-            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
-          </>
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <ScreenHeader
+        title="Endeks Tanımları"
+        description="Hesaplamalarda baz alınacak endeks verilerinin tarih bazlı tanımlandığı ekrandır."
+        right={
+          <PrimaryButton onClick={() => setView('create')}>
+            <Plus className="w-4 h-4" /> Yeni Ekle
+          </PrimaryButton>
         }
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Endeks Kodu *</span>
-            <input
-              className="form-input"
-              value={form.kod}
-              onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))}
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-semibold text-slate-600 mb-1">Açıklama *</span>
-            <input
-              className="form-input"
-              value={form.aciklama}
-              onChange={(e) => setForm((f) => ({ ...f, aciklama: e.target.value }))}
-            />
-          </label>
-          <label className="inline-flex items-center gap-2 text-sm mt-1">
-            <input
-              type="checkbox"
-              checked={Boolean(form.inUse)}
-              onChange={(e) => setForm((f) => ({ ...f, inUse: e.target.checked }))}
-            />
-            Aktif
-          </label>
-        </div>
-      </Modal>
+      />
 
-      <Modal
-        open={infoModal.open}
-        onClose={() => setInfoModal({ open: false, title: '', body: null })}
-        title={infoModal.title}
-        footer={<PrimaryButton onClick={() => setInfoModal({ open: false, title: '', body: null })}>Tamam</PrimaryButton>}
-      >
-        {infoModal.body}
-      </Modal>
+      <div className="px-6 py-4 border-b border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+          <div>
+            <div className="text-xs text-slate-600 mb-1">Endeks Kodu</div>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Kod ara..." value={kodFilter} onChange={(e) => setKodFilter(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-600 mb-1">Endeks Adı (Açıklama)</div>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Ad ara..." value={aciklamaFilter} onChange={(e) => setAciklamaFilter(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex items-end">
+            <OutlineButton onClick={() => { setKodFilter(''); setAciklamaFilter('') }}>Temizle</OutlineButton>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th>Endeks Tablo Kodu</th>
+              <th>Açıklama</th>
+              <th>Durum</th>
+              <th className="text-right">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((row) => (
+              <tr key={row.id}>
+                <td className="font-semibold">{row.kod}</td>
+                <td>{row.aciklama}</td>
+                <td>
+                  <span className={`px-2 py-0.5 rounded text-xs ${row.inUse ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                    {row.inUse ? 'Kullanımda' : 'Boşta'}
+                  </span>
+                </td>
+                <td className="text-right">
+                  <div className="inline-flex items-center gap-3">
+                    <button type="button" className="text-blue-600 hover:text-blue-800" title="Güncelle">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button type="button" className="text-emerald-600 hover:text-emerald-800" title="Tablo Verileri" onClick={() => openDataPage(row)}>
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button type="button" className="text-red-500 hover:text-red-700" title="Sil">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!filteredRows.length && (
+              <tr>
+                <td colSpan={4} className="py-6 text-sm text-slate-500 text-center">Kayıt bulunamadı.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
