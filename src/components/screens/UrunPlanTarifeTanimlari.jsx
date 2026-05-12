@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari, katkiPayiTemplateleri } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -69,6 +69,263 @@ const KP_TEMPLATE_ROW_ACTIONS = [
   { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
   { key: 'history', label: 'Versiyonlar', icon: 'history' },
 ]
+
+const KESINTI_MENU_KEYS = [
+  { id: 'girisAidati', label: 'Giriş Aidatı' },
+  { id: 'ygkParam', label: 'YGK Parametreleri' },
+  { id: 'ygkMuafiyet', label: 'YGK Muafiyet' },
+  { id: 'araVerme', label: 'Ara Verme Kesintisi' },
+  { id: 'kesintiBes30', label: 'Kesinti BES 3.0' },
+  { id: 'ygkBes30', label: 'YGK BES 3.0 Parametreleri' },
+]
+
+const GA_LINKED_INITIAL = [
+  { gaKodu: 'GA-01', doviz: 'TL', gaTipi: 'Peşin', taksitTipi: 'Ardışık', taksitAdedi: '12', pesinat: '500', taksit: '0', erteleme: '0', toplamTutar: '6.000' },
+  { gaKodu: 'GA-02', doviz: 'USD', gaTipi: 'Çıkışa Ertelenmiş', taksitTipi: 'Dönem', taksitAdedi: '1', pesinat: '0', taksit: '0', erteleme: '100', toplamTutar: '1.500' },
+]
+
+const GA_CATALOG_ALL = [
+  { gaKodu: 'GA-01', doviz: 'TL', gaTipi: 'Peşin', taksitTipi: 'Ardışık', taksitAdedi: '12', pesinat: '1000', taksit: '150', erteleme: '0', toplamTutar: '2800' },
+  { gaKodu: 'GA-02', doviz: 'USD', gaTipi: 'Çıkışa Ertelenmiş', taksitTipi: '—', taksitAdedi: '—', pesinat: '0', taksit: '0', erteleme: '50', toplamTutar: '50' },
+  { gaKodu: 'GA-03', doviz: 'TL', gaTipi: 'Peşin + Çıkışa Ert.', taksitTipi: 'Dönem', taksitAdedi: 'Aylık', pesinat: '500', taksit: '200', erteleme: '100', toplamTutar: '2900' },
+  { gaKodu: 'GA-04', doviz: 'EUR', gaTipi: 'Giriş Aidatı Yok', taksitTipi: '—', taksitAdedi: '—', pesinat: '0', taksit: '0', erteleme: '0', toplamTutar: '0' },
+  { gaKodu: 'GA-05', doviz: 'TL', gaTipi: 'Peşin', taksitTipi: 'Peşin', taksitAdedi: '1', pesinat: '1500', taksit: '0', erteleme: '0', toplamTutar: '1500' },
+]
+
+const GA_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'remove', label: 'Çıkar', icon: 'delete', danger: true },
+]
+
+const YGK_LINKED_INITIAL = [
+  {
+    rowKey: 'YGK-001-1',
+    gecerlilikTarihi: '01.01.2025',
+    doviz: 'TRL',
+    tabloTipi: 'P - Katkı Payı',
+    ygkAdi: 'YGK Standart Kural',
+    versiyon: '1',
+    yilTipi: 'Yürürlük Tarihi',
+    limitTutarTipi: 'Sözleşme Birikimi',
+    kademeTipi: 'Kümülatif Kademe',
+    yilBazindaSifirla: false,
+    ygkHesaplamaKurali: '—',
+    ygkKodu: 'YGK-001',
+  },
+  {
+    rowKey: 'YGK-002-2',
+    gecerlilikTarihi: '01.01.2025',
+    doviz: 'USD',
+    tabloTipi: 'B - Birikim Trans.',
+    ygkAdi: 'YGK Alternatif Kural',
+    versiyon: '2',
+    yilTipi: 'Tahsilat Tarihi',
+    limitTutarTipi: 'Toplam Tahsilat',
+    kademeTipi: 'Kademe',
+    yilBazindaSifirla: true,
+    ygkHesaplamaKurali: '—',
+    ygkKodu: 'YGK-002',
+  },
+]
+
+const YGK_CATALOG_ALL = [
+  { ygkKodu: 'YGK-001', ygkAdi: 'YGK Standart Kural', versiyon: '1', gecerlilikTarihi: '01.01.2025', doviz: 'TRL', tabloTipi: 'P - Katkı Payı', yilTipi: 'Yürürlük Tarihi', limitTutarTipi: 'Sözleşme Birikimi', ygkHesaplamaKurali: '—', kademeTipi: 'Kümülatif Kademe', yilBazindaSifirla: false },
+  { ygkKodu: 'YGK-002', ygkAdi: 'YGK Alternatif Kural', versiyon: '2', gecerlilikTarihi: '01.06.2025', doviz: 'USD', tabloTipi: 'B - Birikim Trans.', yilTipi: 'Tahsilat Tarihi', limitTutarTipi: 'Toplam Tahsilat', ygkHesaplamaKurali: '—', kademeTipi: 'Kademe', yilBazindaSifirla: true },
+  { ygkKodu: 'YGK-000', ygkAdi: 'YGK Kesinti Yok', versiyon: '1', gecerlilikTarihi: '01.01.2024', doviz: 'TRL', tabloTipi: 'Yok', yilTipi: '—', limitTutarTipi: '—', ygkHesaplamaKurali: '—', kademeTipi: '—', yilBazindaSifirla: false },
+]
+
+const YGK_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'remove', label: 'Çıkar', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+]
+
+const YGK_VERSIONS_BY_KOD = {
+  'YGK-001': [
+    { versiyon: '1', aciklama: 'YGK Standart Kural', durum: 'Aktif', gecerlilik: '01.01.2025' },
+    { versiyon: '0', aciklama: 'YGK Standart Kural (önceki)', durum: 'Arşiv', gecerlilik: '01.07.2024' },
+  ],
+  'YGK-002': [
+    { versiyon: '2', aciklama: 'YGK Alternatif Kural', durum: 'Aktif', gecerlilik: '01.06.2025' },
+    { versiyon: '1', aciklama: 'YGK Alternatif Kural', durum: 'Arşiv', gecerlilik: '01.01.2025' },
+  ],
+  'YGK-000': [{ versiyon: '1', aciklama: 'YGK Kesinti Yok', durum: 'Aktif', gecerlilik: '01.01.2024' }],
+}
+
+const YGK_MUAF_LINKED_INITIAL = [
+  { rowKey: 'YGKM-001-1', muafKodu: 'YGKM-001', muafAdi: 'YGK Muafiyet Kuralı', versiyon: '1', yil: '2', toplamOdenmisKp: '850', doviz: 'TRL', oran: '0.6' },
+]
+
+const YGK_MUAF_CATALOG_ALL = [
+  { muafKodu: 'YGKM-001', muafAdi: 'YGK Muafiyet Kuralı', versiyon: '1', gecerlilikTarihi: '30.07.2024', yil: '2', toplamOdenmisKp: '850', doviz: 'TRL', oran: '0.6' },
+  { muafKodu: 'YGKM-002', muafAdi: 'Alternatif Muafiyet Kuralı', versiyon: '2', gecerlilikTarihi: '01.01.2025', yil: '3', toplamOdenmisKp: '1200', doviz: 'USD', oran: '0.5' },
+  { muafKodu: 'YGKM-000', muafAdi: 'Muafiyet Yok', versiyon: '1', gecerlilikTarihi: '01.01.2026', yil: '0', toplamOdenmisKp: '0', doviz: 'TRL', oran: '0' },
+]
+
+const YGK_MUAF_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+]
+
+const YGK_MUAF_VERSIONS_BY_KOD = {
+  'YGKM-001': [
+    { versiyon: '1', aciklama: 'YGK Muafiyet Kuralı', durum: 'Aktif', gecerlilik: '30.07.2024' },
+    { versiyon: '0', aciklama: 'YGK Muafiyet Kuralı (önceki)', durum: 'Arşiv', gecerlilik: '01.01.2024' },
+  ],
+  'YGKM-002': [
+    { versiyon: '2', aciklama: 'Alternatif Muafiyet Kuralı', durum: 'Aktif', gecerlilik: '01.01.2025' },
+    { versiyon: '1', aciklama: 'Alternatif Muafiyet Kuralı', durum: 'Arşiv', gecerlilik: '01.07.2024' },
+  ],
+  'YGKM-000': [{ versiyon: '1', aciklama: 'Muafiyet Yok', durum: 'Aktif', gecerlilik: '01.01.2026' }],
+}
+
+const ARA_VERME_LINKED_INITIAL = [
+  { rowKey: 'AVK-001-1', avKodu: 'AVK-001', avAdi: 'Ara Verme Standart', versiyon: '1', tutar: '2 TL', hesaplamaKurali: '—', onKosul: '—' },
+]
+
+const ARA_VERME_CATALOG_ALL = [
+  { avKodu: 'AVK-001', avAdi: 'Ara Verme Standart', versiyon: '1', gecerlilikTarihi: '01.01.2026', tutar: '2 TL', hesaplamaKurali: '—', onKosul: '—' },
+  { avKodu: 'AVK-002', avAdi: 'Ara Verme Esnek', versiyon: '1', gecerlilikTarihi: '15.06.2025', tutar: '5 TL', hesaplamaKurali: 'Oran', onKosul: 'Min 12 ay' },
+  { avKodu: 'AVK-000', avAdi: 'Ara Verme Yok', versiyon: '1', gecerlilikTarihi: '01.01.2026', tutar: '0 TL', hesaplamaKurali: '—', onKosul: '—' },
+]
+
+const ARA_VERME_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+]
+
+const ARA_VERME_VERSIONS_BY_KOD = {
+  'AVK-001': [
+    { versiyon: '1', aciklama: 'Ara Verme Standart', durum: 'Aktif', gecerlilik: '01.01.2026' },
+    { versiyon: '0', aciklama: 'Ara Verme Standart (önceki)', durum: 'Arşiv', gecerlilik: '01.07.2025' },
+  ],
+  'AVK-002': [
+    { versiyon: '1', aciklama: 'Ara Verme Esnek', durum: 'Aktif', gecerlilik: '15.06.2025' },
+  ],
+  'AVK-000': [{ versiyon: '1', aciklama: 'Ara Verme Yok', durum: 'Aktif', gecerlilik: '01.01.2026' }],
+}
+
+const KESINTI_BES30_LINKED_INITIAL = [
+  { rowKey: 'KB30-001-1', kbKodu: 'KB30-001', kbAdi: 'Kesinti BES3.0 Kuralı 1', versiyon: '1', yil: '1', maxKesintiOrani: '0.63', maxKesintiTutari: '—' },
+  { rowKey: 'KB30-002-2', kbKodu: 'KB30-002', kbAdi: 'Kesinti BES3.0 Kuralı 2', versiyon: '2', yil: '2', maxKesintiOrani: '0.50', maxKesintiTutari: '—' },
+  { rowKey: 'KB30-003-1', kbKodu: 'KB30-003', kbAdi: 'Kesinti BES3.0 Kuralı 3', versiyon: '1', yil: '3', maxKesintiOrani: '0.40', maxKesintiTutari: '—' },
+]
+
+const KESINTI_BES30_CATALOG_ALL = [
+  { kbKodu: 'KB30-001', kbAdi: 'Kesinti BES3.0 Kural 1', versiyon: '1', gecerlilikTarihi: '30.07.2024', yil: '1', maxKesintiOrani: '0.63', maxKesintiTutari: '—' },
+  { kbKodu: 'KB30-002', kbAdi: 'Kesinti BES3.0 Kural 2', versiyon: '2', gecerlilikTarihi: '15.03.2025', yil: '2', maxKesintiOrani: '0.50', maxKesintiTutari: '—' },
+  { kbKodu: 'KB30-003', kbAdi: 'Kesinti BES3.0 Kural 3', versiyon: '1', gecerlilikTarihi: '01.01.2026', yil: '3', maxKesintiOrani: '0.40', maxKesintiTutari: '—' },
+  { kbKodu: 'KB30-004', kbAdi: 'Kesinti BES3.0 Kural 4', versiyon: '1', gecerlilikTarihi: '01.06.2026', yil: '4', maxKesintiOrani: '0.35', maxKesintiTutari: '—' },
+  { kbKodu: 'KB30-000', kbAdi: 'Kesinti BES3.0 Yok', versiyon: '1', gecerlilikTarihi: '01.01.2026', yil: '0', maxKesintiOrani: '0', maxKesintiTutari: '0' },
+]
+
+const KESINTI_BES30_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'remove', label: 'Çıkar', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+]
+
+const KESINTI_BES30_VERSIONS_BY_KOD = {
+  'KB30-001': [
+    { versiyon: '1', aciklama: 'Kesinti BES3.0 Kural 1', durum: 'Aktif', gecerlilik: '30.07.2024' },
+    { versiyon: '0', aciklama: 'Kesinti BES3.0 Kural 1 (önceki)', durum: 'Arşiv', gecerlilik: '01.01.2024' },
+  ],
+  'KB30-002': [
+    { versiyon: '2', aciklama: 'Kesinti BES3.0 Kural 2', durum: 'Aktif', gecerlilik: '15.03.2025' },
+    { versiyon: '1', aciklama: 'Kesinti BES3.0 Kural 2 (önceki)', durum: 'Arşiv', gecerlilik: '01.01.2025' },
+  ],
+  'KB30-003': [{ versiyon: '1', aciklama: 'Kesinti BES3.0 Kural 3', durum: 'Aktif', gecerlilik: '01.01.2026' }],
+  'KB30-004': [{ versiyon: '1', aciklama: 'Kesinti BES3.0 Kural 4', durum: 'Aktif', gecerlilik: '01.06.2026' }],
+  'KB30-000': [{ versiyon: '1', aciklama: 'Kesinti BES3.0 Yok', durum: 'Aktif', gecerlilik: '01.01.2026' }],
+}
+
+const YGK_BES30_LINKED_INITIAL = [
+  {
+    rowKey: 'YB30-001-1',
+    ybKodu: 'YB30-001',
+    ybAdi: 'YGK BES3.0 Kuralı 1',
+    versiyon: '1',
+    dovizKodu: 'TRL',
+    ygkKesintiTipi: 'Katkı Payı Aralığı',
+    oran: '—',
+    yillikTutar: '—',
+    ygkFormulu: '—',
+    kesintiDonemi: 'Aylık',
+    sozlesmeYiliAraligi: '1-1',
+    birikim: 'Anapara',
+    gecerlilikTarihi: '01.01.2025',
+    birikimTipi: 'Anapara BRK',
+  },
+  {
+    rowKey: 'YB30-002-2',
+    ybKodu: 'YB30-002',
+    ybAdi: 'YGK BES3.0 Kuralı 2',
+    versiyon: '2',
+    dovizKodu: 'TRL',
+    ygkKesintiTipi: 'Oran',
+    oran: '0.03',
+    yillikTutar: '—',
+    ygkFormulu: '—',
+    kesintiDonemi: 'Yıllık',
+    sozlesmeYiliAraligi: '5-5',
+    birikim: 'Toplam',
+    gecerlilikTarihi: '01.01.2025',
+    birikimTipi: 'Toplam BRK',
+  },
+]
+
+const YGK_BES30_CATALOG_ALL = [
+  { ybKodu: 'YB30-001', ybAdi: 'YGK BES3.0 Kuralı 1', versiyon: '1', gecerlilikTarihi: '01.01.2025', doviz: 'TRL', ygkKesintiTipi: 'Katkı Payı Aralığı', oran: '—', yillikTutar: '—', ygkFormulu: '—', kesintiDonemi: 'Aylık', sozlesmeYili: '1', birikim: 'Anapara', birikimTipi: 'Anapara BRK' },
+  { ybKodu: 'YB30-002', ybAdi: 'YGK BES3.0 Kuralı 2', versiyon: '2', gecerlilikTarihi: '01.01.2025', doviz: 'TRL', ygkKesintiTipi: 'Oran', oran: '0.03', yillikTutar: '—', ygkFormulu: '—', kesintiDonemi: 'Yıllık', sozlesmeYili: '5', birikim: 'Toplam', birikimTipi: 'Toplam BRK' },
+  { ybKodu: 'YB30-003', ybAdi: 'YGK BES3.0 Kuralı 3', versiyon: '1', gecerlilikTarihi: '01.06.2025', doviz: 'USD', ygkKesintiTipi: 'Yok', oran: '—', yillikTutar: '—', ygkFormulu: '—', kesintiDonemi: 'Yok', sozlesmeYili: '0', birikim: '—', birikimTipi: '—' },
+]
+
+const YGK_BES30_ROW_ACTIONS = [
+  { key: 'view', label: 'İncele', icon: 'view' },
+  { key: 'remove', label: 'Çıkar', icon: 'delete', danger: true },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+  { key: 'details', label: 'Detaylar', icon: 'details' },
+]
+
+const YGK_BES30_VERSIONS_BY_KOD = {
+  'YB30-001': [
+    { versiyon: '1', aciklama: 'YGK BES3.0 Kuralı 1', durum: 'Aktif', gecerlilik: '01.01.2025' },
+    { versiyon: '0', aciklama: 'YGK BES3.0 Kuralı 1 (önceki)', durum: 'Arşiv', gecerlilik: '01.07.2024' },
+  ],
+  'YB30-002': [
+    { versiyon: '2', aciklama: 'YGK BES3.0 Kuralı 2', durum: 'Aktif', gecerlilik: '01.01.2025' },
+    { versiyon: '1', aciklama: 'YGK BES3.0 Kuralı 2 (önceki)', durum: 'Arşiv', gecerlilik: '15.09.2024' },
+  ],
+  'YB30-003': [{ versiyon: '1', aciklama: 'YGK BES3.0 Kuralı 3', durum: 'Aktif', gecerlilik: '01.06.2025' }],
+}
+
+const YGK_BES30_MUAF_BANDS_BY_KOD = {
+  'YB30-001': [
+    { id: '1', minTutar: '1001', maxTutar: '2000', oran: '0.08', tutar: '—' },
+    { id: '2', minTutar: '2001', maxTutar: '3500', oran: '0.10', tutar: '—' },
+    { id: '3', minTutar: '3501', maxTutar: '5000', oran: '0.12', tutar: '—' },
+    { id: '4', minTutar: '5001', maxTutar: '7500', oran: '0.14', tutar: '—' },
+    { id: '5', minTutar: '7501', maxTutar: '10000', oran: '0.16', tutar: '—' },
+  ],
+  'YB30-002': [
+    { id: '1', minTutar: '0', maxTutar: '50000', oran: '0.03', tutar: '—' },
+    { id: '2', minTutar: '50001', maxTutar: '100000', oran: '0.025', tutar: '—' },
+  ],
+  'YB30-003': [],
+}
+
+const YGK_BES30_KP_ARALIK_BY_KOD = {
+  'YB30-001': [
+    { id: '1', minKp: '500', maxKp: '2500', aciklama: 'Standart aralık' },
+    { id: '2', minKp: '2501', maxKp: '10000', aciklama: 'Yüksek katkı' },
+  ],
+  'YB30-002': [{ id: '1', minKp: '1000', maxKp: '999999', aciklama: 'Tüm aralık' }],
+  'YB30-003': [],
+}
+
+const YGK_BES30_MUAF_BAND_INNER_ACTIONS = [{ key: 'view', label: 'İncele', icon: 'view' }]
 
 const KP_TEMPLATE_VERSIONS_BY_KOD = {
   'KPT-001': [
@@ -1085,6 +1342,1344 @@ function KatkiPayiTanimlariScreen({ plan, urun, onBack }) {
   )
 }
 
+function KesintilerScreen({ plan, urun, onBack }) {
+  const [menuKey, setMenuKey] = useState('girisAidati')
+  const [gaLinked, setGaLinked] = useState(() => GA_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [gaCatalog] = useState(() => GA_CATALOG_ALL.map((x) => ({ ...x })))
+  const [gaBindOpen, setGaBindOpen] = useState(false)
+  const [gaCatSearch, setGaCatSearch] = useState('')
+  const [gaMainSearch, setGaMainSearch] = useState('')
+  const [gaInspectRow, setGaInspectRow] = useState(null)
+
+  const [ygkLinked, setYgkLinked] = useState(() => YGK_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [ygkCatalog] = useState(() => YGK_CATALOG_ALL.map((x) => ({ ...x })))
+  const [ygkBindOpen, setYgkBindOpen] = useState(false)
+  const [ygkCatSearch, setYgkCatSearch] = useState('')
+  const [ygkMainSearch, setYgkMainSearch] = useState('')
+  const [ygkInspectRow, setYgkInspectRow] = useState(null)
+  const [ygkVersionsModal, setYgkVersionsModal] = useState({ open: false, title: '', rows: [] })
+
+  const [ygkMuafLinked, setYgkMuafLinked] = useState(() => YGK_MUAF_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [ygkMuafCatalog] = useState(() => YGK_MUAF_CATALOG_ALL.map((x) => ({ ...x })))
+  const [ygkMuafBindOpen, setYgkMuafBindOpen] = useState(false)
+  const [ygkMuafCatSearch, setYgkMuafCatSearch] = useState('')
+  const [ygkMuafMainSearch, setYgkMuafMainSearch] = useState('')
+  const [ygkMuafInspectRow, setYgkMuafInspectRow] = useState(null)
+  const [ygkMuafVersionsModal, setYgkMuafVersionsModal] = useState({ open: false, title: '', rows: [] })
+
+  const [araVermeLinked, setAraVermeLinked] = useState(() => ARA_VERME_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [araVermeCatalog] = useState(() => ARA_VERME_CATALOG_ALL.map((x) => ({ ...x })))
+  const [araVermeBindOpen, setAraVermeBindOpen] = useState(false)
+  const [araVermeCatSearch, setAraVermeCatSearch] = useState('')
+  const [araVermeMainSearch, setAraVermeMainSearch] = useState('')
+  const [araVermeInspectRow, setAraVermeInspectRow] = useState(null)
+  const [araVermeVersionsModal, setAraVermeVersionsModal] = useState({ open: false, title: '', rows: [] })
+
+  const [kesintiBes30Linked, setKesintiBes30Linked] = useState(() => KESINTI_BES30_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [kesintiBes30Catalog] = useState(() => KESINTI_BES30_CATALOG_ALL.map((x) => ({ ...x })))
+  const [kesintiBes30BindOpen, setKesintiBes30BindOpen] = useState(false)
+  const [kesintiBes30CatSearch, setKesintiBes30CatSearch] = useState('')
+  const [kesintiBes30MainSearch, setKesintiBes30MainSearch] = useState('')
+  const [kesintiBes30InspectRow, setKesintiBes30InspectRow] = useState(null)
+  const [kesintiBes30VersionsModal, setKesintiBes30VersionsModal] = useState({ open: false, title: '', rows: [] })
+
+  const [ygkBes30Linked, setYgkBes30Linked] = useState(() => YGK_BES30_LINKED_INITIAL.map((x) => ({ ...x })))
+  const [ygkBes30Catalog] = useState(() => YGK_BES30_CATALOG_ALL.map((x) => ({ ...x })))
+  const [ygkBes30BindOpen, setYgkBes30BindOpen] = useState(false)
+  const [ygkBes30CatSearch, setYgkBes30CatSearch] = useState('')
+  const [ygkBes30MainSearch, setYgkBes30MainSearch] = useState('')
+  const [ygkBes30InspectRow, setYgkBes30InspectRow] = useState(null)
+  const [ygkBes30VersionsModal, setYgkBes30VersionsModal] = useState({ open: false, title: '', rows: [] })
+  const [ygkBes30DetailsRow, setYgkBes30DetailsRow] = useState(null)
+  const [ygkBes30DetailsTab, setYgkBes30DetailsTab] = useState('muafiyet')
+  const [ygkBes30DetailsMuafSearch, setYgkBes30DetailsMuafSearch] = useState('')
+
+  const branchLabel = (urun?.tipler || '').toLowerCase().includes('bireysel emeklilik') ? 'Bireysel Emeklilik' : '-'
+
+  const filteredGaCatalog = gaCatalog.filter((r) => {
+    if (!gaCatSearch.trim()) return true
+    const q = gaCatSearch.toLowerCase()
+    return [r.gaKodu, r.doviz, r.gaTipi].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredGaLinked = gaLinked.filter((r) => {
+    if (!gaMainSearch.trim()) return true
+    const q = gaMainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const filteredYgkCatalog = ygkCatalog.filter((r) => {
+    if (!ygkCatSearch.trim()) return true
+    const q = ygkCatSearch.toLowerCase()
+    return [r.ygkKodu, r.ygkAdi, r.doviz].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredYgkLinked = ygkLinked.filter((r) => {
+    if (!ygkMainSearch.trim()) return true
+    const q = ygkMainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const filteredYgkMuafCatalog = ygkMuafCatalog.filter((r) => {
+    if (!ygkMuafCatSearch.trim()) return true
+    const q = ygkMuafCatSearch.toLowerCase()
+    return [r.muafKodu, r.muafAdi, r.doviz].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredYgkMuafLinked = ygkMuafLinked.filter((r) => {
+    if (!ygkMuafMainSearch.trim()) return true
+    const q = ygkMuafMainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const filteredAraVermeCatalog = araVermeCatalog.filter((r) => {
+    if (!araVermeCatSearch.trim()) return true
+    const q = araVermeCatSearch.toLowerCase()
+    return [r.avKodu, r.avAdi, r.tutar].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredAraVermeLinked = araVermeLinked.filter((r) => {
+    if (!araVermeMainSearch.trim()) return true
+    const q = araVermeMainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const filteredKesintiBes30Catalog = kesintiBes30Catalog.filter((r) => {
+    if (!kesintiBes30CatSearch.trim()) return true
+    const q = kesintiBes30CatSearch.toLowerCase()
+    return [r.kbKodu, r.kbAdi, r.yil, r.maxKesintiOrani].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredKesintiBes30Linked = kesintiBes30Linked.filter((r) => {
+    if (!kesintiBes30MainSearch.trim()) return true
+    const q = kesintiBes30MainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const filteredYgkBes30Catalog = ygkBes30Catalog.filter((r) => {
+    if (!ygkBes30CatSearch.trim()) return true
+    const q = ygkBes30CatSearch.toLowerCase()
+    return [r.ybKodu, r.ybAdi, r.doviz, r.ygkKesintiTipi].some((s) => String(s).toLowerCase().includes(q))
+  })
+
+  const filteredYgkBes30Linked = ygkBes30Linked.filter((r) => {
+    if (!ygkBes30MainSearch.trim()) return true
+    const q = ygkBes30MainSearch.toLowerCase()
+    return Object.values(r).some((v) => String(v).toLowerCase().includes(q))
+  })
+
+  const ygkBes30MuafBandsFiltered = (() => {
+    const row = ygkBes30DetailsRow
+    if (!row) return []
+    const bands = YGK_BES30_MUAF_BANDS_BY_KOD[row.ybKodu] || []
+    const q = ygkBes30DetailsMuafSearch.trim().toLowerCase()
+    if (!q) return bands
+    return bands.filter((b) => [b.minTutar, b.maxTutar, b.oran, b.tutar].some((s) => String(s).toLowerCase().includes(q)))
+  })()
+
+  useEffect(() => {
+    if (!ygkBes30DetailsRow) setYgkBes30DetailsMuafSearch('')
+  }, [ygkBes30DetailsRow])
+
+  const addGaFromCatalog = (row) => {
+    if (gaLinked.some((l) => l.gaKodu === row.gaKodu)) {
+      alert('Bu GA şablonu planda zaten bağlı.')
+      return
+    }
+    setGaLinked((prev) => [...prev, { ...row }])
+    setGaBindOpen(false)
+  }
+
+  const addYgkFromCatalog = (row) => {
+    const rowKey = `${row.ygkKodu}-${row.versiyon}`
+    if (ygkLinked.some((l) => l.rowKey === rowKey)) {
+      alert('Bu YGK şablonu bu versiyonla planda zaten bağlı.')
+      return
+    }
+    setYgkLinked((prev) => [...prev, { ...row, rowKey }])
+    setYgkBindOpen(false)
+  }
+
+  const addYgkMuafFromCatalog = (row) => {
+    const rowKey = `${row.muafKodu}-${row.versiyon}`
+    if (ygkMuafLinked.some((l) => l.rowKey === rowKey)) {
+      alert('Bu muafiyet şablonu bu versiyonla planda zaten bağlı.')
+      return
+    }
+    setYgkMuafLinked((prev) => [...prev, {
+      rowKey,
+      muafKodu: row.muafKodu,
+      muafAdi: row.muafAdi,
+      versiyon: row.versiyon,
+      yil: row.yil,
+      toplamOdenmisKp: row.toplamOdenmisKp,
+      doviz: row.doviz,
+      oran: row.oran,
+    }])
+    setYgkMuafBindOpen(false)
+  }
+
+  const addAraVermeFromCatalog = (row) => {
+    const rowKey = `${row.avKodu}-${row.versiyon}`
+    if (araVermeLinked.some((l) => l.rowKey === rowKey)) {
+      alert('Bu ara verme şablonu bu versiyonla planda zaten bağlı.')
+      return
+    }
+    setAraVermeLinked((prev) => [...prev, {
+      rowKey,
+      avKodu: row.avKodu,
+      avAdi: row.avAdi,
+      versiyon: row.versiyon,
+      tutar: row.tutar,
+      hesaplamaKurali: row.hesaplamaKurali,
+      onKosul: row.onKosul,
+    }])
+    setAraVermeBindOpen(false)
+  }
+
+  const addKesintiBes30FromCatalog = (row) => {
+    const rowKey = `${row.kbKodu}-${row.versiyon}`
+    if (kesintiBes30Linked.some((l) => l.rowKey === rowKey)) {
+      alert('Bu Kesinti BES3.0 şablonu bu versiyonla planda zaten bağlı.')
+      return
+    }
+    setKesintiBes30Linked((prev) => [...prev, {
+      rowKey,
+      kbKodu: row.kbKodu,
+      kbAdi: row.kbAdi,
+      versiyon: row.versiyon,
+      yil: row.yil,
+      maxKesintiOrani: row.maxKesintiOrani,
+      maxKesintiTutari: row.maxKesintiTutari,
+    }])
+    setKesintiBes30BindOpen(false)
+  }
+
+  const addYgkBes30FromCatalog = (row) => {
+    const rowKey = `${row.ybKodu}-${row.versiyon}`
+    if (ygkBes30Linked.some((l) => l.rowKey === rowKey)) {
+      alert('Bu YGK BES3.0 şablonu bu versiyonla planda zaten bağlı.')
+      return
+    }
+    const y = String(row.sozlesmeYili || '')
+    const sozlesmeYiliAraligi = y.includes('-') ? y : `${y}-${y}`
+    setYgkBes30Linked((prev) => [...prev, {
+      rowKey,
+      ybKodu: row.ybKodu,
+      ybAdi: row.ybAdi,
+      versiyon: row.versiyon,
+      dovizKodu: row.doviz,
+      ygkKesintiTipi: row.ygkKesintiTipi,
+      oran: row.oran,
+      yillikTutar: row.yillikTutar,
+      ygkFormulu: row.ygkFormulu,
+      kesintiDonemi: row.kesintiDonemi,
+      sozlesmeYiliAraligi,
+      birikim: row.birikim,
+      gecerlilikTarihi: row.gecerlilikTarihi,
+      birikimTipi: row.birikimTipi,
+    }])
+    setYgkBes30BindOpen(false)
+  }
+
+  const handleGaRowAction = (key, row) => {
+    if (key === 'view') setGaInspectRow(row)
+    if (key === 'remove' && window.confirm('Bu giriş aidatı bağlantısı çıkarılsın mı?')) {
+      setGaLinked((prev) => prev.filter((x) => x.gaKodu !== row.gaKodu))
+    }
+  }
+
+  const handleYgkRowAction = (key, row) => {
+    if (key === 'view') setYgkInspectRow(row)
+    if (key === 'remove' && window.confirm('Bu YGK bağlantısı çıkarılsın mı?')) {
+      setYgkLinked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+    }
+    if (key === 'history') {
+      const rows = YGK_VERSIONS_BY_KOD[row.ygkKodu] || []
+      setYgkVersionsModal({ open: true, title: `${row.ygkKodu} — Versiyonlar`, rows })
+    }
+  }
+
+  const handleYgkMuafRowAction = (key, row) => {
+    if (key === 'view') setYgkMuafInspectRow(row)
+    if (key === 'delete' && window.confirm('Bu muafiyet kaydı silinsin mi?')) {
+      setYgkMuafLinked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+    }
+    if (key === 'history') {
+      const rows = YGK_MUAF_VERSIONS_BY_KOD[row.muafKodu] || []
+      setYgkMuafVersionsModal({ open: true, title: `${row.muafKodu} — Versiyonlar`, rows })
+    }
+  }
+
+  const handleAraVermeRowAction = (key, row) => {
+    if (key === 'view') setAraVermeInspectRow(row)
+    if (key === 'delete' && window.confirm('Bu ara verme kaydı silinsin mi?')) {
+      setAraVermeLinked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+    }
+    if (key === 'history') {
+      const rows = ARA_VERME_VERSIONS_BY_KOD[row.avKodu] || []
+      setAraVermeVersionsModal({ open: true, title: `${row.avKodu} — Versiyonlar`, rows })
+    }
+  }
+
+  const handleKesintiBes30RowAction = (key, row) => {
+    if (key === 'view') setKesintiBes30InspectRow(row)
+    if (key === 'remove' && window.confirm('Bu Kesinti BES3.0 bağlantısı çıkarılsın mı?')) {
+      setKesintiBes30Linked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+    }
+    if (key === 'history') {
+      const rows = KESINTI_BES30_VERSIONS_BY_KOD[row.kbKodu] || []
+      setKesintiBes30VersionsModal({ open: true, title: `${row.kbKodu} — Versiyonlar`, rows })
+    }
+  }
+
+  const handleYgkBes30RowAction = (key, row) => {
+    if (key === 'view') setYgkBes30InspectRow(row)
+    if (key === 'remove' && window.confirm('Bu YGK BES3.0 bağlantısı çıkarılsın mı?')) {
+      setYgkBes30Linked((prev) => prev.filter((x) => x.rowKey !== row.rowKey))
+      setYgkBes30DetailsRow((d) => (d?.rowKey === row.rowKey ? null : d))
+    }
+    if (key === 'history') {
+      const rows = YGK_BES30_VERSIONS_BY_KOD[row.ybKodu] || []
+      setYgkBes30VersionsModal({ open: true, title: `${row.ybKodu} — Versiyonlar`, rows })
+    }
+    if (key === 'details') {
+      setYgkBes30DetailsTab('muafiyet')
+      setYgkBes30DetailsMuafSearch('')
+      setYgkBes30DetailsRow(row)
+    }
+  }
+
+  const ygkSifirlaCell = (v) => (
+    <span className={`inline-flex items-center justify-center w-6 h-6 rounded border text-xs ${v ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-slate-400 border-slate-200 bg-slate-50'}`}>{v ? '✓' : '×'}</span>
+  )
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 text-xs text-slate-500 shrink-0">
+        <button type="button" onClick={onBack} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1">
+          <ArrowLeft className="w-3.5 h-3.5" />
+        </button>
+        <span>Ürün Yönetimi / Ürün Planları / Plan Detay Sayfası / Kesintiler</span>
+      </div>
+
+      <div className="flex flex-1 min-h-0">
+        <aside className="w-64 shrink-0 border-r border-slate-200 bg-slate-50/50 flex flex-col">
+          <div className="p-3 border-b border-slate-200 bg-white">
+            <div className="text-sm font-semibold text-slate-800 leading-tight">{plan?.ad || 'Plan'}</div>
+            <div className="text-[11px] text-slate-500 mt-1">Plan Kodu: <span className="font-mono text-slate-700">{plan?.id || '—'}</span></div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Branş: <span className="text-slate-700">{branchLabel}</span></div>
+            <div className="text-[11px] text-slate-500">Sözleşme Tipi: <span className="text-slate-700">{urun?.sozlesmeTipi || '—'}</span></div>
+          </div>
+          <nav className="flex-1 overflow-auto py-2">
+            {KESINTI_MENU_KEYS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setMenuKey(item.id)}
+                className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between gap-2 ${menuKey === item.id ? 'bg-violet-50 text-violet-800 font-medium' : 'text-slate-700 hover:bg-white'}`}
+              >
+                {item.label}
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+          {menuKey === 'girisAidati' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={gaMainSearch} onChange={(e) => setGaMainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setGaBindOpen(true)}>GA Template Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>GA Kodu</th>
+                        <th>Döviz</th>
+                        <th>GA Tipi</th>
+                        <th>Taksit Tipi</th>
+                        <th>Taksit Adedi</th>
+                        <th>Peşinat</th>
+                        <th>Taksit</th>
+                        <th>Erteleme</th>
+                        <th>Toplam Tutar</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredGaLinked.map((row) => (
+                        <tr key={row.gaKodu}>
+                          <td className="font-semibold">{row.gaKodu}</td>
+                          <td>{row.doviz}</td>
+                          <td>{row.gaTipi}</td>
+                          <td>{row.taksitTipi}</td>
+                          <td>{row.taksitAdedi}</td>
+                          <td>{row.pesinat}</td>
+                          <td>{row.taksit}</td>
+                          <td>{row.erteleme}</td>
+                          <td>{row.toplamTutar}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={GA_ROW_ACTIONS} onAction={handleGaRowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : menuKey === 'ygkParam' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={ygkMainSearch} onChange={(e) => setYgkMainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setYgkBindOpen(true)}>YGK Template Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-xs">
+                    <thead>
+                      <tr>
+                        <th>YGK Kodu</th>
+                        <th>Geçerlilik Tarihi</th>
+                        <th>Döviz</th>
+                        <th>Tablo Tipi</th>
+                        <th>YGK Adı</th>
+                        <th>Versiyon</th>
+                        <th>Yıl Tipi</th>
+                        <th>Limit Tutar Tipi</th>
+                        <th>Kademe Tipi</th>
+                        <th>Yıl Bazında Sıfırla</th>
+                        <th>YGK Hesaplama Kuralı</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredYgkLinked.map((row) => (
+                        <tr key={row.rowKey}>
+                          <td className="font-semibold">{row.ygkKodu}</td>
+                          <td>{row.gecerlilikTarihi}</td>
+                          <td>{row.doviz}</td>
+                          <td>{row.tabloTipi}</td>
+                          <td className="font-medium">{row.ygkAdi}</td>
+                          <td>{row.versiyon}</td>
+                          <td>{row.yilTipi}</td>
+                          <td>{row.limitTutarTipi}</td>
+                          <td>{row.kademeTipi}</td>
+                          <td>{ygkSifirlaCell(row.yilBazindaSifirla)}</td>
+                          <td>{row.ygkHesaplamaKurali}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={YGK_ROW_ACTIONS} onAction={handleYgkRowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : menuKey === 'ygkMuafiyet' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={ygkMuafMainSearch} onChange={(e) => setYgkMuafMainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setYgkMuafBindOpen(true)}>Muafiyet Template Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>YGK Muafiyet Kodu</th>
+                        <th>YGK Muafiyet Adı</th>
+                        <th>Versiyon</th>
+                        <th>Yıl</th>
+                        <th>Toplam Ödenmiş Kp</th>
+                        <th>Döviz</th>
+                        <th>YGK Muafiyet Oranı</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredYgkMuafLinked.map((row) => (
+                        <tr key={row.rowKey}>
+                          <td className="font-semibold">{row.muafKodu}</td>
+                          <td>{row.muafAdi}</td>
+                          <td>{row.versiyon}</td>
+                          <td>{row.yil}</td>
+                          <td>{row.toplamOdenmisKp}</td>
+                          <td>{row.doviz}</td>
+                          <td>{row.oran}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={YGK_MUAF_ROW_ACTIONS} onAction={handleYgkMuafRowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : menuKey === 'araVerme' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={araVermeMainSearch} onChange={(e) => setAraVermeMainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setAraVermeBindOpen(true)}>Ara Verme Template&apos;i Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>Ara Verme Kodu</th>
+                        <th>Ara Verme Adı</th>
+                        <th>Versiyon</th>
+                        <th>Tutar</th>
+                        <th>Hesaplama Kuralı</th>
+                        <th>Ön Koşul</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAraVermeLinked.map((row) => (
+                        <tr key={row.rowKey}>
+                          <td className="font-semibold">{row.avKodu}</td>
+                          <td>{row.avAdi}</td>
+                          <td>{row.versiyon}</td>
+                          <td>{row.tutar}</td>
+                          <td>{row.hesaplamaKurali}</td>
+                          <td>{row.onKosul}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={ARA_VERME_ROW_ACTIONS} onAction={handleAraVermeRowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : menuKey === 'kesintiBes30' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={kesintiBes30MainSearch} onChange={(e) => setKesintiBes30MainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setKesintiBes30BindOpen(true)}>Kesinti BES3.0 Templatı Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>Kesinti BES3.0 Kodu</th>
+                        <th>Kesinti BES3.0 Adı</th>
+                        <th>Versiyon</th>
+                        <th>Yıl</th>
+                        <th>Max Kesinti Oranı</th>
+                        <th>Max Kesinti Tutarı</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredKesintiBes30Linked.map((row) => (
+                        <tr key={row.rowKey}>
+                          <td className="font-semibold">{row.kbKodu}</td>
+                          <td>{row.kbAdi}</td>
+                          <td>{row.versiyon}</td>
+                          <td>{row.yil}</td>
+                          <td>{row.maxKesintiOrani}</td>
+                          <td>{row.maxKesintiTutari}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={KESINTI_BES30_ROW_ACTIONS} onAction={handleKesintiBes30RowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : menuKey === 'ygkBes30' ? (
+            <>
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Ara..." value={ygkBes30MainSearch} onChange={(e) => setYgkBes30MainSearch(e.target.value)} />
+                </div>
+                <PrimaryButton onClick={() => setYgkBes30BindOpen(true)}>YGK BES3.0 Templatı Bağla</PrimaryButton>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="overflow-auto border border-slate-200 rounded-lg">
+                  <table className="w-full grid-table text-sm min-w-[1100px]">
+                    <thead>
+                      <tr>
+                        <th>YGK BES3.0 Kodu</th>
+                        <th>YGK BES3.0 Adı</th>
+                        <th>Versiyon</th>
+                        <th>Döviz Kodu</th>
+                        <th>YGK Kesinti Tipi</th>
+                        <th>Oran</th>
+                        <th>Yıllık Tutar</th>
+                        <th>YGK Formülü</th>
+                        <th>Kesinti Dönemi</th>
+                        <th>Sözleşme Yılı Aralığı</th>
+                        <th>Birikim</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredYgkBes30Linked.map((row) => (
+                        <tr key={row.rowKey}>
+                          <td className="font-semibold">{row.ybKodu}</td>
+                          <td>{row.ybAdi}</td>
+                          <td>{row.versiyon}</td>
+                          <td>{row.dovizKodu}</td>
+                          <td>{row.ygkKesintiTipi}</td>
+                          <td>{row.oran}</td>
+                          <td>{row.yillikTutar}</td>
+                          <td>{row.ygkFormulu}</td>
+                          <td>{row.kesintiDonemi}</td>
+                          <td>{row.sozlesmeYiliAraligi}</td>
+                          <td>{row.birikim}</td>
+                          <td className="text-right">
+                            <RowActions row={row} actions={YGK_BES30_ROW_ACTIONS} onAction={handleYgkBes30RowAction} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8 text-sm text-slate-500">
+              Bu kesinti bölümü henüz tanımlanmadı.
+            </div>
+          )}
+        </main>
+      </div>
+
+      <Modal
+        open={gaBindOpen}
+        onClose={() => setGaBindOpen(false)}
+        title="Giriş Aidatı Tanımları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setGaBindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="GA kodu, döviz veya tip ile ara..."
+              value={gaCatSearch}
+              onChange={(e) => setGaCatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>GA Kodu</th>
+                  <th>Doviz</th>
+                  <th>GA Tipi</th>
+                  <th>Taksit Tipi</th>
+                  <th>Taksit Adedi</th>
+                  <th>Peşinat</th>
+                  <th>Taksit</th>
+                  <th>Erteleme</th>
+                  <th>Toplam Tutar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGaCatalog.map((row) => (
+                  <tr
+                    key={row.gaKodu}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addGaFromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.gaKodu}</td>
+                    <td>{row.doviz}</td>
+                    <td>{row.gaTipi}</td>
+                    <td>{row.taksitTipi}</td>
+                    <td>{row.taksitAdedi}</td>
+                    <td>{row.pesinat}</td>
+                    <td>{row.taksit}</td>
+                    <td>{row.erteleme}</td>
+                    <td>{row.toplamTutar}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={ygkBindOpen}
+        onClose={() => setYgkBindOpen(false)}
+        title="YGK Parametreleri Detayları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setYgkBindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="YGK kodu, ad veya döviz ile ara..."
+              value={ygkCatSearch}
+              onChange={(e) => setYgkCatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-xs">
+              <thead>
+                <tr>
+                  <th>YGK Kodu</th>
+                  <th>YGK Adı</th>
+                  <th>Versiyon</th>
+                  <th>Geçerlilik Tarihi</th>
+                  <th>Döviz</th>
+                  <th>Tablo Tipi</th>
+                  <th>Yıl Tipi</th>
+                  <th>Limit Tutar Tipi</th>
+                  <th>YGK Hesaplama Kuralı</th>
+                  <th>Kademe Tipi</th>
+                  <th>Yıl Bazında Sıfırla</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredYgkCatalog.map((row) => (
+                  <tr
+                    key={`${row.ygkKodu}-${row.versiyon}`}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addYgkFromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.ygkKodu}</td>
+                    <td>{row.ygkAdi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.gecerlilikTarihi}</td>
+                    <td>{row.doviz}</td>
+                    <td>{row.tabloTipi}</td>
+                    <td>{row.yilTipi}</td>
+                    <td>{row.limitTutarTipi}</td>
+                    <td>{row.ygkHesaplamaKurali}</td>
+                    <td>{row.kademeTipi}</td>
+                    <td>{ygkSifirlaCell(row.yilBazindaSifirla)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(gaInspectRow)}
+        onClose={() => setGaInspectRow(null)}
+        title={gaInspectRow ? `İncele — ${gaInspectRow.gaKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setGaInspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {gaInspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(gaInspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(ygkInspectRow)}
+        onClose={() => setYgkInspectRow(null)}
+        title={ygkInspectRow ? `İncele — ${ygkInspectRow.ygkKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setYgkInspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {ygkInspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(ygkInspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{typeof v === 'boolean' ? (v ? 'Evet' : 'Hayır') : String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={ygkVersionsModal.open}
+        onClose={() => setYgkVersionsModal({ open: false, title: '', rows: [] })}
+        title={ygkVersionsModal.title}
+        footer={<PrimaryButton onClick={() => setYgkVersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {ygkVersionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Geçerlilik</th></tr></thead>
+            <tbody>
+              {ygkVersionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.gecerlilik}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Versiyon kaydı yok.</p>
+        )}
+      </Modal>
+
+      <Modal
+        open={ygkMuafBindOpen}
+        onClose={() => setYgkMuafBindOpen(false)}
+        title="YGK Muafiyet Tanımları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setYgkMuafBindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="Muafiyet kodu, ad veya döviz ile ara..."
+              value={ygkMuafCatSearch}
+              onChange={(e) => setYgkMuafCatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>YGK Muafiyet Kodu</th>
+                  <th>YGK Muafiyet Adı</th>
+                  <th>Versiyon</th>
+                  <th>Geçerlilik Tarihi</th>
+                  <th>Yıl</th>
+                  <th>Toplam Ödenmiş Kp</th>
+                  <th>Döviz</th>
+                  <th>YGK Muafiyet Oranı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredYgkMuafCatalog.map((row) => (
+                  <tr
+                    key={`${row.muafKodu}-${row.versiyon}`}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addYgkMuafFromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.muafKodu}</td>
+                    <td>{row.muafAdi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.gecerlilikTarihi}</td>
+                    <td>{row.yil}</td>
+                    <td>{row.toplamOdenmisKp}</td>
+                    <td>{row.doviz}</td>
+                    <td>{row.oran}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(ygkMuafInspectRow)}
+        onClose={() => setYgkMuafInspectRow(null)}
+        title={ygkMuafInspectRow ? `İncele — ${ygkMuafInspectRow.muafKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setYgkMuafInspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {ygkMuafInspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(ygkMuafInspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={ygkMuafVersionsModal.open}
+        onClose={() => setYgkMuafVersionsModal({ open: false, title: '', rows: [] })}
+        title={ygkMuafVersionsModal.title}
+        footer={<PrimaryButton onClick={() => setYgkMuafVersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {ygkMuafVersionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Geçerlilik</th></tr></thead>
+            <tbody>
+              {ygkMuafVersionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.gecerlilik}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Versiyon kaydı yok.</p>
+        )}
+      </Modal>
+
+      <Modal
+        open={araVermeBindOpen}
+        onClose={() => setAraVermeBindOpen(false)}
+        title="Ara Verme Tanımları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setAraVermeBindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="Ara verme kodu, ad veya tutar ile ara..."
+              value={araVermeCatSearch}
+              onChange={(e) => setAraVermeCatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>Ara Verme Kodu</th>
+                  <th>Ara Verme Adı</th>
+                  <th>Versiyon</th>
+                  <th>Geçerlilik Tarihi</th>
+                  <th>Tutar</th>
+                  <th>Hesaplama Kuralı</th>
+                  <th>Ön Koşul</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAraVermeCatalog.map((row) => (
+                  <tr
+                    key={`${row.avKodu}-${row.versiyon}`}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addAraVermeFromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.avKodu}</td>
+                    <td>{row.avAdi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.gecerlilikTarihi}</td>
+                    <td>{row.tutar}</td>
+                    <td>{row.hesaplamaKurali}</td>
+                    <td>{row.onKosul}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(araVermeInspectRow)}
+        onClose={() => setAraVermeInspectRow(null)}
+        title={araVermeInspectRow ? `İncele — ${araVermeInspectRow.avKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setAraVermeInspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {araVermeInspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(araVermeInspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={araVermeVersionsModal.open}
+        onClose={() => setAraVermeVersionsModal({ open: false, title: '', rows: [] })}
+        title={araVermeVersionsModal.title}
+        footer={<PrimaryButton onClick={() => setAraVermeVersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {araVermeVersionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Geçerlilik</th></tr></thead>
+            <tbody>
+              {araVermeVersionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.gecerlilik}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Versiyon kaydı yok.</p>
+        )}
+      </Modal>
+
+      <Modal
+        open={kesintiBes30BindOpen}
+        onClose={() => setKesintiBes30BindOpen(false)}
+        title="Kesinti BES3.0 Tanımları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setKesintiBes30BindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="Kod, ad, yıl veya oran ile ara..."
+              value={kesintiBes30CatSearch}
+              onChange={(e) => setKesintiBes30CatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>Kesinti BES3.0 Kodu</th>
+                  <th>Kesinti BES3.0 Adı</th>
+                  <th>Versiyon</th>
+                  <th>Geçerlilik Tarihi</th>
+                  <th>Yıl</th>
+                  <th>Max Kesinti Oranı</th>
+                  <th>Max Kesinti Tutarı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredKesintiBes30Catalog.map((row) => (
+                  <tr
+                    key={`${row.kbKodu}-${row.versiyon}`}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addKesintiBes30FromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.kbKodu}</td>
+                    <td>{row.kbAdi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.gecerlilikTarihi}</td>
+                    <td>{row.yil}</td>
+                    <td>{row.maxKesintiOrani}</td>
+                    <td>{row.maxKesintiTutari}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(kesintiBes30InspectRow)}
+        onClose={() => setKesintiBes30InspectRow(null)}
+        title={kesintiBes30InspectRow ? `İncele — ${kesintiBes30InspectRow.kbKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setKesintiBes30InspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {kesintiBes30InspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(kesintiBes30InspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={kesintiBes30VersionsModal.open}
+        onClose={() => setKesintiBes30VersionsModal({ open: false, title: '', rows: [] })}
+        title={kesintiBes30VersionsModal.title}
+        footer={<PrimaryButton onClick={() => setKesintiBes30VersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {kesintiBes30VersionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Geçerlilik</th></tr></thead>
+            <tbody>
+              {kesintiBes30VersionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.gecerlilik}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Versiyon kaydı yok.</p>
+        )}
+      </Modal>
+
+      <Modal
+        open={ygkBes30BindOpen}
+        onClose={() => setYgkBes30BindOpen(false)}
+        title="YGK BES3.0 Parametre Tanımları"
+        description="Plan listesine eklemek için bir satıra çift tıklayın."
+        size="xl"
+        footer={<OutlineButton onClick={() => setYgkBes30BindOpen(false)}>Kapat</OutlineButton>}
+      >
+        <div className="space-y-3">
+          <div className="relative max-w-xl">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+              placeholder="Kod, ad, döviz veya kesinti tipi ile ara..."
+              value={ygkBes30CatSearch}
+              onChange={(e) => setYgkBes30CatSearch(e.target.value)}
+            />
+          </div>
+          <div className="overflow-auto border border-slate-200 rounded-lg max-h-[420px]">
+            <table className="w-full grid-table text-sm min-w-[1000px]">
+              <thead>
+                <tr>
+                  <th>YGK BES3.0 Kodu</th>
+                  <th>YGK BES3.0 Adı</th>
+                  <th>Versiyon</th>
+                  <th>Geçerlilik Tarihi</th>
+                  <th>Döviz</th>
+                  <th>YGK Kesinti Tipi</th>
+                  <th>Oran</th>
+                  <th>Yıllık Tutar</th>
+                  <th>YGK Formülü</th>
+                  <th>Kesinti Dönemi</th>
+                  <th>Sözleşme Yılı</th>
+                  <th>Birikim</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredYgkBes30Catalog.map((row) => (
+                  <tr
+                    key={`${row.ybKodu}-${row.versiyon}`}
+                    className="cursor-pointer hover:bg-violet-50/40"
+                    onDoubleClick={() => addYgkBes30FromCatalog(row)}
+                  >
+                    <td className="font-semibold">{row.ybKodu}</td>
+                    <td>{row.ybAdi}</td>
+                    <td>{row.versiyon}</td>
+                    <td>{row.gecerlilikTarihi}</td>
+                    <td>{row.doviz}</td>
+                    <td>{row.ygkKesintiTipi}</td>
+                    <td>{row.oran}</td>
+                    <td>{row.yillikTutar}</td>
+                    <td>{row.ygkFormulu}</td>
+                    <td>{row.kesintiDonemi}</td>
+                    <td>{row.sozlesmeYili}</td>
+                    <td>{row.birikim}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(ygkBes30InspectRow)}
+        onClose={() => setYgkBes30InspectRow(null)}
+        title={ygkBes30InspectRow ? `İncele — ${ygkBes30InspectRow.ybKodu}` : 'İncele'}
+        footer={<PrimaryButton onClick={() => setYgkBes30InspectRow(null)}>Tamam</PrimaryButton>}
+      >
+        {ygkBes30InspectRow && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {Object.entries(ygkBes30InspectRow).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-slate-100 pb-1">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800 text-right">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
+
+      <Modal
+        open={ygkBes30VersionsModal.open}
+        onClose={() => setYgkBes30VersionsModal({ open: false, title: '', rows: [] })}
+        title={ygkBes30VersionsModal.title}
+        footer={<PrimaryButton onClick={() => setYgkBes30VersionsModal({ open: false, title: '', rows: [] })}>Tamam</PrimaryButton>}
+      >
+        {ygkBes30VersionsModal.rows.length ? (
+          <table className="w-full grid-table text-sm">
+            <thead><tr><th>Versiyon</th><th>Açıklama</th><th>Durum</th><th>Geçerlilik</th></tr></thead>
+            <tbody>
+              {ygkBes30VersionsModal.rows.map((v) => (
+                <tr key={v.versiyon}>
+                  <td>{v.versiyon}</td>
+                  <td>{v.aciklama}</td>
+                  <td>{v.durum}</td>
+                  <td>{v.gecerlilik}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-slate-500">Versiyon kaydı yok.</p>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(ygkBes30DetailsRow)}
+        onClose={() => { setYgkBes30DetailsRow(null); setYgkBes30DetailsTab('muafiyet') }}
+        title={ygkBes30DetailsRow ? `${ygkBes30DetailsRow.ybKodu} — ${ygkBes30DetailsRow.ybAdi}` : ''}
+        description="YGK BES 3.0 parametre detayı"
+        size="xl"
+        footer={<PrimaryButton onClick={() => { setYgkBes30DetailsRow(null); setYgkBes30DetailsTab('muafiyet') }}>Tamam</PrimaryButton>}
+      >
+        {ygkBes30DetailsRow && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+              <div>
+                <span className="text-slate-500">Geçerlilik Tarihi: </span>
+                <span className="font-medium text-slate-800">{ygkBes30DetailsRow.gecerlilikTarihi}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">YGK Kesinti Tipi: </span>
+                <span className="font-medium text-slate-800">{ygkBes30DetailsRow.ygkKesintiTipi}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">Birikim Tipi: </span>
+                <span className="font-medium text-slate-800">{ygkBes30DetailsRow.birikimTipi || '—'}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-0 border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setYgkBes30DetailsTab('muafiyet')}
+                className={`px-4 py-2.5 text-sm font-medium border border-b-0 rounded-t-md -mb-px ${ygkBes30DetailsTab === 'muafiyet' ? 'bg-violet-50 text-violet-800 border-slate-200' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
+              >
+                Muafiyet Parametreleri
+              </button>
+              <button
+                type="button"
+                onClick={() => setYgkBes30DetailsTab('kp')}
+                className={`px-4 py-2.5 text-sm font-medium border border-b-0 rounded-t-md -mb-px ${ygkBes30DetailsTab === 'kp' ? 'bg-violet-50 text-violet-800 border-slate-200' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
+              >
+                Katkı Payı Aralık Tanımları
+              </button>
+            </div>
+
+            {ygkBes30DetailsTab === 'muafiyet' ? (
+              <div className="space-y-3">
+                <div className="relative max-w-md">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    className="w-full h-9 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+                    placeholder="Ara..."
+                    value={ygkBes30DetailsMuafSearch}
+                    onChange={(e) => setYgkBes30DetailsMuafSearch(e.target.value)}
+                  />
+                </div>
+                <div className="overflow-auto border border-slate-200 rounded-lg max-h-[320px]">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>Min. Tutar</th>
+                        <th>Max. Tutar</th>
+                        <th>Oran</th>
+                        <th>Tutar</th>
+                        <th className="text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ygkBes30MuafBandsFiltered.length ? (
+                        ygkBes30MuafBandsFiltered.map((b) => (
+                          <tr key={b.id}>
+                            <td>{b.minTutar}</td>
+                            <td>{b.maxTutar}</td>
+                            <td>{b.oran}</td>
+                            <td>{b.tutar}</td>
+                            <td className="text-right">
+                              <RowActions row={b} actions={YGK_BES30_MUAF_BAND_INNER_ACTIONS} onAction={() => {}} />
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="text-center text-slate-500 py-6">Kayıt bulunamadı.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                  <span>Listelenen: {ygkBes30MuafBandsFiltered.length}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="tabular-nums">2 / 16</span>
+                    <select className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white text-slate-700" aria-label="Sayfa başına">
+                      <option>10 Sayfa Başına Listelenen</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-auto border border-slate-200 rounded-lg max-h-[360px]">
+                <table className="w-full grid-table text-sm">
+                  <thead>
+                    <tr>
+                      <th>Min. KP</th>
+                      <th>Max. KP</th>
+                      <th>Açıklama</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(YGK_BES30_KP_ARALIK_BY_KOD[ygkBes30DetailsRow.ybKodu] || []).length ? (
+                      YGK_BES30_KP_ARALIK_BY_KOD[ygkBes30DetailsRow.ybKodu].map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.minKp}</td>
+                          <td>{r.maxKp}</td>
+                          <td>{r.aciklama}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="text-center text-slate-500 py-6">Tanımlı katkı payı aralığı yok.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
 export default function UrunPlanTarifeTanimlari() {
   const [view, setView] = useState('grid')
   const [selected, setSelected] = useState(null)
@@ -1409,10 +3004,14 @@ export default function UrunPlanTarifeTanimlari() {
     if (planSetupView === 'katki') {
       return <KatkiPayiTanimlariScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
+    if (planSetupView === 'kesinti') {
+      return <KesintilerScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
+    }
     return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
       else if (cardId === 'fonlar') setPlanSetupView('fonlar')
       else if (cardId === 'katki') setPlanSetupView('katki')
+      else if (cardId === 'kesinti') setPlanSetupView('kesinti')
       else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
     }} />
   }

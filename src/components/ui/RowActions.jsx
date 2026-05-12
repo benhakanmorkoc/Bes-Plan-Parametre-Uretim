@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MoreVertical, Eye, Pencil, Copy, GitBranch, Trash2, History, Link as LinkIcon } from 'lucide-react'
+import { MoreVertical, Eye, Pencil, Copy, GitBranch, Trash2, History, Link as LinkIcon, FileText } from 'lucide-react'
 
 const ICONS = {
   view: Eye,
@@ -9,6 +9,7 @@ const ICONS = {
   history: History,
   link: LinkIcon,
   delete: Trash2,
+  details: FileText,
 }
 
 const DEFAULT_ACTIONS = [
@@ -47,7 +48,7 @@ export default function RowActions({ actions = DEFAULT_ACTIONS, onAction, row })
         <MoreVertical className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 w-48 bg-white border border-slate-200 rounded-md shadow-lg py-1 text-sm">
+        <div className="absolute right-0 top-full mt-1 z-30 min-w-[11rem] w-max max-w-[14rem] bg-white border border-slate-200 rounded-md shadow-lg py-1 text-sm">
           {actions.map((a, idx) => {
             if (a.divider) return <div key={`d${idx}`} className="my-1 border-t border-slate-100" />
             const Icon = ICONS[a.icon] || Eye
