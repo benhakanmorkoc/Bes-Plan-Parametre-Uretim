@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -10,6 +10,9 @@ import {
   borcTipleri,
   tarifePlanDurum,
   vakifUyeKurum,
+  egpBireyTipi,
+  katkiPayiHesaplama,
+  egpGeriOdemeTipleri,
 } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
@@ -118,6 +121,66 @@ const ISTISNA_PLAN_ROW_ACTIONS = [
   { key: 'edit', label: 'Güncelle', icon: 'edit' },
   { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
 ]
+
+const EGP_DETAY_SUBMENU = [
+  { id: 'genel', label: 'EGP Genel Parametreler' },
+  { id: 'geriOdeme', label: 'Geri Ödeme Tipleri' },
+  { id: 'araOdeme', label: 'Ara Ödeme Parametreleri' },
+]
+
+const EGP_PLAN_GENEL_DOVIZ = [
+  { kod: 'TRL', label: 'TRL' },
+  { kod: 'USD', label: 'USD' },
+  { kod: 'EUR', label: 'EUR' },
+  { kod: 'TRY', label: 'TRY' },
+]
+
+function egpBireyTipiLabel(kod) {
+  const r = egpBireyTipi.find((x) => x.kod === kod)
+  return r ? r.ad : kod || '—'
+}
+
+function katkiPayiHesaplamaEndeksLabel(hesapKodu) {
+  const h = katkiPayiHesaplama.find((x) => String(x.hesapKodu) === String(hesapKodu))
+  return h ? h.hesapAdi : hesapKodu || '—'
+}
+
+/** Parametre `egpGeriOdemeTipleri.tanimAdi` → ekranda kısa Türkçe etiket */
+function formatEgpGeriOdemeTipEtiket(tanimAdi) {
+  const m = {
+    'Sureye Bagli': 'Süre',
+    'Tutara Bagli': 'Tutar',
+    Mevduat: 'Mevduat',
+    Kira: 'Kira',
+    Faiz: 'Faiz',
+  }
+  return m[tanimAdi] || tanimAdi || '—'
+}
+
+const EGP_GERI_ODEME_ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+const EGP_ARA_ODEME_ROW_ACTIONS = EGP_GERI_ODEME_ROW_ACTIONS
+
+const EGP_GERI_ODEME_FORM_DEFAULT = {
+  tanimAdi: '',
+  sureAlt: '0',
+  sureUst: '0',
+  tutarAlt: '0',
+  tutarUst: '0',
+  oranUst: '0',
+  faiz: '0',
+}
+
+const EGP_ARA_ODEME_FORM_DEFAULT = {
+  sayiAlt: '0',
+  sayiUst: '0',
+  tutarUst: '0',
+  oranMaas: '0',
+  oranBirikim: '0',
+}
 
 const FON_DELETE_ACTION = [{ key: 'delete', label: 'Sil', icon: 'delete', danger: true }]
 const FON_KARMA_ACTIONS = [
@@ -813,7 +876,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  if (card.id === 'egpDetay' || card.id === 'belge') {
+                  if (card.id === 'belge') {
                     alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
                     return
                   }
@@ -822,7 +885,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    if (card.id === 'egpDetay' || card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
+                    if (card.id === 'belge') alert('Bu modülün detay ekranı sıradaki adımda eklenecek.')
                     else onOpenCard?.(card.id)
                   }
                 }}
@@ -843,7 +906,7 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                         className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (card.id === 'egpDetay' || card.id === 'belge') alert('Düzenleme ekranı yakında.')
+                          if (card.id === 'belge') alert('Düzenleme ekranı yakında.')
                           else onOpenCard?.(card.id)
                         }}
                       >
@@ -1213,6 +1276,691 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
   )
 }
 
+function EgpDetaySubmenuIcon({ menuId }) {
+  if (menuId === 'genel') return <SlidersHorizontal className="w-4 h-4 shrink-0 opacity-80" />
+  if (menuId === 'geriOdeme') return <RefreshCw className="w-4 h-4 shrink-0 opacity-80" />
+  return <Calendar className="w-4 h-4 shrink-0 opacity-80" />
+}
+
+/** EGP planı — Detay Parametreleri (Genel / Geri ödeme / Ara ödeme) */
+function EgpDetayParametreleriScreen({ plan, urun, onBack }) {
+  const [activeTab, setActiveTab] = useState('genel')
+  const [genelRows, setGenelRows] = useState(() => [
+    { id: 'pegp-1', gecerlilikTarihi: '2025-01-01', dovizKodu: 'TRL', bireyTipiKod: 'FP', minBirikim: '50000', endeksYil: 1, endeksHesapKodu: '2' },
+    { id: 'pegp-2', gecerlilikTarihi: '2024-06-01', dovizKodu: 'USD', bireyTipiKod: 'FP', minBirikim: '30000', endeksYil: 2, endeksHesapKodu: '1' },
+    { id: 'pegp-3', gecerlilikTarihi: '2024-01-01', dovizKodu: 'TRL', bireyTipiKod: 'C', minBirikim: '10000', endeksYil: 1, endeksHesapKodu: '2' },
+  ])
+  const [genelModalOpen, setGenelModalOpen] = useState(false)
+  const [genelEditingId, setGenelEditingId] = useState(null)
+  const [genelForm, setGenelForm] = useState({
+    gecerlilikTarihi: '',
+    dovizKodu: '',
+    bireyTipiKod: '',
+    minBirikim: '',
+    endeksYil: '',
+    endeksHesapKodu: '',
+  })
+
+  const [geriOdemeRows, setGeriOdemeRows] = useState(() => [
+    { id: 'ego-1', tanimAdi: 'Sureye Bagli', sureAlt: 5, sureUst: 10, tutarAlt: 10000, tutarUst: 500000, oranUst: 80, faiz: 5.5 },
+    { id: 'ego-2', tanimAdi: 'Tutara Bagli', sureAlt: 3, sureUst: 15, tutarAlt: 5000, tutarUst: 100000, oranUst: 70, faiz: 4.2 },
+    { id: 'ego-3', tanimAdi: 'Kira', sureAlt: 1, sureUst: 20, tutarAlt: 15000, tutarUst: 250000, oranUst: 90, faiz: 6.0 },
+    { id: 'ego-4', tanimAdi: 'Faiz', sureAlt: 2, sureUst: 12, tutarAlt: 20000, tutarUst: 300000, oranUst: 75, faiz: 5.0 },
+  ])
+  const [geriOdemeModalOpen, setGeriOdemeModalOpen] = useState(false)
+  const [geriOdemeEditingId, setGeriOdemeEditingId] = useState(null)
+  const [geriOdemeForm, setGeriOdemeForm] = useState(() => ({ ...EGP_GERI_ODEME_FORM_DEFAULT }))
+
+  const subtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
+
+  const openGeriOdemeModalNew = () => {
+    setGeriOdemeEditingId(null)
+    setGeriOdemeForm({ ...EGP_GERI_ODEME_FORM_DEFAULT })
+    setGeriOdemeModalOpen(true)
+  }
+
+  const clearGeriOdemeForm = () => {
+    setGeriOdemeForm({ ...EGP_GERI_ODEME_FORM_DEFAULT })
+  }
+
+  const openGeriOdemeModalEdit = (row) => {
+    setGeriOdemeEditingId(row.id)
+    setGeriOdemeForm({
+      tanimAdi: row.tanimAdi || '',
+      sureAlt: String(row.sureAlt ?? ''),
+      sureUst: String(row.sureUst ?? ''),
+      tutarAlt: String(row.tutarAlt ?? ''),
+      tutarUst: String(row.tutarUst ?? ''),
+      oranUst: String(row.oranUst ?? ''),
+      faiz: String(row.faiz ?? ''),
+    })
+    setGeriOdemeModalOpen(true)
+  }
+
+  const saveGeriOdemeModal = () => {
+    if (!geriOdemeForm.tanimAdi) return alert('Geri ödeme tipi seçiniz.')
+    const nums = ['sureAlt', 'sureUst', 'tutarAlt', 'tutarUst', 'oranUst', 'faiz']
+    const parsed = {}
+    for (const k of nums) {
+      const raw = String(geriOdemeForm[k]).trim().replace(',', '.')
+      if (raw === '' || Number.isNaN(Number(raw))) return alert('Tüm sayısal alanlar geçerli olmalıdır.')
+      parsed[k] = Number(raw)
+    }
+    const payload = {
+      id: geriOdemeEditingId || `ego-${Date.now()}`,
+      tanimAdi: geriOdemeForm.tanimAdi,
+      ...parsed,
+    }
+    if (geriOdemeEditingId) {
+      setGeriOdemeRows((prev) => prev.map((r) => (r.id === geriOdemeEditingId ? payload : r)))
+    } else {
+      setGeriOdemeRows((prev) => [...prev, payload])
+    }
+    setGeriOdemeModalOpen(false)
+  }
+
+  const [araOdemeRows, setAraOdemeRows] = useState(() => [
+    { id: 'eao-1', sayiAlt: 1, sayiUst: 10, tutarUst: 50000, oranBirikim: 30, oranMaas: 25 },
+    { id: 'eao-2', sayiAlt: 2, sayiUst: 15, tutarUst: 75000, oranBirikim: 40, oranMaas: 35 },
+    { id: 'eao-3', sayiAlt: 1, sayiUst: 5, tutarUst: 30000, oranBirikim: 20, oranMaas: 15 },
+  ])
+  const [araOdemeModalOpen, setAraOdemeModalOpen] = useState(false)
+  const [araOdemeEditingId, setAraOdemeEditingId] = useState(null)
+  const [araOdemeForm, setAraOdemeForm] = useState(() => ({ ...EGP_ARA_ODEME_FORM_DEFAULT }))
+
+  const openAraOdemeModalNew = () => {
+    setAraOdemeEditingId(null)
+    setAraOdemeForm({ ...EGP_ARA_ODEME_FORM_DEFAULT })
+    setAraOdemeModalOpen(true)
+  }
+
+  const openAraOdemeModalEdit = (row) => {
+    setAraOdemeEditingId(row.id)
+    setAraOdemeForm({
+      sayiAlt: String(row.sayiAlt ?? ''),
+      sayiUst: String(row.sayiUst ?? ''),
+      tutarUst: String(row.tutarUst ?? ''),
+      oranBirikim: String(row.oranBirikim ?? ''),
+      oranMaas: String(row.oranMaas ?? ''),
+    })
+    setAraOdemeModalOpen(true)
+  }
+
+  const saveAraOdemeModal = () => {
+    const keys = ['sayiAlt', 'sayiUst', 'tutarUst', 'oranBirikim', 'oranMaas']
+    const parsed = {}
+    for (const k of keys) {
+      const raw = String(araOdemeForm[k]).trim().replace(',', '.')
+      if (raw === '' || Number.isNaN(Number(raw))) return alert('Tüm alanlar geçerli sayı olmalıdır.')
+      parsed[k] = Number(raw)
+    }
+    const payload = {
+      id: araOdemeEditingId || `eao-${Date.now()}`,
+      ...parsed,
+    }
+    if (araOdemeEditingId) {
+      setAraOdemeRows((prev) => prev.map((r) => (r.id === araOdemeEditingId ? payload : r)))
+    } else {
+      setAraOdemeRows((prev) => [...prev, payload])
+    }
+    setAraOdemeModalOpen(false)
+  }
+
+  const openGenelModalNew = () => {
+    setGenelEditingId(null)
+    setGenelForm({
+      gecerlilikTarihi: '',
+      dovizKodu: '',
+      bireyTipiKod: '',
+      minBirikim: '',
+      endeksYil: '',
+      endeksHesapKodu: '',
+    })
+    setGenelModalOpen(true)
+  }
+
+  const saveGenelModal = () => {
+    if (!genelForm.gecerlilikTarihi) return alert('Geçerlilik tarihi zorunludur.')
+    if (!genelForm.dovizKodu) return alert('Döviz kodu zorunludur.')
+    if (!String(genelForm.minBirikim).trim()) return alert('Min. birikim tutarı zorunludur.')
+    const yil = String(genelForm.endeksYil).trim()
+    if (yil === '' || Number.isNaN(Number(yil))) return alert('Min. birikim tutarı kaç yılda bir endekslenecek alanı zorunludur.')
+    if (!genelForm.endeksHesapKodu) return alert('Min. birikim tutarı endeks tipi zorunludur.')
+    const payload = {
+      id: genelEditingId || `pegp-${Date.now()}`,
+      gecerlilikTarihi: genelForm.gecerlilikTarihi,
+      dovizKodu: genelForm.dovizKodu,
+      bireyTipiKod: genelForm.bireyTipiKod || '',
+      minBirikim: String(genelForm.minBirikim).replace(/\s/g, ''),
+      endeksYil: Number(yil),
+      endeksHesapKodu: genelForm.endeksHesapKodu,
+    }
+    if (genelEditingId) {
+      setGenelRows((prev) => prev.map((r) => (r.id === genelEditingId ? payload : r)))
+    } else {
+      setGenelRows((prev) => [...prev, payload])
+    }
+    setGenelModalOpen(false)
+  }
+
+  return (
+    <div className="bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-start justify-between gap-4 shrink-0">
+        <div className="flex items-start gap-3 min-w-0">
+          <button type="button" onClick={onBack} className="mt-1 text-slate-500 hover:text-slate-800 p-1 -ml-1 rounded-md hover:bg-slate-100 shrink-0" aria-label="Geri">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
+              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold shrink-0">Taslak</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{subtitle}</p>
+          </div>
+        </div>
+        <PlanHeaderProgressRing pct={20} stepText="2/6" />
+      </div>
+
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-auto">
+          <div className="px-3 py-3 border-b border-slate-100 flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <button type="button" onClick={onBack} className="text-slate-500 hover:text-slate-800 p-0.5 rounded-md hover:bg-slate-100 -ml-0.5" aria-label="Geri">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <span className="truncate">EGP Detay Parametreleri</span>
+          </div>
+          <nav className="p-2 flex flex-col gap-0.5">
+            {EGP_DETAY_SUBMENU.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-2 text-left text-sm px-3 py-2.5 rounded-lg transition ${
+                  activeTab === item.id
+                    ? 'bg-violet-50 text-violet-900 font-medium border border-violet-100'
+                    : 'text-slate-700 hover:bg-slate-50 border border-transparent'
+                }`}
+              >
+                <EgpDetaySubmenuIcon menuId={item.id} />
+                <span className="leading-snug">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {activeTab === 'genel' ? (
+            <div className="max-w-6xl">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-800">EGP Genel Parametreler</h3>
+                <PrimaryButton onClick={openGenelModalNew} className="bg-violet-600 hover:bg-violet-700">
+                  <Plus className="w-4 h-4" /> Ekle
+                </PrimaryButton>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th>Geçerlilik Tarihi</th>
+                      <th>Döviz Kodu</th>
+                      <th>Birey Tipi</th>
+                      <th>Minimum Birikim Tutarı</th>
+                      <th className="min-w-[200px]">Minimum Birikim Tutarı Kaç Yılda Bir Endekslenecek?</th>
+                      <th className="min-w-[140px]">Min. Birikim Tutarı Endeks Tipi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {genelRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatIsoToTrDate(row.gecerlilikTarihi)}</td>
+                        <td>{row.dovizKodu}</td>
+                        <td>{egpBireyTipiLabel(row.bireyTipiKod)}</td>
+                        <td className="text-right tabular-nums">{Number(row.minBirikim).toLocaleString('tr-TR')}</td>
+                        <td className="text-center">{row.endeksYil}</td>
+                        <td>{katkiPayiHesaplamaEndeksLabel(row.endeksHesapKodu)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span>Kayıt Göster</span>
+                  <select className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white" defaultValue={10}>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                  </select>
+                </div>
+                <span>
+                  1-{genelRows.length} / {genelRows.length}
+                </span>
+              </div>
+            </div>
+          ) : activeTab === 'geriOdeme' ? (
+            <div className="max-w-[1100px]">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-800">Geri Ödeme Tipleri</h3>
+                <PrimaryButton onClick={openGeriOdemeModalNew} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4" /> Ekle
+                </PrimaryButton>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[960px]">
+                  <thead>
+                    <tr>
+                      <th>Geri Ödeme Tipi</th>
+                      <th className="text-right whitespace-nowrap">Geri Ödeme Süresi(Yıl) Alt Limiti</th>
+                      <th className="text-right whitespace-nowrap">Geri Ödeme Süresi(Yıl) Üst Limiti</th>
+                      <th className="text-right whitespace-nowrap">Alt Limit Geri Ödeme Tutarı</th>
+                      <th className="text-right whitespace-nowrap">Üst Limit Geri Ödeme Tutarı</th>
+                      <th className="text-right whitespace-nowrap">Geri Ödeme Oranı Üst Limiti</th>
+                      <th className="text-right whitespace-nowrap">Faiz Oran</th>
+                      <th className="text-right w-24">Liste İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {geriOdemeRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatEgpGeriOdemeTipEtiket(row.tanimAdi)}</td>
+                        <td className="text-right tabular-nums">{row.sureAlt}</td>
+                        <td className="text-right tabular-nums">{row.sureUst}</td>
+                        <td className="text-right tabular-nums">{Number(row.tutarAlt).toLocaleString('tr-TR')}</td>
+                        <td className="text-right tabular-nums">{Number(row.tutarUst).toLocaleString('tr-TR')}</td>
+                        <td className="text-right tabular-nums">{row.oranUst}</td>
+                        <td className="text-right tabular-nums">{Number(row.faiz).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={EGP_GERI_ODEME_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openGeriOdemeModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setGeriOdemeRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span>Kayıt Göster</span>
+                  <select className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white" defaultValue={10}>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                  </select>
+                </div>
+                <span>
+                  1-{geriOdemeRows.length} / {geriOdemeRows.length}
+                </span>
+              </div>
+            </div>
+          ) : activeTab === 'araOdeme' ? (
+            <div className="max-w-[1000px]">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-slate-800">Ara Ödeme Parametreleri</h3>
+                <PrimaryButton onClick={openAraOdemeModalNew} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4" /> Ekle
+                </PrimaryButton>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+                <table className="w-full grid-table text-sm min-w-[880px]">
+                  <thead>
+                    <tr>
+                      <th className="text-right whitespace-nowrap">Ara Ödeme Sayısı Alt Limiti</th>
+                      <th className="text-right whitespace-nowrap">Ara Ödeme Sayısı Üst Limiti</th>
+                      <th className="text-right whitespace-nowrap">Ara Ödeme Tutarı Üst Limiti</th>
+                      <th className="text-right whitespace-nowrap min-w-[180px]">Üst Limit Ara Ödeme Oranı(Birikim)</th>
+                      <th className="text-right whitespace-nowrap min-w-[200px]">Üst Limit Ara Ödeme Oranı (Yıllık Maaş)</th>
+                      <th className="text-right w-28 whitespace-nowrap">Liste İşlemi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {araOdemeRows.map((row) => (
+                      <tr key={row.id}>
+                        <td className="text-right tabular-nums">{row.sayiAlt}</td>
+                        <td className="text-right tabular-nums">{row.sayiUst}</td>
+                        <td className="text-right tabular-nums">{Number(row.tutarUst).toLocaleString('tr-TR')}</td>
+                        <td className="text-right tabular-nums">{row.oranBirikim}</td>
+                        <td className="text-right tabular-nums">{row.oranMaas}</td>
+                        <td className="text-right">
+                          <RowActions
+                            row={row}
+                            actions={EGP_ARA_ODEME_ROW_ACTIONS}
+                            onAction={(key, r) => {
+                              if (key === 'edit') openAraOdemeModalEdit(r)
+                              if (key === 'delete') {
+                                if (!window.confirm('Kayıt silinsin mi?')) return
+                                setAraOdemeRows((prev) => prev.filter((x) => x.id !== r.id))
+                              }
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span>Kayıt Göster</span>
+                  <select className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white" defaultValue={10}>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                  </select>
+                </div>
+                <span>
+                  1-{araOdemeRows.length} / {araOdemeRows.length}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-2xl rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+              <p className="font-medium text-slate-700 mb-1">{EGP_DETAY_SUBMENU.find((m) => m.id === activeTab)?.label}</p>
+              <p>Bu bölümün ekranı yakında eklenecek.</p>
+            </div>
+          )}
+        </main>
+      </div>
+
+      <Modal
+        open={genelModalOpen}
+        onClose={() => setGenelModalOpen(false)}
+        title="EGP Genel Parametre Ekle"
+        description="EGP için yeni genel parametre tanımlayın"
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setGenelModalOpen(false)}>İptal</OutlineButton>
+            <PrimaryButton type="button" onClick={saveGenelModal} className="bg-violet-600 hover:bg-violet-700">Kaydet</PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geçerlilik Tarihi <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="date"
+              className="form-input"
+              value={genelForm.gecerlilikTarihi}
+              onChange={(e) => setGenelForm((f) => ({ ...f, gecerlilikTarihi: e.target.value }))}
+            />
+          </label>
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Döviz Kodu <span className="text-red-500">*</span>
+            </span>
+            <select
+              className="form-select"
+              value={genelForm.dovizKodu}
+              onChange={(e) => setGenelForm((f) => ({ ...f, dovizKodu: e.target.value }))}
+            >
+              <option value="">Seçiniz</option>
+              {EGP_PLAN_GENEL_DOVIZ.map((d) => (
+                <option key={d.kod} value={d.kod}>{d.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">Birey Tipi</span>
+            <select
+              className="form-select"
+              value={genelForm.bireyTipiKod}
+              onChange={(e) => setGenelForm((f) => ({ ...f, bireyTipiKod: e.target.value }))}
+            >
+              <option value="">Seçiniz</option>
+              {egpBireyTipi.map((b) => (
+                <option key={b.kod} value={b.kod}>{b.ad}{b.aciklama && b.aciklama !== b.ad ? ` — ${b.aciklama}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Min. Birikim Tutarı <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={genelForm.minBirikim}
+              onChange={(e) => setGenelForm((f) => ({ ...f, minBirikim: e.target.value }))}
+            />
+          </label>
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Min. Birikim Tutar Kaç Yılda Bir Endekslenecek? <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={genelForm.endeksYil}
+              onChange={(e) => setGenelForm((f) => ({ ...f, endeksYil: e.target.value }))}
+            />
+          </label>
+          <label className="block md:col-span-1">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Min. Birikim Tutarı Endeks Tipi <span className="text-red-500">*</span>
+            </span>
+            <select
+              className="form-select"
+              value={genelForm.endeksHesapKodu}
+              onChange={(e) => setGenelForm((f) => ({ ...f, endeksHesapKodu: e.target.value }))}
+            >
+              <option value="">Seçiniz</option>
+              {katkiPayiHesaplama.map((h) => (
+                <option key={h.id} value={String(h.hesapKodu)}>{h.hesapAdi} ({h.hesapKodu})</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={geriOdemeModalOpen}
+        onClose={() => setGeriOdemeModalOpen(false)}
+        title={geriOdemeEditingId ? 'Geri Ödeme Tipi Güncelle' : 'Yeni Geri Ödeme Tipi Ekle'}
+        description={geriOdemeEditingId ? 'Geri ödeme tipi kaydını güncelleyin' : 'EGP için yeni geri ödeme tipi tanımlayın'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={clearGeriOdemeForm}>TEMİZLE</OutlineButton>
+            <PrimaryButton type="button" onClick={saveGeriOdemeModal} className="bg-violet-600 hover:bg-violet-700">
+              <Save className="w-4 h-4" /> KAYDET
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block md:col-span-2">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geri Ödeme Tipi <span className="text-red-500">*</span>
+            </span>
+            <select
+              className="form-select"
+              value={geriOdemeForm.tanimAdi}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, tanimAdi: e.target.value }))}
+            >
+              <option value="">Seçiniz</option>
+              {egpGeriOdemeTipleri.map((t) => (
+                <option key={t.id} value={t.tanimAdi}>{formatEgpGeriOdemeTipEtiket(t.tanimAdi)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geri Ödeme Süresi(Yıl) Alt Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={geriOdemeForm.sureAlt}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, sureAlt: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geri Ödeme Süresi(Yıl) Üst Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={geriOdemeForm.sureUst}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, sureUst: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Alt Limit Geri Ödeme Tutarı <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={geriOdemeForm.tutarAlt}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, tutarAlt: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Üst Limit Geri Ödeme Tutarı <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={geriOdemeForm.tutarUst}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, tutarUst: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Faiz Oran <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={geriOdemeForm.faiz}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, faiz: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Geri Ödeme Oranı Üst Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={geriOdemeForm.oranUst}
+              onChange={(e) => setGeriOdemeForm((f) => ({ ...f, oranUst: e.target.value }))}
+            />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={araOdemeModalOpen}
+        onClose={() => setAraOdemeModalOpen(false)}
+        title={araOdemeEditingId ? 'Ara Ödeme Parametresi Güncelle' : 'Ara Ödeme Parametresi Ekle'}
+        description={araOdemeEditingId ? 'Ara ödeme parametresini güncelleyin' : 'EGP için yeni ara ödeme parametresi tanımlayın'}
+        footer={
+          <>
+            <OutlineButton type="button" onClick={() => setAraOdemeModalOpen(false)}>İPTAL</OutlineButton>
+            <PrimaryButton type="button" onClick={saveAraOdemeModal} className="bg-violet-600 hover:bg-violet-700">
+              <Save className="w-4 h-4" /> KAYDET
+            </PrimaryButton>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Ara Ödeme Sayısı Alt Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={araOdemeForm.sayiAlt}
+              onChange={(e) => setAraOdemeForm((f) => ({ ...f, sayiAlt: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Ara Ödeme Sayısı Üst Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              className="form-input"
+              value={araOdemeForm.sayiUst}
+              onChange={(e) => setAraOdemeForm((f) => ({ ...f, sayiUst: e.target.value }))}
+            />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Ara Ödeme Tutarı Üst Limiti <span className="text-red-500">*</span>
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="form-input"
+              placeholder="0,00"
+              value={araOdemeForm.tutarUst}
+              onChange={(e) => setAraOdemeForm((f) => ({ ...f, tutarUst: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Üst Limit Ara Ödeme Oranı (Yıllık Maaş) <span className="text-red-500">*</span>
+            </span>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                className="form-input pr-9"
+                placeholder="0,00"
+                value={araOdemeForm.oranMaas}
+                onChange={(e) => setAraOdemeForm((f) => ({ ...f, oranMaas: e.target.value }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">%</span>
+            </div>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-600 mb-1">
+              Üst Limit Ara Ödeme Oranı (Birikim) <span className="text-red-500">*</span>
+            </span>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                className="form-input pr-9"
+                placeholder="0,00"
+                value={araOdemeForm.oranBirikim}
+                onChange={(e) => setAraOdemeForm((f) => ({ ...f, oranBirikim: e.target.value }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">%</span>
+            </div>
+          </label>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
   const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
@@ -1383,48 +2131,10 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                 <span className="block text-xs font-medium text-slate-600 mb-2">Özellikler</span>
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
                   <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
-                    Vatandaşlık Planı
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
                     Aktarım Özel Planı
                   </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
-                    Mesafeli Satış
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
-                    BEFAS
-                  </label>
                 </div>
-              </div>
-
-              <div className="md:col-span-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={form.vakifAktarim}
-                    onChange={(e) => {
-                      const c = e.target.checked
-                      setForm((prev) => ({ ...prev, vakifAktarim: c, uyeKurumKod: c ? prev.uyeKurumKod : '' }))
-                    }}
-                    className="rounded border-slate-300"
-                  />
-                  Vakıf Aktarım
-                </label>
-                {form.vakifAktarim ? (
-                  <label className="block flex-1 min-w-[220px] max-w-xl">
-                    <span className="block text-xs font-medium text-slate-600 mb-1">Üye Kurum</span>
-                    <select className="form-select" value={form.uyeKurumKod} onChange={(e) => setValue('uyeKurumKod', e.target.value)}>
-                      <option value="">Seçiniz</option>
-                      {vakifUyeKurum.map((v) => (
-                        <option key={v.kod} value={v.kod}>{v.aciklama}</option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
               </div>
 
               <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3901,12 +4611,16 @@ export default function UrunPlanTarifeTanimlari() {
     if (planSetupView === 'diger') {
       return <DigerTanimlarScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
     }
+    if (planSetupView === 'egpDetay') {
+      return <EgpDetayParametreleriScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
+    }
     return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
       else if (cardId === 'fonlar') setPlanSetupView('fonlar')
       else if (cardId === 'katki') setPlanSetupView('katki')
       else if (cardId === 'kesinti') setPlanSetupView('kesinti')
       else if (cardId === 'diger') setPlanSetupView('diger')
+      else if (cardId === 'egpDetay') setPlanSetupView('egpDetay')
       else alert('Bu kartın detay ekranı sıradaki adımda eklenecek.')
     }} />
   }

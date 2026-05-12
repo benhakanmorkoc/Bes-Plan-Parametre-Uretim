@@ -684,6 +684,7 @@ export const egpGeriOdemeTipleri = [
   { id: 2, tanimAdi: 'Tutara Bagli' },
   { id: 3, tanimAdi: 'Mevduat' },
   { id: 4, tanimAdi: 'Kira' },
+  { id: 5, tanimAdi: 'Faiz' },
 ]
 
 // --- ANKET / SORU ---
