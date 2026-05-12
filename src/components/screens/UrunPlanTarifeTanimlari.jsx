@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, CheckCircle2, SlidersHorizontal, FileText } from 'lucide-react'
-import { urunPlanTarifeKartlari, urunPlanlari, katkiPayiTemplateleri } from '../../data/mockData'
+import {
+  urunPlanTarifeKartlari,
+  urunPlanlari,
+  katkiPayiTemplateleri,
+  basvuruTipleri,
+  kurTipleri,
+  odemeAraclari,
+  borcTipleri,
+  tarifePlanDurum,
+} from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
@@ -428,6 +437,23 @@ function toInputDateValue(raw) {
   return toHeaderIsoDate(raw)
 }
 
+/** Plan kaydındaki durum metnini Tarife Plan Durum parametre koduna çevirir */
+function planDurumToKod(durum) {
+  const s = String(durum || '').toLowerCase()
+  if (s === 'yururlukte' || s.includes('yürürlük')) return 'A'
+  if (s.includes('satisa') || s.includes('satışa')) return 'K'
+  if (s.includes('kaldir') || s.includes('kaldır')) return 'Y'
+  return 'D'
+}
+
+const OKS_PLAN_DURUM_ETIKET = { D: 'Taslak', A: 'Yürürlükte', K: 'Satışa Kapalı', Y: 'Yürürlükten Kaldırıldı' }
+const OKS_PLAN_DURUM_SECENEKLERI = tarifePlanDurum.map((r) => ({ kod: r.kod, label: OKS_PLAN_DURUM_ETIKET[r.kod] || r.aciklama }))
+
+function kurTipiEtiket(row) {
+  const m = { EA: 'Efektif Alış', ES: 'Efektif Satış', DA: 'Döviz Alış', DS: 'Döviz Satış' }
+  return m[row.kod] || row.aciklama
+}
+
 function PlanHeaderProgressRing({ pct = 20, stepText = '2/6' }) {
   const r = 15.5
   const c = 2 * Math.PI * r
@@ -831,9 +857,12 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       egmPlanKodu: '',
       egmYururlukTarihi: '',
       basvuruTipi: '',
+      basvuruKod: '',
       durum: plan?.durum || 'Taslak',
+      durumKod: planDurumToKod(plan?.durum),
       doviz: '',
       kurTipi: '',
+      kurTipKod: '',
       minGirisYasi: '',
       maxGirisYasi: '',
       emanetFon: 'FON1',
@@ -841,7 +870,9 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       vakifAktarim: '',
       vakifAktarimSuresi: '',
       odemeAraclari: '',
+      odemeAraciKodlari: [],
       bosTipleri: '',
+      borcTipiKodlari: [],
       katilimEsasli: Boolean(plan?.katilimEsasli),
       vatandaslikPlani: false,
       aktarimaOzelPlan: false,
@@ -891,7 +922,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               </label>
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Versiyon No</span>
-                <input className="form-input bg-slate-50" value={form.versiyonNo} onChange={(e) => setValue('versiyonNo', e.target.value)} />
+                <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" value={form.versiyonNo} readOnly disabled title="Sistem yönetiminde tanımlıdır" />
               </label>
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Plan Kodu <span className="text-red-500">*</span></span>
@@ -927,17 +958,19 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
 
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Başvuru Tipi <span className="text-red-500">*</span></span>
-                <select className="form-select" value={form.basvuruTipi} onChange={(e) => setValue('basvuruTipi', e.target.value)}>
+                <select className="form-select" value={form.basvuruKod} onChange={(e) => setValue('basvuruKod', e.target.value)}>
                   <option value="">Seçiniz</option>
-                  <option value="bireysel">Bireysel</option>
-                  <option value="kurumsal">Kurumsal</option>
+                  {basvuruTipleri.map((b) => (
+                    <option key={b.kod} value={b.kod}>{b.aciklama}</option>
+                  ))}
                 </select>
               </label>
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Durum <span className="text-red-500">*</span></span>
-                <select className="form-select" value={form.durum} onChange={(e) => setValue('durum', e.target.value)}>
-                  <option value="Taslak">Taslak</option>
-                  <option value="Yururlukte">Yürürlükte</option>
+                <select className="form-select" value={form.durumKod} onChange={(e) => setValue('durumKod', e.target.value)}>
+                  {OKS_PLAN_DURUM_SECENEKLERI.map((d) => (
+                    <option key={d.kod} value={d.kod}>{d.label}</option>
+                  ))}
                 </select>
               </label>
               <label className="block">
@@ -951,26 +984,88 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               </label>
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Kur Tipi</span>
-                <select className="form-select" value={form.kurTipi} onChange={(e) => setValue('kurTipi', e.target.value)}>
+                <select className="form-select" value={form.kurTipKod} onChange={(e) => setValue('kurTipKod', e.target.value)}>
                   <option value="">Seçiniz</option>
-                  <option value="tcmb">TCMB</option>
-                  <option value="satis">Satış</option>
+                  {kurTipleri.map((k) => (
+                    <option key={k.kod} value={k.kod}>{kurTipiEtiket(k)}</option>
+                  ))}
                 </select>
               </label>
 
-              <div className="md:col-span-4 flex flex-wrap gap-6 pt-1 text-sm text-slate-700">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.katilimEsasli} onChange={(e) => setValue('katilimEsasli', e.target.checked)} className="rounded border-slate-300" />
-                  Katılım Esaslı
+              <div className="md:col-span-4 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                <span className="block text-xs font-medium text-slate-600 mb-1">Katılım Esaslı</span>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={form.katilimEsasli} disabled className="rounded border-slate-300 opacity-80 cursor-not-allowed" />
+                  <span>{form.katilimEsasli ? 'Evet' : 'Hayır'}</span>
+                  <span className="text-[11px] text-slate-400">(önceki adımdan, değiştirilemez)</span>
                 </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
+              </div>
+
+              {!form.katilimEsasli ? (
+                <label className="block md:col-span-2">
+                  <span className="block text-xs font-medium text-slate-600 mb-1">Emanet Fon</span>
+                  <select className="form-select" value={form.emanetFon} onChange={(e) => setValue('emanetFon', e.target.value)}>
+                    <option value="FON1">FON1</option>
+                  </select>
+                </label>
+              ) : null}
+
+              <div className="md:col-span-4">
+                <span className="block text-xs font-medium text-slate-600 mb-2">Özellikler</span>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                   <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
                   Aktarım Özel Planı
                 </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.vakifAktarimCheck} onChange={(e) => setValue('vakifAktarimCheck', e.target.checked)} className="rounded border-slate-300" />
-                  Vakıf Aktarım
-                </label>
+              </div>
+
+              <div className="md:col-span-4 rounded-lg border border-slate-200 p-3">
+                <span className="block text-xs font-medium text-slate-600 mb-2">Ödeme Araçları <span className="text-slate-400 font-normal">(çoklu seçim)</span></span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {odemeAraclari.map((o) => (
+                    <label key={o.kod} className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300"
+                        checked={form.odemeAraciKodlari.includes(o.kod)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setForm((prev) => ({
+                            ...prev,
+                            odemeAraciKodlari: checked
+                              ? [...new Set([...prev.odemeAraciKodlari, o.kod])]
+                              : prev.odemeAraciKodlari.filter((k) => k !== o.kod),
+                          }))
+                        }}
+                      />
+                      <span>{o.ad} <span className="text-slate-400">({o.kod})</span></span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-4 rounded-lg border border-slate-200 p-3">
+                <span className="block text-xs font-medium text-slate-600 mb-2">Borç Tipleri <span className="text-slate-400 font-normal">(çoklu seçim)</span></span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {borcTipleri.map((b) => (
+                    <label key={b.kod} className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300"
+                        checked={form.borcTipiKodlari.includes(b.kod)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setForm((prev) => ({
+                            ...prev,
+                            borcTipiKodlari: checked
+                              ? [...new Set([...prev.borcTipiKodlari, b.kod])]
+                              : prev.borcTipiKodlari.filter((k) => k !== b.kod),
+                          }))
+                        }}
+                      />
+                      <span>{b.ad} <span className="text-slate-400">({b.kod})</span></span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <label className="block md:col-span-4">
