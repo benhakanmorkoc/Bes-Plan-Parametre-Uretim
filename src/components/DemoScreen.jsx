@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, ChevronLeft, Search, Check, FilePlus, Pencil, Trash2, Eye, HelpCircle, Calculator, LayoutGrid } from 'lucide-react'
+import { X, ChevronLeft, Search, Check, FilePlus, Pencil, Trash2, Eye, HelpCircle, Calculator, LayoutGrid, Menu } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari, odemeDonemiTurleri, katkiPayiHesaplama } from '../data/mockData'
 import Modal from './ui/Modal'
 
@@ -171,6 +171,218 @@ const fmtTl = (value) =>
     maximumFractionDigits: 0,
   }).format(value || 0)
 
+const fmtTr2 = (value) =>
+  new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0)
+
+function planlarTaslakHaric(plans) {
+  return (plans || []).filter((p) => (p.durum || '').trim() !== 'Taslak')
+}
+
+/** Demo: simülasyon girdilerine göre yaş bazlı birikim serisi (grafik + tablo) */
+function buildBirikimSerisi(simForm, iyimser) {
+  const aylik = Number(simForm.aylikKatkiPayi) || 0
+  const yillik = aylik * 12
+  const g = Math.max(0, (Number(simForm.yillikFonGetirisi) || 0) / 100) * 0.85
+  const devOran = Math.max(0, (Number(simForm.devletKatkisiOrani) || 0) / 100)
+  const scen = iyimser ? 1 : 0.62
+  const rows = []
+  for (let i = 0; i < 31; i++) {
+    const yil = i + 1
+    const age = 26 + i
+    const t = yil / 31
+    const kontrib = yillik * yil * scen
+    const yatirim = kontrib * (1 - devOran * 0.55) * (0.62 + 0.12 * t)
+    const devlet = kontrib * devOran * (0.38 + 0.1 * t)
+    const yatirimGetiri = yatirim * (Math.pow(1 + g, yil) - 1) * (iyimser ? 0.92 : 0.78)
+    const devletGetiri = devlet * (Math.pow(1 + g * 0.93, yil) - 1) * (iyimser ? 0.9 : 0.75)
+    const katilimciBrut = yatirim + yatirimGetiri * 0.58
+    const katilimciNet = (yatirim + yatirimGetiri) * 0.93
+    const dkpBrut = devlet + devletGetiri * 0.52
+    const dkpNet = (devlet + devletGetiri) * 0.93
+    const tahminiBrut = katilimciBrut + dkpBrut
+    const tahminiNet = katilimciNet + dkpNet
+    rows.push({
+      age,
+      yil,
+      yatirim,
+      yatirimGetiri,
+      devlet,
+      devletGetiri,
+      katilimciBrut,
+      katilimciNet,
+      dkpBrut,
+      dkpNet,
+      tahminiBrut,
+      tahminiNet,
+    })
+  }
+  return rows
+}
+
+function BirikimStackedBarChart({ rows }) {
+  const [tip, setTip] = useState(null)
+  const max = useMemo(() => Math.max(...rows.map((r) => r.yatirim + r.yatirimGetiri + r.devlet + r.devletGetiri), 1), [rows])
+  const pct = (v) => `${(v / max) * 100}%`
+  return (
+    <div className="relative rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <h4 className="text-sm font-bold text-slate-800 text-center flex-1">Birikim Tutarının Değişimi</h4>
+        <button
+          type="button"
+          className="p-1.5 rounded border border-slate-200 text-slate-600 hover:bg-slate-50"
+          title="Dışa aktar (demo)"
+          onClick={() => alert('Demo: PNG / PDF dışa aktarma yakında.')}
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="text-[10px] text-slate-500 mb-1">Birikim Tutarı (TL)</div>
+      <div className="relative flex h-64 items-end gap-px overflow-x-auto border-b border-slate-200 pb-1">
+        {rows.map((r, idx) => (
+          <div
+            key={r.age}
+            className="flex flex-col items-center shrink-0 w-5 group"
+            onMouseEnter={(e) => setTip({ idx, r, x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setTip((prev) => (prev && prev.idx === idx ? { ...prev, x: e.clientX, y: e.clientY } : prev))}
+            onMouseLeave={() => setTip(null)}
+          >
+            <div className="flex w-full flex-col-reverse h-56 rounded-sm overflow-hidden ring-1 ring-transparent group-hover:ring-blue-300">
+              <div style={{ height: pct(r.yatirim) }} className="bg-sky-300 w-full min-h-[1px]" title="" />
+              <div style={{ height: pct(r.yatirimGetiri) }} className="bg-slate-700 w-full min-h-[1px]" />
+              <div style={{ height: pct(r.devlet) }} className="bg-emerald-400 w-full min-h-[1px]" />
+              <div style={{ height: pct(r.devletGetiri) }} className="bg-orange-300 w-full min-h-[1px]" />
+            </div>
+            <span className="text-[9px] text-slate-500 mt-0.5 tabular-nums">{r.age}</span>
+          </div>
+        ))}
+      </div>
+      {tip ? (
+        <div
+          className="fixed z-[80] pointer-events-none rounded border border-slate-300 bg-white px-3 py-2 text-xs shadow-lg max-w-[240px]"
+          style={{ left: Math.min(tip.x + 12, typeof window !== 'undefined' ? window.innerWidth - 260 : tip.x + 12), top: tip.y + 12 }}
+        >
+          <div className="font-bold text-slate-800 mb-1 border-b border-slate-100 pb-1">{tip.r.age} YAŞ</div>
+          <div className="space-y-0.5 text-slate-700">
+            <div>Yatırıma Yönlenen Kümülatif Tutar (TL): {fmtTr2(tip.r.yatirim)}</div>
+            <div>Yatırıma Yönlenen Kümülatif Tutarın Getirisi (TL): {fmtTr2(tip.r.yatirimGetiri)}</div>
+            <div>Kümülatif Devlet Katkısı (TL): {fmtTr2(tip.r.devlet)}</div>
+            <div>Kümülatif Devlet Katkısının Getirisi (TL): {fmtTr2(tip.r.devletGetiri)}</div>
+            <div className="font-semibold pt-1 border-t border-slate-100 mt-1">
+              Toplam: {fmtTr2(tip.r.yatirim + tip.r.yatirimGetiri + tip.r.devlet + tip.r.devletGetiri)}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="text-[10px] text-center text-slate-500 mt-1">Yaş</div>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-[10px] text-slate-600">
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-sky-300" /> Yatırıma Yönlenen Kümülatif Tutar (TL)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-700" /> Yatırıma Yönlenen Kümülatif Tutarın Getirisi (TL)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-400" /> Kümülatif Devlet Katkısı (TL)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-300" /> Kümülatif Devlet Katkısının Getirisi (TL)
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function SenaryoTablo({ rows, baslik, yillikKp }) {
+  const [page, setPage] = useState(1)
+  const perPage = 10
+  const total = rows.length
+  const pages = Math.max(1, Math.ceil(total / perPage))
+  const slice = rows.slice((page - 1) * perPage, page * perPage)
+  const sonNet = rows.length ? rows[rows.length - 1].tahminiNet : 0
+
+  useEffect(() => {
+    setPage(1)
+  }, [baslik, rows])
+
+  return (
+    <fieldset className="rounded-lg border border-slate-200 bg-white p-4">
+      <legend className="text-sm font-bold text-slate-800 px-1">{baslik}</legend>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-sm">
+        <label className="block">
+          <span className="block text-xs font-semibold text-slate-600 mb-1">Tahmini Emeklilik Birikimi</span>
+          <input readOnly className="form-input bg-slate-50 tabular-nums" value={fmtTr2(sonNet)} />
+        </label>
+        <label className="block">
+          <span className="block text-xs font-semibold text-slate-600 mb-1">Yıllık Katkı Payı</span>
+          <input readOnly className="form-input bg-slate-50 tabular-nums" value={fmtTr2(yillikKp)} />
+        </label>
+        <label className="block">
+          <span className="block text-xs font-semibold text-slate-600 mb-1">Yıllık Düzenli Katkı Payı</span>
+          <input readOnly className="form-input bg-slate-50 tabular-nums" value={fmtTr2(yillikKp)} />
+        </label>
+      </div>
+      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+        <table className="w-full text-xs min-w-[900px]">
+          <thead className="bg-slate-100 border-b border-slate-200">
+            <tr>
+              <th className="text-left px-2 py-2 font-semibold">Yaş</th>
+              <th className="text-left px-2 py-2 font-semibold">Yıl</th>
+              <th className="text-right px-2 py-2 font-semibold">Katılımcı Birikim (Brüt)</th>
+              <th className="text-right px-2 py-2 font-semibold">Katılımcı Birikim (Net)</th>
+              <th className="text-right px-2 py-2 font-semibold">DKP Birikim (Brüt)</th>
+              <th className="text-right px-2 py-2 font-semibold">DKP Birikim (Net)</th>
+              <th className="text-right px-2 py-2 font-semibold">Tahmini Birikim (Brüt)</th>
+              <th className="text-right px-2 py-2 font-semibold">Tahmini Birikim (Net)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((r) => (
+              <tr key={r.age} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="px-2 py-1.5 tabular-nums">{r.age}</td>
+                <td className="px-2 py-1.5 tabular-nums">{r.yil}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.katilimciBrut)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.katilimciNet)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.dkpBrut)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.dkpNet)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.tahminiBrut)}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{fmtTr2(r.tahminiNet)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-slate-600">
+        <button type="button" className="h-8 px-3 rounded border border-slate-300 bg-white text-xs font-semibold">
+          Detay
+        </button>
+        <div className="flex items-center gap-2">
+          <select className="border border-slate-200 rounded px-2 py-1 bg-white" value={perPage} disabled>
+            <option>10</option>
+          </select>
+          <button type="button" className="p-1 rounded border border-slate-200 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>
+            «
+          </button>
+          <button type="button" className="p-1 rounded border border-slate-200 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            ‹
+          </button>
+          <span className="tabular-nums">
+            {(page - 1) * perPage + 1}-{Math.min(page * perPage, total)} / {total}
+          </span>
+          <button type="button" className="p-1 rounded border border-slate-200 disabled:opacity-40" disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>
+            ›
+          </button>
+          <button type="button" className="p-1 rounded border border-slate-200 disabled:opacity-40" disabled={page >= pages} onClick={() => setPage(pages)}>
+            »
+          </button>
+        </div>
+      </div>
+    </fieldset>
+  )
+}
+
 const ANALIZ_TIPLERI = ['Katkı Payından Birikime', 'Birikimden Katkı Payına', 'Süreden Katkı Payına']
 const DEMO_TURLERI = ['Aktif Sözleşmeye', 'Potansiyel Müşteriye', 'Mevcut Müşteriye']
 
@@ -292,6 +504,7 @@ function DemoScreen() {
   const [kisiPopupOpen, setKisiPopupOpen] = useState(false)
   const [demoTuru, setDemoTuru] = useState('Mevcut Müşteriye')
   const [seciliSozlesmeNo, setSeciliSozlesmeNo] = useState('')
+  const [aktifSozlesmeRows, setAktifSozlesmeRows] = useState([])
 
   const [musteriArama, setMusteriArama] = useState(emptyMusteriArama)
   const [musteriListe, setMusteriListe] = useState([])
@@ -327,6 +540,8 @@ function DemoScreen() {
   })
   const [partajModalOpen, setPartajModalOpen] = useState(false)
   const [endeksDonemPanelAcik, setEndeksDonemPanelAcik] = useState(false)
+  const [hesapSenaryo, setHesapSenaryo] = useState('iyimser')
+  const [hesapIcerikTab, setHesapIcerikTab] = useState('grafik')
   const [aktifUrunSecimModalOpen, setAktifUrunSecimModalOpen] = useState(false)
   const [aktifPlanSecimModalOpen, setAktifPlanSecimModalOpen] = useState(false)
   const [aktifUrunKod, setAktifUrunKod] = useState('')
@@ -357,7 +572,7 @@ function DemoScreen() {
 
   const plansForUrun = useMemo(() => {
     if (!urunParamForm.urunKod) return []
-    return urunPlanlari[urunParamForm.urunKod] || []
+    return planlarTaslakHaric(urunPlanlari[urunParamForm.urunKod] || [])
   }, [urunParamForm.urunKod])
 
   const planDovizler = useMemo(
@@ -374,7 +589,7 @@ function DemoScreen() {
 
   const kpAnalizAktif = urunParamForm.analizTipi === ANALIZ_TIPLERI[0]
   const aktifUrun = useMemo(() => urunPlanTarifeKartlari.find((u) => u.id === aktifUrunKod) || null, [aktifUrunKod])
-  const aktifPlanlar = useMemo(() => (aktifUrunKod ? urunPlanlari[aktifUrunKod] || [] : []), [aktifUrunKod])
+  const aktifPlanlar = useMemo(() => (aktifUrunKod ? planlarTaslakHaric(urunPlanlari[aktifUrunKod] || []) : []), [aktifUrunKod])
   const filtreliAktifUrunler = useMemo(() => {
     const q = aktifUrunAra.trim().toLowerCase()
     if (!q) return urunPlanTarifeKartlari
@@ -385,6 +600,28 @@ function DemoScreen() {
     if (!q) return aktifPlanlar
     return aktifPlanlar.filter((p) => `${p.id} ${p.ad} ${p.durum}`.toLowerCase().includes(q))
   }, [aktifPlanAra, aktifPlanlar])
+  const aktifSozlesmeSeciliMi = useMemo(() => aktifSozlesmeRows.some((r) => r.sozlesmeNo === seciliSozlesmeNo), [aktifSozlesmeRows, seciliSozlesmeNo])
+
+  useEffect(() => {
+    const { urunKod, planId } = urunParamForm
+    if (!planId || !urunKod) return
+    const p = (urunPlanlari[urunKod] || []).find((x) => x.id === planId)
+    if (p && String(p.durum || '').trim() === 'Taslak') {
+      setUrunParamForm((prev) => ({ ...prev, planId: '', paraBirimi: '', endeksKod: '', endeksDonemleri: [] }))
+    }
+  }, [urunParamForm.urunKod, urunParamForm.planId])
+
+  const birikimRows = useMemo(() => buildBirikimSerisi(simForm, hesapSenaryo === 'iyimser'), [simForm, hesapSenaryo])
+
+  const yillikKpDegeri = useMemo(() => (Number(simForm.aylikKatkiPayi) || 0) * 12, [simForm.aylikKatkiPayi])
+
+  const kesintiFigkOranlari = useMemo(() => {
+    const raw = String(urunParamForm.bauOrani || '').replace(',', '.').trim()
+    const n = raw === '' ? NaN : Number(raw)
+    const figk = !Number.isNaN(n) && n >= 0 && n <= 1 ? n * 100 : 8.25
+    const dkFigk = 11.4
+    return { figk, dkFigk }
+  }, [urunParamForm.bauOrani])
 
   const applyMockCustomer = (kisiNo) => {
     const c = MOCK_CUSTOMERS.find((x) => x.kisiNo === kisiNo.trim())
@@ -415,6 +652,7 @@ function DemoScreen() {
     if (!refKisiNo) return
     setMusteriSeciliRef(refKisiNo)
     setSeciliSozlesmeNo('')
+    setAktifSozlesmeRows([])
     if (applyMockCustomer(refKisiNo)) {
       setKisiSecimKaynagi('kayitli')
       setMusteriArama((prev) => ({ ...prev, musteriNo: refKisiNo }))
@@ -434,6 +672,7 @@ function DemoScreen() {
     setMusteriListe([])
     setMusteriSeciliRef(null)
     setSeciliSozlesmeNo('')
+    setAktifSozlesmeRows([])
     setPerson(emptyPerson())
     setKisiSecimKaynagi(null)
   }
@@ -489,7 +728,7 @@ function DemoScreen() {
         alert('Önce müşteri arayıp seçiniz.')
         return
       }
-      if (!seciliSozlesmeNo) {
+      if (!aktifSozlesmeSeciliMi) {
         alert('Devam etmek için sözleşme listesinden bir kayıt seçiniz.')
         return
       }
@@ -629,12 +868,47 @@ function DemoScreen() {
   const aktifUrunSec = (urun) => {
     setAktifUrunKod(urun.id)
     setAktifPlanId('')
+    setSeciliSozlesmeNo('')
+    setAktifSozlesmeRows([])
     setAktifUrunSecimModalOpen(false)
   }
 
   const aktifPlanSec = (plan) => {
     setAktifPlanId(plan.id)
+    setSeciliSozlesmeNo('')
+    setAktifSozlesmeRows([])
     setAktifPlanSecimModalOpen(false)
+  }
+
+  const handleAktifSozlesmeAra = () => {
+    if (!musteriBulundu) {
+      alert('Önce müşteri seçiniz.')
+      return
+    }
+    const plan = aktifPlanlar.find((p) => p.id === aktifPlanId)
+    const base = `${aktifPlanId || aktifUrunKod || 'SZL'}`
+    const rows = [
+      {
+        sozlesmeNo: `${base}-A1`,
+        statu: 'Aktif',
+        musteriNo: person.kisiNo || 'M-0001',
+        ad: person.ad || 'Ad',
+        soyad: person.soyad || 'Soyad',
+        kimlik: person.tcKimlik || '—',
+        cinsiyet: person.cinsiyet || '—',
+      },
+      {
+        sozlesmeNo: `${base}-A2`,
+        statu: plan?.durum || 'Taslak',
+        musteriNo: person.kisiNo || 'M-0001',
+        ad: person.ad || 'Ad',
+        soyad: person.soyad || 'Soyad',
+        kimlik: person.tcKimlik || '—',
+        cinsiyet: person.cinsiyet || '—',
+      },
+    ]
+    setAktifSozlesmeRows(rows)
+    setSeciliSozlesmeNo('')
   }
 
   const setP = (key, value) => setPerson((prev) => ({ ...prev, [key]: value }))
@@ -648,7 +922,7 @@ function DemoScreen() {
   const devamAktif =
     (demoPotansiyel && Boolean(person.cinsiyet && person.dogumTarihi.trim())) ||
     (demoMevcut && musteriBulundu) ||
-    (demoAktif && musteriBulundu && Boolean(seciliSozlesmeNo))
+    (demoAktif && musteriBulundu && aktifSozlesmeSeciliMi)
 
   const tabs = [
     { id: 'kisi', label: 'Kişi Bilgileri' },
@@ -1190,7 +1464,16 @@ function DemoScreen() {
                     </label>
                     <label className="block sm:col-span-2">
                       <span className="block text-xs font-semibold text-slate-600 mb-1">Sözleşme No</span>
-                      <input className="form-input" value={seciliSozlesmeNo} onChange={(e) => setSeciliSozlesmeNo(e.target.value)} />
+                      <div className="flex items-center gap-2">
+                        <input className="form-input" value={seciliSozlesmeNo} onChange={(e) => setSeciliSozlesmeNo(e.target.value)} />
+                        <button
+                          type="button"
+                          onClick={handleAktifSozlesmeAra}
+                          className="h-9 px-3 shrink-0 rounded border border-slate-400 bg-gradient-to-b from-white to-slate-100 text-xs font-semibold text-slate-800 hover:from-slate-50"
+                        >
+                          Ara
+                        </button>
+                      </div>
                     </label>
                   </div>
                 </ErpSection>
@@ -1211,14 +1494,14 @@ function DemoScreen() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sozlesmeRows.length === 0 ? (
+                      {aktifSozlesmeRows.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="text-center text-slate-500 py-10">
                             Kayıt bulunamadı
                           </td>
                         </tr>
                       ) : (
-                        sozlesmeRows.map((r) => (
+                        aktifSozlesmeRows.map((r) => (
                           <tr
                             key={r.sozlesmeNo}
                             onClick={() => setSeciliSozlesmeNo(r.sozlesmeNo)}
@@ -1712,39 +1995,97 @@ function DemoScreen() {
         )}
 
         {step === 2 && mainTab === 'hesap' && (
-          <div className="max-w-4xl mx-auto space-y-4">
-            {(urunParamForm.urunKod || urunParamForm.planId) && (
-              <ErpSection title="Seçilen ürün parametreleri (özet)">
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <dt className="text-slate-500">Partaj</dt>
-                    <dd className="font-medium text-slate-800">
-                      {urunParamForm.partajKod ? `${urunParamForm.partajKod} ${urunParamForm.partajAd}` : '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Ürün</dt>
-                    <dd className="font-medium text-slate-800">
-                      {urunPlanTarifeKartlari.find((u) => u.id === urunParamForm.urunKod)?.ad || '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Plan</dt>
-                    <dd className="font-medium text-slate-800">
-                      {plansForUrun.find((p) => p.id === urunParamForm.planId)?.ad || '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Analiz / Para / Taksit</dt>
-                    <dd className="font-medium text-slate-800">
-                      {urunParamForm.analizTipi || '—'} · {urunParamForm.paraBirimi || '—'} ·{' '}
-                      {odemeDonemiTurleri.find((o) => String(o.kod) === String(urunParamForm.taksitAdedi))?.aciklama || urunParamForm.taksitAdedi || '—'}
-                    </dd>
-                  </div>
-                </dl>
-              </ErpSection>
-            )}
-            <ErpSection title="Hesaplama özeti">
+          <div className="max-w-6xl mx-auto space-y-4">
+            <ErpSection title="Seçimler ve kesinti oranları">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <dt className="text-slate-500">Demo türü</dt>
+                  <dd className="font-medium text-slate-800">{demoTuru}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Partaj</dt>
+                  <dd className="font-medium text-slate-800">
+                    {urunParamForm.partajKod ? `${urunParamForm.partajKod} ${urunParamForm.partajAd}` : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Ürün</dt>
+                  <dd className="font-medium text-slate-800">{urunPlanTarifeKartlari.find((u) => u.id === urunParamForm.urunKod)?.ad || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Plan</dt>
+                  <dd className="font-medium text-slate-800">{plansForUrun.find((p) => p.id === urunParamForm.planId)?.ad || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Analiz tipi</dt>
+                  <dd className="font-medium text-slate-800">{urunParamForm.analizTipi || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Para birimi / Taksit</dt>
+                  <dd className="font-medium text-slate-800">
+                    {urunParamForm.paraBirimi || '—'} ·{' '}
+                    {odemeDonemiTurleri.find((o) => String(o.kod) === String(urunParamForm.taksitAdedi))?.aciklama || urunParamForm.taksitAdedi || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Endeks tipi</dt>
+                  <dd className="font-medium text-slate-800">{secilenEndeksSatir?.ad || urunParamForm.endeksKod || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">FİGK oranı (kesinti)</dt>
+                  <dd className="font-mono font-semibold text-slate-900">
+                    {new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(kesintiFigkOranlari.figk)} %
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">DK FİGK oranı (kesinti)</dt>
+                  <dd className="font-mono font-semibold text-slate-900">
+                    {new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(kesintiFigkOranlari.dkFigk)} %
+                  </dd>
+                </div>
+              </dl>
+            </ErpSection>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold text-slate-600 mb-2">Senaryo</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'iyimser'} onChange={() => setHesapSenaryo('iyimser')} />
+                  İyimser
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'kotumser'} onChange={() => setHesapSenaryo('kotumser')} />
+                  Kötümser
+                </label>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex border-b border-slate-200 px-2">
+                <button
+                  type="button"
+                  onClick={() => setHesapIcerikTab('grafik')}
+                  className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${hesapIcerikTab === 'grafik' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}
+                >
+                  Grafik
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHesapIcerikTab('tablo')}
+                  className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${hesapIcerikTab === 'tablo' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500'}`}
+                >
+                  Tablo veriler
+                </button>
+              </div>
+              <div className="p-4">
+                {hesapIcerikTab === 'grafik' ? <BirikimStackedBarChart rows={birikimRows} /> : null}
+                {hesapIcerikTab === 'tablo' ? (
+                  <SenaryoTablo rows={birikimRows} baslik={hesapSenaryo === 'iyimser' ? 'İyimser Senaryo' : 'Kötümser Senaryo'} yillikKp={yillikKpDegeri} />
+                ) : null}
+              </div>
+            </div>
+
+            <ErpSection title="Simülasyon özeti (BES)">
               <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 space-y-3 text-sm">
                 <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
                   <span className="text-slate-600">Toplam Katılımcı Ödemesi</span>
