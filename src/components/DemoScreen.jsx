@@ -172,6 +172,7 @@ const fmtTl = (value) =>
   }).format(value || 0)
 
 const ANALIZ_TIPLERI = ['Katkı Payından Birikime', 'Birikimden Katkı Payına', 'Süreden Katkı Payına']
+const DEMO_TURLERI = ['Aktif Sözleşmeye', 'Potansiyel Müşteriye', 'Mevcut Müşteriye']
 
 const DEMO_ACENTELER = [
   { kod: '935113', ad: 'GÖKHAN' },
@@ -289,6 +290,8 @@ function DemoScreen() {
   const [person, setPerson] = useState(emptyPerson)
   const [kisiSecimKaynagi, setKisiSecimKaynagi] = useState(null)
   const [kisiPopupOpen, setKisiPopupOpen] = useState(false)
+  const [demoTuru, setDemoTuru] = useState('Mevcut Müşteriye')
+  const [seciliSozlesmeNo, setSeciliSozlesmeNo] = useState('')
 
   const [musteriArama, setMusteriArama] = useState(emptyMusteriArama)
   const [musteriListe, setMusteriListe] = useState([])
@@ -393,6 +396,7 @@ function DemoScreen() {
   const selectMusteriFromListe = (refKisiNo) => {
     if (!refKisiNo) return
     setMusteriSeciliRef(refKisiNo)
+    setSeciliSozlesmeNo('')
     if (applyMockCustomer(refKisiNo)) {
       setKisiSecimKaynagi('kayitli')
       setMusteriArama((prev) => ({ ...prev, musteriNo: refKisiNo }))
@@ -400,12 +404,6 @@ function DemoScreen() {
   }
 
   const handleMusteriAramaCalistir = () => {
-    if (!aramaYeterli(musteriArama)) {
-      alert(
-        'Arama yapmak için ** ile işaretli alanlardan en az iki veri giriniz (ör. Ad + Soyad), veya Müşteri No / tam T.C. Kimlik No kullanın; Numara Tipi + Numara veya Bilgi + Değer çiftleri de kullanılabilir.',
-      )
-      return
-    }
     let kaynak = filterMockMusteriler(musteriArama, MOCK_CUSTOMERS)
     if (kaynak.length === 0) kaynak = [...MOCK_CUSTOMERS]
     const rows = kaynak.map(mockToListeRow)
@@ -417,6 +415,7 @@ function DemoScreen() {
     setMusteriArama(emptyMusteriArama())
     setMusteriListe([])
     setMusteriSeciliRef(null)
+    setSeciliSozlesmeNo('')
     setPerson(emptyPerson())
     setKisiSecimKaynagi(null)
   }
@@ -446,6 +445,41 @@ function DemoScreen() {
     cepDoluMu()
 
   const handleDevam = () => {
+    if (demoTuru === 'Potansiyel Müşteriye') {
+      if (!person.cinsiyet || !person.dogumTarihi.trim()) {
+        alert('Potansiyel müşteri için Cinsiyet ve Doğum Tarihi giriniz.')
+        return
+      }
+      setKisiSecimKaynagi('yeni')
+      setStep(2)
+      setMainTab('urun')
+      return
+    }
+
+    if (demoTuru === 'Mevcut Müşteriye') {
+      if (kisiSecimKaynagi !== 'kayitli') {
+        alert('Önce müşteri arama ekranından bir müşteri seçiniz.')
+        return
+      }
+      setStep(2)
+      setMainTab('urun')
+      return
+    }
+
+    if (demoTuru === 'Aktif Sözleşmeye') {
+      if (kisiSecimKaynagi !== 'kayitli') {
+        alert('Önce müşteri arayıp seçiniz.')
+        return
+      }
+      if (!seciliSozlesmeNo) {
+        alert('Devam etmek için sözleşme listesinden bir kayıt seçiniz.')
+        return
+      }
+      setStep(2)
+      setMainTab('urun')
+      return
+    }
+
     const idFromUi = musteriSeciliRef || person.kisiNo.trim() || musteriArama.musteriNo.trim()
     const matched = MOCK_CUSTOMERS.find((x) => x.kisiNo === idFromUi)
 
@@ -578,6 +612,14 @@ function DemoScreen() {
 
   const musteriFormKilitli = kisiSecimKaynagi === 'kayitli'
   const kilitCls = musteriFormKilitli ? 'bg-slate-100 text-slate-800 cursor-not-allowed' : ''
+  const demoPotansiyel = demoTuru === 'Potansiyel Müşteriye'
+  const demoMevcut = demoTuru === 'Mevcut Müşteriye'
+  const demoAktif = demoTuru === 'Aktif Sözleşmeye'
+  const musteriBulundu = kisiSecimKaynagi === 'kayitli'
+  const devamAktif =
+    (demoPotansiyel && Boolean(person.cinsiyet && person.dogumTarihi.trim())) ||
+    (demoMevcut && musteriBulundu) ||
+    (demoAktif && musteriBulundu && Boolean(seciliSozlesmeNo))
 
   const tabs = [
     { id: 'kisi', label: 'Kişi Bilgileri' },
@@ -635,7 +677,43 @@ function DemoScreen() {
       <div className="flex-1 overflow-auto p-4 md:p-6">
         {step === 1 && mainTab === 'kisi' && (
           <div className="max-w-6xl mx-auto space-y-4">
-            <div className="rounded-lg border border-slate-300 bg-white shadow-sm">
+            <ErpSection title="Demo Türü">
+              <div className="max-w-md">
+                <label className="block">
+                  <span className="block text-xs font-semibold text-slate-600 mb-1">Demo Türü</span>
+                  <select
+                    className="form-select"
+                    value={demoTuru}
+                    onChange={(e) => {
+                      setDemoTuru(e.target.value)
+                      setKisiPopupOpen(false)
+                      setMusteriSeciliRef(null)
+                      setSeciliSozlesmeNo('')
+                      if (e.target.value !== 'Potansiyel Müşteriye') {
+                        setPerson(emptyPerson())
+                        setKisiSecimKaynagi(null)
+                      } else {
+                        setPerson((prev) => ({
+                          ...emptyPerson(),
+                          cinsiyet: prev.cinsiyet,
+                          dogumTarihi: prev.dogumTarihi,
+                        }))
+                        setKisiSecimKaynagi('yeni')
+                      }
+                    }}
+                  >
+                    {DEMO_TURLERI.map((x) => (
+                      <option key={x} value={x}>
+                        {x}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </ErpSection>
+
+            {!demoPotansiyel && (
+              <div className="rounded-lg border border-slate-300 bg-white shadow-sm">
               <div className="px-3 py-2 border-b border-slate-200 bg-slate-50">
                 <h3 className="text-sm font-bold text-slate-800">Arama Bilgileri</h3>
               </div>
@@ -668,9 +746,10 @@ function DemoScreen() {
                   Başka Firmadan Aktarım Var Mı?
                 </label>
               </div>
-            </div>
+              </div>
+            )}
 
-            <Modal open={kisiPopupOpen} onClose={() => setKisiPopupOpen(false)} title="Müşteri Tanımlama" size="xl">
+            <Modal open={!demoPotansiyel && kisiPopupOpen} onClose={() => setKisiPopupOpen(false)} title="Müşteri Tanımlama" size="xl">
               <div className="rounded-lg border border-slate-300 bg-slate-100/90 shadow-md overflow-hidden">
               <div className="px-3 py-2 flex items-center justify-between bg-gradient-to-b from-slate-200 to-slate-300 border-b border-slate-400">
                 <h3 className="text-sm font-bold text-slate-800">Müşteri Tanımlama</h3>
@@ -949,17 +1028,40 @@ function DemoScreen() {
             </div>
             </Modal>
 
-            <p className="text-xs text-slate-500 px-1">
+            {!demoPotansiyel && (
+              <p className="text-xs text-slate-500 px-1">
               Listeden <strong className="text-slate-700">Seç</strong> veya satıra <strong className="text-slate-700">çift tıklayın</strong>; kişisel ve iletişim alanları müşteri verisiyle dolar ve kilitlenir. Yeni giriş için <strong>Temizle</strong> kullanın.
-            </p>
+              </p>
+            )}
 
-            {musteriFormKilitli ? (
+            {!demoPotansiyel && musteriFormKilitli ? (
               <p className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
                 Kayıtlı müşteri seçildi — Kişisel ve İletişim bilgileri salt okunur.
               </p>
             ) : null}
 
-            <ErpSection title="Kişisel Bilgiler">
+            {demoPotansiyel ? (
+              <ErpSection title="Kişisel Bilgiler">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Cinsiyet" required>
+                    <select className="form-select" value={person.cinsiyet} onChange={(e) => setP('cinsiyet', e.target.value)}>
+                      {CINSIYET.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Doğum Tarihi" required>
+                    <input className="form-input" placeholder="gg.aa.yyyy" value={person.dogumTarihi} onChange={(e) => setP('dogumTarihi', e.target.value)} />
+                  </Field>
+                </div>
+              </ErpSection>
+            ) : null}
+
+            {(demoMevcut && musteriBulundu) ? (
+              <>
+                <ErpSection title="Kişisel Bilgiler">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Field label="Adı" required>
                   <input className={`form-input ${kilitCls}`} disabled={musteriFormKilitli} value={person.ad} onChange={(e) => setP('ad', e.target.value)} />
@@ -992,9 +1094,9 @@ function DemoScreen() {
                   <input className={`form-input font-mono text-sm ${kilitCls}`} disabled={musteriFormKilitli} value={person.tcKimlik} onChange={(e) => setP('tcKimlik', e.target.value)} />
                 </Field>
               </div>
-            </ErpSection>
+                </ErpSection>
 
-            <ErpSection title="İletişim Bilgileri">
+                <ErpSection title="İletişim Bilgileri">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <PhoneRow disabled={musteriFormKilitli} kilitCls={kilitCls} label="Ev Telefonu" alan={person.evAlan} numara={person.evNumara} onAlan={(v) => setP('evAlan', v)} onNumara={(v) => setP('evNumara', v)} />
                 <PhoneRow disabled={musteriFormKilitli} kilitCls={kilitCls} label="İş Telefonu" alan={person.isAlan} numara={person.isNumara} onAlan={(v) => setP('isAlan', v)} onNumara={(v) => setP('isNumara', v)} />
@@ -1015,9 +1117,34 @@ function DemoScreen() {
                   <input type="email" className={`form-input ${kilitCls}`} disabled={musteriFormKilitli} value={person.email} onChange={(e) => setP('email', e.target.value)} />
                 </label>
               </div>
-            </ErpSection>
+                </ErpSection>
+              </>
+            ) : null}
 
-            <ErpSection title="Sözleşme Arama Listesi">
+            {(demoAktif && musteriBulundu) ? (
+              <>
+                <ErpSection title="Başvuru/Poliçe/Sözleşme Bilgileri">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
+                    <label className="block">
+                      <span className="block text-xs font-semibold text-slate-600 mb-1">Ürün Kodu</span>
+                      <select className="form-select">
+                        <option>Seçiniz</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="block text-xs font-semibold text-slate-600 mb-1">Tarife</span>
+                      <select className="form-select">
+                        <option>Seçiniz</option>
+                      </select>
+                    </label>
+                    <label className="block sm:col-span-2">
+                      <span className="block text-xs font-semibold text-slate-600 mb-1">Sözleşme No</span>
+                      <input className="form-input" value={seciliSozlesmeNo} onChange={(e) => setSeciliSozlesmeNo(e.target.value)} />
+                    </label>
+                  </div>
+                </ErpSection>
+
+                <ErpSection title="Sözleşme Arama Listesi">
               <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full grid-table text-sm min-w-[640px]">
@@ -1041,7 +1168,11 @@ function DemoScreen() {
                         </tr>
                       ) : (
                         sozlesmeRows.map((r) => (
-                          <tr key={r.sozlesmeNo}>
+                          <tr
+                            key={r.sozlesmeNo}
+                            onClick={() => setSeciliSozlesmeNo(r.sozlesmeNo)}
+                            className={`cursor-pointer ${seciliSozlesmeNo === r.sozlesmeNo ? 'bg-violet-50' : ''}`}
+                          >
                             <td className="font-mono text-xs">{r.sozlesmeNo}</td>
                             <td>{r.statu}</td>
                             <td>{r.musteriNo}</td>
@@ -1071,16 +1202,21 @@ function DemoScreen() {
                   </div>
                 </div>
               </div>
-            </ErpSection>
+                </ErpSection>
+              </>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <p className="text-xs text-slate-500 max-w-xl">
-                Demo: Müşteri listesinde arayıp <strong className="text-slate-700">Seç</strong> kullanın veya Müşteri No <strong className="text-slate-700">10001234</strong> / <strong className="text-slate-700">10005678</strong> ile devam edin. Yeni müşteri için müşteri aramasını temizleyip zorunlu alanları doldurun.
+                {demoPotansiyel && 'Potansiyel müşteri için sadece Cinsiyet ve Doğum Tarihi bilgileri ile devam edilir.'}
+                {demoMevcut && 'Önce müşteri arayıp seçiniz; müşteri bulunduğunda kişisel/iletişim alanları salt okunur görünür.'}
+                {demoAktif && 'Önce müşteri arayıp seçiniz; ardından sözleşme listesinden kayıt seçildiğinde Devam aktif olur.'}
               </p>
               <button
                 type="button"
                 onClick={handleDevam}
-                className="h-10 px-6 rounded-md text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                disabled={!devamAktif}
+                className="h-10 px-6 rounded-md text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed text-white shadow-sm"
               >
                 Devam
               </button>
