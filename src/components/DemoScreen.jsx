@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, ChevronLeft, Search, Check, FilePlus, Pencil, Trash2, Eye, HelpCircle, Calculator, LayoutGrid, Menu } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Search, Check, FilePlus, Pencil, Trash2, Eye, HelpCircle, Calculator, LayoutGrid, Menu } from 'lucide-react'
 import { urunPlanTarifeKartlari, urunPlanlari, odemeDonemiTurleri, katkiPayiHesaplama } from '../data/mockData'
 import Modal from './ui/Modal'
 
@@ -471,6 +471,13 @@ function SenaryoTablo({ rows, baslik, yillikKp }) {
 }
 
 const ANALIZ_TIPLERI = ['Katkı Payından Birikime', 'Birikimden Katkı Payına', 'Süreden Katkı Payına']
+
+const DEMO_BILGI_ADIMLAR = [
+  { id: 1, title: 'Acente ve ürün', hint: 'Satıcı, partaj, ürün ve plan' },
+  { id: 2, title: 'Analiz ve dönem', hint: 'Analiz tipi, para birimi ve tarihler' },
+  { id: 3, title: 'Ödeme ve tutarlar', hint: 'Taksit ve katkı payı bilgileri' },
+  { id: 4, title: 'Endeks ve oranlar', hint: 'Endeks, BAU, ek süre ve başlangıç' },
+]
 const DEMO_TURLERI = ['Aktif Sözleşmeye', 'Potansiyel Müşteriye', 'Mevcut Müşteriye']
 
 const DEMO_ACENTELER = [
@@ -631,6 +638,7 @@ function DemoScreen() {
   const [endeksDonemPanelAcik, setEndeksDonemPanelAcik] = useState(false)
   const [hesapSenaryo, setHesapSenaryo] = useState('iyimser')
   const [hesapIcerikTab, setHesapIcerikTab] = useState('grafik')
+  const [demoBilgiAdim, setDemoBilgiAdim] = useState(1)
   const [aktifUrunSecimModalOpen, setAktifUrunSecimModalOpen] = useState(false)
   const [aktifPlanSecimModalOpen, setAktifPlanSecimModalOpen] = useState(false)
   const [aktifUrunKod, setAktifUrunKod] = useState('')
@@ -926,6 +934,10 @@ function DemoScreen() {
   }
 
   const handleUrunParamHesapla = () => {
+    if (demoBilgiAdim < 4) {
+      alert('Lütfen demo bilgilerinde «Sonraki adım» ile 4. adıma kadar ilerleyiniz; ardından Hesapla ile devam ediniz.')
+      return
+    }
     const f = urunParamForm
     if (!f.partajKod.trim()) {
       alert('Partaj seçiniz.')
@@ -985,12 +997,75 @@ function DemoScreen() {
         return
       }
     }
+    setDemoBilgiAdim(1)
     setMainTab('hesap')
   }
 
   const handleUrunGeri = () => {
+    setDemoBilgiAdim(1)
     setStep(1)
     setMainTab('kisi')
+  }
+
+  useEffect(() => {
+    if (step !== 2 || mainTab !== 'urun') setDemoBilgiAdim(1)
+  }, [step, mainTab])
+
+  const demoWizardOnceki = () => setDemoBilgiAdim((x) => Math.max(1, x - 1))
+
+  const demoWizardSonraki = () => {
+    if (demoBilgiAdim >= 4) return
+    const f = urunParamForm
+    if (demoBilgiAdim === 1) {
+      if (!f.partajKod.trim()) {
+        alert('Partaj seçiniz.')
+        return
+      }
+      if (!f.urunKod) {
+        alert('Ürün kodu seçiniz.')
+        return
+      }
+      if (!f.planId) {
+        alert('Plan seçiniz.')
+        return
+      }
+    } else if (demoBilgiAdim === 2) {
+      if (!f.paraBirimi) {
+        alert('Para birimi seçiniz.')
+        return
+      }
+      if (!f.demoTarihi.trim() || !f.sistemGirisTarihi.trim()) {
+        alert('Demo tarihi ve sisteme giriş tarihini giriniz.')
+        return
+      }
+    } else if (demoBilgiAdim === 3) {
+      if (!f.taksitAdedi) {
+        alert('Taksit adedi seçiniz.')
+        return
+      }
+      if (kpAnalizAktif) {
+        const kp = parseTrDecimal(f.donemselKp)
+        if (!Number.isFinite(kp) || kp <= 0) {
+          alert('Dönemsel KP tutarı giriniz.')
+          return
+        }
+      }
+      if (birikimdenKpAnalizAktif) {
+        const h = parseTrDecimal(f.hedefBirikimTutari)
+        if (!Number.isFinite(h) || h <= 0) {
+          alert('Hedef birikim tutarını giriniz.')
+          return
+        }
+      }
+      if (f.analizTipi === ANALIZ_TIPLERI[2]) {
+        const a = parseTrDecimal(String(simForm.aylikKatkiPayi))
+        if (!Number.isFinite(a) || a <= 0) {
+          alert('Aylık katkı payı tutarını giriniz.')
+          return
+        }
+      }
+    }
+    setDemoBilgiAdim((x) => Math.min(4, x + 1))
   }
 
   const aktifUrunSec = (urun) => {
@@ -1810,319 +1885,373 @@ function DemoScreen() {
 
             <ErpSection title="Demo Bilgileri">
               <div className="space-y-4 text-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Satan<span className="text-red-600"> *</span>
-                    </span>
-                    <div className="flex gap-1">
-                      <input type="text" className="form-input flex-1 min-w-0" value={urunParamForm.satici} onChange={(e) => setU({ satici: e.target.value })} />
-                      <button type="button" className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50" title="Ara">
-                        <Search className="w-4 h-4 text-slate-600" />
-                      </button>
-                    </div>
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Partaj<span className="text-red-600"> *</span>
-                    </span>
-                    <div className="flex gap-1">
-                      <input
-                        type="text"
-                        readOnly
-                        className="form-input flex-1 min-w-0 bg-slate-50"
-                        placeholder="Acente seçiniz"
-                        value={urunParamForm.partajKod ? `${urunParamForm.partajKod} ${urunParamForm.partajAd}` : ''}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPartajModalOpen(true)}
-                        className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50"
-                        title="Acente listesi"
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-3 shadow-sm">
+                  <p className="text-xs font-bold text-slate-700 mb-2">Adım {demoBilgiAdim} / 4 — {DEMO_BILGI_ADIMLAR[demoBilgiAdim - 1]?.title}</p>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    {DEMO_BILGI_ADIMLAR.map((a) => (
+                      <div
+                        key={a.id}
+                        className={`rounded-md border px-2 py-2 text-left transition-colors ${
+                          demoBilgiAdim === a.id
+                            ? 'border-blue-600 bg-blue-50/80 ring-1 ring-blue-200'
+                            : demoBilgiAdim > a.id
+                              ? 'border-emerald-300 bg-emerald-50/50'
+                              : 'border-slate-200 bg-white/70'
+                        }`}
                       >
-                        <LayoutGrid className="w-4 h-4 text-slate-600" />
-                      </button>
-                    </div>
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Ürün Kodu<span className="text-red-600"> *</span>
-                    </span>
-                    <select
-                      className="form-select w-full"
-                      disabled={!urunParamForm.partajKod}
-                      value={urunParamForm.urunKod}
-                      onChange={(e) => {
-                        const uk = e.target.value
-                        setUrunParamForm((p) => ({
-                          ...p,
-                          urunKod: uk,
-                          planId: '',
-                          paraBirimi: '',
-                          endeksKod: '',
-                          endeksDonemleri: [],
-                        }))
-                      }}
-                    >
-                      <option value="">Seçiniz</option>
-                      {urunPlanTarifeKartlari.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.sozlesmeTipi} — {u.ad}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label className="block min-w-0">
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
-                      Plan<span className="text-red-600"> *</span>
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Ürüne bağlı planlar" />
-                    </span>
-                    <select
-                      className="form-select w-full"
-                      disabled={!urunParamForm.urunKod}
-                      value={urunParamForm.planId}
-                      onChange={(e) => {
-                        const pid = e.target.value
-                        if (!pid) {
-                          setUrunParamForm((p) => ({ ...p, planId: '', paraBirimi: '', endeksKod: '', endeksDonemleri: [] }))
-                          return
-                        }
-                        const dov = dovizlerForUrunPlan(urunParamForm.urunKod, pid)
-                        setUrunParamForm((p) => ({
-                          ...p,
-                          planId: pid,
-                          paraBirimi: dov[0] || '',
-                          endeksKod: '',
-                          endeksDonemleri: [],
-                        }))
-                      }}
-                    >
-                      <option value="">Seçiniz</option>
-                      {plansForUrun.map((pl) => (
-                        <option key={pl.id} value={pl.id}>
-                          {pl.ad}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
-                      Analiz Tipi<span className="text-red-600"> *</span>
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-                    </span>
-                    <select
-                      className="form-select w-full"
-                      disabled={!urunParamForm.planId}
-                      value={urunParamForm.analizTipi}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        setUrunParamForm((p) => ({
-                          ...p,
-                          analizTipi: v,
-                          donemselKp: v === ANALIZ_TIPLERI[0] ? p.donemselKp : '',
-                          hedefBirikimTutari: v === ANALIZ_TIPLERI[1] ? p.hedefBirikimTutari : '',
-                        }))
-                      }}
-                    >
-                      {ANALIZ_TIPLERI.map((a) => (
-                        <option key={a} value={a}>
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Para Birimi</span>
-                    <select
-                      className="form-select w-full"
-                      disabled={!urunParamForm.planId}
-                      value={urunParamForm.paraBirimi}
-                      onChange={(e) => setU({ paraBirimi: e.target.value })}
-                    >
-                      <option value="">Seçiniz</option>
-                      {planDovizler.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Demo Tarihi<span className="text-red-600"> *</span>
-                    </span>
-                    <input type="text" readOnly disabled className="form-input bg-slate-200 text-slate-600 cursor-not-allowed" value={urunParamForm.demoTarihi} />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Sisteme Giriş Tarihi<span className="text-red-600"> *</span>
-                    </span>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="gg.aa.yyyy"
-                      value={urunParamForm.sistemGirisTarihi}
-                      onChange={(e) => setU({ sistemGirisTarihi: e.target.value })}
-                    />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Taksit Adedi<span className="text-red-600"> *</span>
-                    </span>
-                    <select className="form-select w-full" value={urunParamForm.taksitAdedi} onChange={(e) => setU({ taksitAdedi: e.target.value })}>
-                      <option value="">Seçiniz</option>
-                      {odemeDonemiTurleri.map((o) => (
-                        <option key={o.id} value={String(o.kod)}>
-                          {o.aciklama}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Endeks Tipi</span>
-                    <select
-                      className="form-select w-full"
-                      disabled={!urunParamForm.planId}
-                      value={urunParamForm.endeksKod}
-                      onChange={(e) => setUrunParamForm((p) => ({ ...p, endeksKod: e.target.value, endeksDonemleri: [] }))}
-                    >
-                      <option value="">Seçiniz</option>
-                      {planEndeksler.map((ex) => (
-                        <option key={ex.kod} value={ex.kod}>
-                          {ex.ad}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="block min-w-0 relative">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Endeks Dönemi</span>
-                    <button
-                      type="button"
-                      disabled={!urunParamForm.endeksKod}
-                      onClick={() => setEndeksDonemPanelAcik((x) => !x)}
-                      className="form-input w-full text-left flex items-center justify-between gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="truncate text-slate-700">
-                        {urunParamForm.endeksDonemleri.length === 0
-                          ? '0 tane seçildi'
-                          : `${urunParamForm.endeksDonemleri.length} tane seçildi`}
-                      </span>
-                      <span className="text-slate-400 text-xs shrink-0">▼</span>
-                    </button>
-                    {endeksDonemPanelAcik && urunParamForm.endeksKod && secilenEndeksSatir && (
-                      <div className="absolute z-20 mt-1 w-full max-h-48 overflow-auto rounded border border-slate-200 bg-white shadow-lg p-2 space-y-1">
-                        {secilenEndeksSatir.donemler.map((d) => (
-                          <label key={d} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer text-xs">
-                            <input
-                              type="checkbox"
-                              checked={urunParamForm.endeksDonemleri.includes(d)}
-                              onChange={() => toggleEndeksDonem(d)}
-                            />
-                            {d}
-                          </label>
-                        ))}
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Adım {a.id}</span>
+                        <span className="block text-xs font-bold text-slate-900 leading-snug mt-0.5">{a.title}</span>
+                        <span className="block text-[10px] text-slate-600 mt-1 leading-snug">{a.hint}</span>
                       </div>
-                    )}
+                    ))}
                   </div>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Dönemsel KP Tutarı
-                      {kpAnalizAktif ? <span className="text-red-600"> *</span> : null}
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="form-input w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
-                      disabled={!kpAnalizAktif}
-                      placeholder={kpAnalizAktif ? '0' : '—'}
-                      value={urunParamForm.donemselKp}
-                      onChange={(e) => setU({ donemselKp: e.target.value })}
-                    />
-                  </label>
                 </div>
 
-                {urunParamForm.analizTipi !== ANALIZ_TIPLERI[0] ? (
+                {demoBilgiAdim === 1 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <label className="block min-w-0">
                       <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Aylık Katkı Payı Tutarı (TL)
-                        {urunParamForm.analizTipi === ANALIZ_TIPLERI[2] ? <span className="text-red-600"> *</span> : null}
+                        Satan<span className="text-red-600"> *</span>
+                      </span>
+                      <div className="flex gap-1">
+                        <input type="text" className="form-input flex-1 min-w-0" value={urunParamForm.satici} onChange={(e) => setU({ satici: e.target.value })} />
+                        <button type="button" className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50" title="Ara">
+                          <Search className="w-4 h-4 text-slate-600" />
+                        </button>
+                      </div>
+                    </label>
+                    <label className="block min-w-0">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Partaj<span className="text-red-600"> *</span>
+                      </span>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          readOnly
+                          className="form-input flex-1 min-w-0 bg-slate-50"
+                          placeholder="Acente seçiniz"
+                          value={urunParamForm.partajKod ? `${urunParamForm.partajKod} ${urunParamForm.partajAd}` : ''}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPartajModalOpen(true)}
+                          className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50"
+                          title="Acente listesi"
+                        >
+                          <LayoutGrid className="w-4 h-4 text-slate-600" />
+                        </button>
+                      </div>
+                    </label>
+                    <label className="block min-w-0">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Ürün Kodu<span className="text-red-600"> *</span>
+                      </span>
+                      <select
+                        className="form-select w-full"
+                        disabled={!urunParamForm.partajKod}
+                        value={urunParamForm.urunKod}
+                        onChange={(e) => {
+                          const uk = e.target.value
+                          setUrunParamForm((p) => ({
+                            ...p,
+                            urunKod: uk,
+                            planId: '',
+                            paraBirimi: '',
+                            endeksKod: '',
+                            endeksDonemleri: [],
+                          }))
+                        }}
+                      >
+                        <option value="">Seçiniz</option>
+                        {urunPlanTarifeKartlari.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.sozlesmeTipi} — {u.ad}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block min-w-0 sm:col-span-2 lg:col-span-3">
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
+                        Plan<span className="text-red-600"> *</span>
+                        <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Ürüne bağlı planlar" />
+                      </span>
+                      <select
+                        className="form-select w-full max-w-xl"
+                        disabled={!urunParamForm.urunKod}
+                        value={urunParamForm.planId}
+                        onChange={(e) => {
+                          const pid = e.target.value
+                          if (!pid) {
+                            setUrunParamForm((p) => ({ ...p, planId: '', paraBirimi: '', endeksKod: '', endeksDonemleri: [] }))
+                            return
+                          }
+                          const dov = dovizlerForUrunPlan(urunParamForm.urunKod, pid)
+                          setUrunParamForm((p) => ({
+                            ...p,
+                            planId: pid,
+                            paraBirimi: dov[0] || '',
+                            endeksKod: '',
+                            endeksDonemleri: [],
+                          }))
+                        }}
+                      >
+                        <option value="">Seçiniz</option>
+                        {plansForUrun.map((pl) => (
+                          <option key={pl.id} value={pl.id}>
+                            {pl.ad}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+
+                {demoBilgiAdim === 2 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <label className="block min-w-0 sm:col-span-2 lg:col-span-1">
+                      <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
+                        Analiz Tipi<span className="text-red-600"> *</span>
+                        <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                      </span>
+                      <select
+                        className="form-select w-full"
+                        disabled={!urunParamForm.planId}
+                        value={urunParamForm.analizTipi}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setUrunParamForm((p) => ({
+                            ...p,
+                            analizTipi: v,
+                            donemselKp: v === ANALIZ_TIPLERI[0] ? p.donemselKp : '',
+                            hedefBirikimTutari: v === ANALIZ_TIPLERI[1] ? p.hedefBirikimTutari : '',
+                          }))
+                        }}
+                      >
+                        {ANALIZ_TIPLERI.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block min-w-0">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">Para Birimi</span>
+                      <select
+                        className="form-select w-full"
+                        disabled={!urunParamForm.planId}
+                        value={urunParamForm.paraBirimi}
+                        onChange={(e) => setU({ paraBirimi: e.target.value })}
+                      >
+                        <option value="">Seçiniz</option>
+                        {planDovizler.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block min-w-0">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Demo Tarihi<span className="text-red-600"> *</span>
+                      </span>
+                      <input type="text" readOnly disabled className="form-input bg-slate-200 text-slate-600 cursor-not-allowed" value={urunParamForm.demoTarihi} />
+                    </label>
+                    <label className="block min-w-0 sm:col-span-2 lg:col-span-1">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Sisteme Giriş Tarihi<span className="text-red-600"> *</span>
                       </span>
                       <input
                         type="text"
-                        inputMode="decimal"
-                        className="form-input w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
-                        disabled={birikimdenKpAnalizAktif}
-                        placeholder={birikimdenKpAnalizAktif ? 'Hesapla ile hesaplanır' : '0'}
-                        value={simForm.aylikKatkiPayi}
-                        onChange={(e) => setSimForm((prev) => ({ ...prev, aylikKatkiPayi: e.target.value }))}
+                        className="form-input"
+                        placeholder="gg.aa.yyyy"
+                        value={urunParamForm.sistemGirisTarihi}
+                        onChange={(e) => setU({ sistemGirisTarihi: e.target.value })}
                       />
                     </label>
-                    {birikimdenKpAnalizAktif ? (
+                  </div>
+                ) : null}
+
+                {demoBilgiAdim === 3 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <label className="block min-w-0">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Taksit Adedi<span className="text-red-600"> *</span>
+                        </span>
+                        <select className="form-select w-full" value={urunParamForm.taksitAdedi} onChange={(e) => setU({ taksitAdedi: e.target.value })}>
+                          <option value="">Seçiniz</option>
+                          {odemeDonemiTurleri.map((o) => (
+                            <option key={o.id} value={String(o.kod)}>
+                              {o.aciklama}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <label className="block min-w-0 sm:col-span-2">
                         <span className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Hedef birikim tutarı (TL)
-                          <span className="text-red-600"> *</span>
+                          Dönemsel KP Tutarı
+                          {kpAnalizAktif ? <span className="text-red-600"> *</span> : null}
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-input w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          disabled={!kpAnalizAktif}
+                          placeholder={kpAnalizAktif ? '0' : '—'}
+                          value={urunParamForm.donemselKp}
+                          onChange={(e) => setU({ donemselKp: e.target.value })}
+                        />
+                      </label>
+                    </div>
+                    {urunParamForm.analizTipi !== ANALIZ_TIPLERI[0] ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <label className="block min-w-0">
+                          <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Aylık Katkı Payı Tutarı (TL)
+                            {urunParamForm.analizTipi === ANALIZ_TIPLERI[2] ? <span className="text-red-600"> *</span> : null}
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="form-input w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            disabled={birikimdenKpAnalizAktif}
+                            placeholder={birikimdenKpAnalizAktif ? 'Hesapla ile hesaplanır' : '0'}
+                            value={simForm.aylikKatkiPayi}
+                            onChange={(e) => setSimForm((prev) => ({ ...prev, aylikKatkiPayi: e.target.value }))}
+                          />
+                        </label>
+                        {birikimdenKpAnalizAktif ? (
+                          <label className="block min-w-0 sm:col-span-2">
+                            <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                              Hedef birikim tutarı (TL)
+                              <span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="form-input w-full"
+                              placeholder="Örn. 1.000.000"
+                              value={urunParamForm.hedefBirikimTutari}
+                              onChange={(e) => setU({ hedefBirikimTutari: e.target.value })}
+                            />
+                          </label>
+                        ) : (
+                          <div className="hidden lg:block min-w-0 sm:col-span-2" aria-hidden />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {demoBilgiAdim === 4 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <label className="block min-w-0">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">Endeks Tipi</span>
+                        <select
+                          className="form-select w-full"
+                          disabled={!urunParamForm.planId}
+                          value={urunParamForm.endeksKod}
+                          onChange={(e) => setUrunParamForm((p) => ({ ...p, endeksKod: e.target.value, endeksDonemleri: [] }))}
+                        >
+                          <option value="">Seçiniz</option>
+                          {planEndeksler.map((ex) => (
+                            <option key={ex.kod} value={ex.kod}>
+                              {ex.ad}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="block min-w-0 relative sm:col-span-2 lg:col-span-1">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">Endeks Dönemi</span>
+                        <button
+                          type="button"
+                          disabled={!urunParamForm.endeksKod}
+                          onClick={() => setEndeksDonemPanelAcik((x) => !x)}
+                          className="form-input w-full text-left flex items-center justify-between gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="truncate text-slate-700">
+                            {urunParamForm.endeksDonemleri.length === 0
+                              ? '0 tane seçildi'
+                              : `${urunParamForm.endeksDonemleri.length} tane seçildi`}
+                          </span>
+                          <span className="text-slate-400 text-xs shrink-0">▼</span>
+                        </button>
+                        {endeksDonemPanelAcik && urunParamForm.endeksKod && secilenEndeksSatir && (
+                          <div className="absolute z-20 mt-1 w-full max-h-48 overflow-auto rounded border border-slate-200 bg-white shadow-lg p-2 space-y-1">
+                            {secilenEndeksSatir.donemler.map((d) => (
+                              <label key={d} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer text-xs">
+                                <input type="checkbox" checked={urunParamForm.endeksDonemleri.includes(d)} onChange={() => toggleEndeksDonem(d)} />
+                                {d}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <label className="block min-w-0">
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
+                          BAU Oranı
+                          <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="0 ile 1 arası" />
                         </span>
                         <input
                           type="text"
                           inputMode="decimal"
                           className="form-input w-full"
-                          placeholder="Örn. 1.000.000"
-                          value={urunParamForm.hedefBirikimTutari}
-                          onChange={(e) => setU({ hedefBirikimTutari: e.target.value })}
+                          placeholder="0 — 1"
+                          value={urunParamForm.bauOrani}
+                          onChange={(e) => setU({ bauOrani: e.target.value })}
                         />
                       </label>
-                    ) : (
-                      <div className="hidden lg:block min-w-0 sm:col-span-2" aria-hidden />
-                    )}
+                      <label className="block min-w-0">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">Ek Süre (Yıl)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input w-full"
+                          value={urunParamForm.ekSureYil}
+                          onChange={(e) => setU({ ekSureYil: e.target.value })}
+                        />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">Başlangıç Kapitali</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-input w-full"
+                          value={urunParamForm.baslangicKapitali}
+                          onChange={(e) => setU({ baslangicKapitali: e.target.value })}
+                        />
+                      </label>
+                    </div>
                   </div>
                 ) : null}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label className="block min-w-0">
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
-                      BAU Oranı
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="0 ile 1 arası" />
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="form-input w-full"
-                      placeholder="0 — 1"
-                      value={urunParamForm.bauOrani}
-                      onChange={(e) => setU({ bauOrani: e.target.value })}
-                    />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Ek Süre (Yıl)</span>
-                    <input
-                      type="number"
-                      min="0"
-                      className="form-input w-full"
-                      value={urunParamForm.ekSureYil}
-                      onChange={(e) => setU({ ekSureYil: e.target.value })}
-                    />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Başlangıç Kapitali</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="form-input w-full"
-                      value={urunParamForm.baslangicKapitali}
-                      onChange={(e) => setU({ baslangicKapitali: e.target.value })}
-                    />
-                  </label>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={demoWizardOnceki}
+                    disabled={demoBilgiAdim <= 1}
+                    className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Önceki adım
+                  </button>
+                  {demoBilgiAdim < 4 ? (
+                    <button
+                      type="button"
+                      onClick={demoWizardSonraki}
+                      className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-blue-600 bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm"
+                    >
+                      Sonraki adım
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <p className="text-xs text-slate-600 max-w-md text-right">
+                      Son adımdasınız. Kontrolleri tamamladıktan sonra alttaki <strong className="text-slate-800">Hesapla</strong> ile hesaplamaya geçin.
+                    </p>
+                  )}
                 </div>
               </div>
             </ErpSection>
