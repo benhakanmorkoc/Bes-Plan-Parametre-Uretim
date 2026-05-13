@@ -327,6 +327,12 @@ function DemoScreen() {
   })
   const [partajModalOpen, setPartajModalOpen] = useState(false)
   const [endeksDonemPanelAcik, setEndeksDonemPanelAcik] = useState(false)
+  const [aktifUrunSecimModalOpen, setAktifUrunSecimModalOpen] = useState(false)
+  const [aktifPlanSecimModalOpen, setAktifPlanSecimModalOpen] = useState(false)
+  const [aktifUrunKod, setAktifUrunKod] = useState('')
+  const [aktifPlanId, setAktifPlanId] = useState('')
+  const [aktifUrunAra, setAktifUrunAra] = useState('')
+  const [aktifPlanAra, setAktifPlanAra] = useState('')
 
   const sozlesmeRows = useMemo(() => {
     if (!person.kisiNo.trim()) return []
@@ -367,6 +373,18 @@ function DemoScreen() {
   )
 
   const kpAnalizAktif = urunParamForm.analizTipi === ANALIZ_TIPLERI[0]
+  const aktifUrun = useMemo(() => urunPlanTarifeKartlari.find((u) => u.id === aktifUrunKod) || null, [aktifUrunKod])
+  const aktifPlanlar = useMemo(() => (aktifUrunKod ? urunPlanlari[aktifUrunKod] || [] : []), [aktifUrunKod])
+  const filtreliAktifUrunler = useMemo(() => {
+    const q = aktifUrunAra.trim().toLowerCase()
+    if (!q) return urunPlanTarifeKartlari
+    return urunPlanTarifeKartlari.filter((u) => `${u.id} ${u.ad} ${u.sozlesmeTipi}`.toLowerCase().includes(q))
+  }, [aktifUrunAra])
+  const filtreliAktifPlanlar = useMemo(() => {
+    const q = aktifPlanAra.trim().toLowerCase()
+    if (!q) return aktifPlanlar
+    return aktifPlanlar.filter((p) => `${p.id} ${p.ad} ${p.durum}`.toLowerCase().includes(q))
+  }, [aktifPlanAra, aktifPlanlar])
 
   const applyMockCustomer = (kisiNo) => {
     const c = MOCK_CUSTOMERS.find((x) => x.kisiNo === kisiNo.trim())
@@ -606,6 +624,17 @@ function DemoScreen() {
   const handleUrunGeri = () => {
     setStep(1)
     setMainTab('kisi')
+  }
+
+  const aktifUrunSec = (urun) => {
+    setAktifUrunKod(urun.id)
+    setAktifPlanId('')
+    setAktifUrunSecimModalOpen(false)
+  }
+
+  const aktifPlanSec = (plan) => {
+    setAktifPlanId(plan.id)
+    setAktifPlanSecimModalOpen(false)
   }
 
   const setP = (key, value) => setPerson((prev) => ({ ...prev, [key]: value }))
@@ -1127,15 +1156,37 @@ function DemoScreen() {
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-sm">
                     <label className="block">
                       <span className="block text-xs font-semibold text-slate-600 mb-1">Ürün Kodu</span>
-                      <select className="form-select">
-                        <option>Seçiniz</option>
-                      </select>
+                      <div className="flex items-center gap-1">
+                        <input className="form-input bg-slate-50" readOnly value={aktifUrun ? `${aktifUrun.id} - ${aktifUrun.ad}` : ''} placeholder="Seçiniz" />
+                        <button
+                          type="button"
+                          onClick={() => setAktifUrunSecimModalOpen(true)}
+                          className="h-9 w-9 shrink-0 rounded border border-slate-400 bg-gradient-to-b from-white to-slate-100 text-slate-700 hover:from-slate-50"
+                          title="Ürün listesi"
+                        >
+                          <LayoutGrid className="w-4 h-4 mx-auto" />
+                        </button>
+                      </div>
                     </label>
                     <label className="block">
-                      <span className="block text-xs font-semibold text-slate-600 mb-1">Tarife</span>
-                      <select className="form-select">
-                        <option>Seçiniz</option>
-                      </select>
+                      <span className="block text-xs font-semibold text-slate-600 mb-1">Planlar</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          className="form-input bg-slate-50"
+                          readOnly
+                          value={aktifPlanId ? `${aktifPlanId} - ${aktifPlanlar.find((x) => x.id === aktifPlanId)?.ad || ''}` : ''}
+                          placeholder="Seçiniz"
+                        />
+                        <button
+                          type="button"
+                          disabled={!aktifUrunKod}
+                          onClick={() => setAktifPlanSecimModalOpen(true)}
+                          className="h-9 w-9 shrink-0 rounded border border-slate-400 bg-gradient-to-b from-white to-slate-100 text-slate-700 hover:from-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Plan listesi"
+                        >
+                          <LayoutGrid className="w-4 h-4 mx-auto" />
+                        </button>
+                      </div>
                     </label>
                     <label className="block sm:col-span-2">
                       <span className="block text-xs font-semibold text-slate-600 mb-1">Sözleşme No</span>
@@ -1221,6 +1272,63 @@ function DemoScreen() {
                 Devam
               </button>
             </div>
+
+            <Modal open={demoAktif && aktifUrunSecimModalOpen} onClose={() => setAktifUrunSecimModalOpen(false)} title="Ürün Listesi" size="xl">
+              <div className="space-y-3">
+                <input className="form-input" placeholder="Ürün ara..." value={aktifUrunAra} onChange={(e) => setAktifUrunAra(e.target.value)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[60vh] overflow-auto pr-1">
+                  {filtreliAktifUrunler.map((u) => (
+                    <div key={u.id} onDoubleClick={() => aktifUrunSec(u)} className="rounded-lg border border-slate-200 bg-white p-3 hover:border-blue-300 cursor-pointer">
+                      <div className="text-xs font-mono text-violet-700">{u.id}</div>
+                      <div className="text-lg font-bold text-slate-800 leading-tight mt-1">{u.ad}</div>
+                      <div className="text-xs text-slate-500 mt-1">{u.tipler}</div>
+                      <div className="text-xs text-slate-600 mt-2">Toplam Plan: {u.toplam}</div>
+                      <div className="flex justify-end pt-2">
+                        <button type="button" className="text-xs font-semibold text-blue-700 hover:underline" onClick={() => aktifUrunSec(u)}>
+                          Seç
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Modal>
+
+            <Modal open={demoAktif && aktifPlanSecimModalOpen} onClose={() => setAktifPlanSecimModalOpen(false)} title="Planlar" description={aktifUrun ? `${aktifUrun.id} - ${aktifUrun.ad}` : ''} size="xl">
+              <div className="space-y-3">
+                <input className="form-input" placeholder="Plan ara..." value={aktifPlanAra} onChange={(e) => setAktifPlanAra(e.target.value)} />
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100 border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Plan No</th>
+                        <th className="px-3 py-2 text-left">Plan Adı</th>
+                        <th className="px-3 py-2 text-left">Durum</th>
+                        <th className="px-3 py-2 text-left">Tamamlanma</th>
+                        <th className="px-3 py-2 text-left">Tarih</th>
+                        <th className="px-3 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtreliAktifPlanlar.map((pl) => (
+                        <tr key={pl.id} onDoubleClick={() => aktifPlanSec(pl)} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+                          <td className="px-3 py-2 font-mono text-xs">{pl.id}</td>
+                          <td className="px-3 py-2">{pl.ad}</td>
+                          <td className="px-3 py-2">{pl.durum}</td>
+                          <td className="px-3 py-2">{pl.oran}%</td>
+                          <td className="px-3 py-2">{pl.tarih}</td>
+                          <td className="px-3 py-2">
+                            <button type="button" className="text-xs font-semibold text-blue-700 hover:underline" onClick={() => aktifPlanSec(pl)}>
+                              Seç
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Modal>
           </div>
         )}
 
