@@ -96,7 +96,7 @@ const menu = [
   },
   {
     id: 'besUretim',
-    label: 'BES Uretim',
+    label: 'Üretim',
     children: [
       { id: 'demo', label: 'Demo' },
       { id: 'teklif', label: 'Teklif' },

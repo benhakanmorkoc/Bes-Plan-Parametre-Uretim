@@ -595,6 +595,7 @@ function DemoScreen() {
   const [musteriSeciliRef, setMusteriSeciliRef] = useState(null)
   const [basvuruPanelAcik, setBasvuruPanelAcik] = useState(false)
   const [hesapPanelAcik, setHesapPanelAcik] = useState(false)
+  const [aramaPanelAcik, setAramaPanelAcik] = useState(false)
 
   const [simForm, setSimForm] = useState({
     aylikKatkiPayi: 2000,
@@ -1268,10 +1269,13 @@ function DemoScreen() {
                 <div className="rounded border border-slate-200 bg-white overflow-hidden">
                   <button
                     type="button"
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-800 bg-gradient-to-r from-slate-100 to-white border-b border-slate-200"
+                    onClick={() => setAramaPanelAcik((v) => !v)}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border-b border-slate-200 flex justify-between items-center"
                   >
                     Arama Paneli
+                    <span className="text-slate-400">{aramaPanelAcik ? '▼' : '▶'}</span>
                   </button>
+                  {aramaPanelAcik ? (
                   <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <ErpSearchField label="Kişi Tipi" required>
                       <select className="form-select text-sm" value={musteriArama.kisiTipi} onChange={(e) => setMa({ kisiTipi: e.target.value })}>
@@ -1395,6 +1399,7 @@ function DemoScreen() {
                       <input className="form-input text-sm" value={musteriArama.pasaportNo} onChange={(e) => setMa({ pasaportNo: e.target.value })} />
                     </ErpSearchField>
                   </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded border border-slate-200 bg-white">
