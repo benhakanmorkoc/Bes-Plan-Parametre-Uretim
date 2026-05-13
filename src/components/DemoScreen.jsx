@@ -252,16 +252,6 @@ function yil56Kurali(dogumStr, baslangicYasFallback) {
   return null
 }
 
-/** Aylık ödemeli birikim — yıllık reel net getiri (efektif), ay bileşik */
-function fvAylikReelBirikim(aylikYatirim, annualRealRate, yilAdet) {
-  const n = Math.max(0, Math.floor(Number(yilAdet) || 0) * 12)
-  if (n <= 0 || aylikYatirim <= 0) return 0
-  const ar = Math.max(-0.99, Number(annualRealRate) || 0)
-  const rm = Math.pow(1 + ar, 1 / 12) - 1
-  if (Math.abs(rm) < 1e-14) return aylikYatirim * n
-  return aylikYatirim * ((Math.pow(1 + rm, n) - 1) / rm)
-}
-
 function planlarTaslakHaric(plans) {
   return (plans || []).filter((p) => (p.durum || '').trim() !== 'Taslak')
 }
@@ -896,13 +886,23 @@ function DemoScreen() {
     const dkOran = (Number(simFormEfektif.devletKatkisiOrani) || 20) / 100
     const katilimciOdeme = aylikKatki * 12 * yillar
     const devletKatkisi = aylikKatki * 12 * dkOran * yillar
+    const toplamOdenen = katilimciOdeme + devletKatkisi
 
-    const reelYillik = hesapSenaryo === 'iyimser' ? 0.03 : 0.01
-    const aylikToplamKatki = aylikKatki * (1 + dkOran)
-    const reelBirikim = fvAylikReelBirikim(aylikToplamKatki, reelYillik, yillar)
+    const son = birikimRows.length > 0 ? birikimRows[birikimRows.length - 1] : null
+    const katilimciBirikimBrut = son ? son.katilimciBrut : 0
+    const dkBirikimBrut = son ? son.dkpBrut : 0
+    const toplamBirikimBrut = son ? son.tahminiBrut : 0
 
-    return { katilimciOdeme, devletKatkisi, reelBirikim, yillar }
-  }, [simFormEfektif, person.dogumTarihi, hesapSenaryo])
+    return {
+      katilimciOdeme,
+      devletKatkisi,
+      toplamOdenen,
+      katilimciBirikimBrut,
+      dkBirikimBrut,
+      toplamBirikimBrut,
+      yillar,
+    }
+  }, [simFormEfektif, person.dogumTarihi, birikimRows])
 
   const onSimNumberChange = (key) => (e) => {
     setSimForm((prev) => ({ ...prev, [key]: e.target.value }))
@@ -2408,9 +2408,21 @@ function DemoScreen() {
                   <span className="text-slate-600">Toplam Devlet Katkısı</span>
                   <strong className="text-slate-900 tabular-nums">{fmtTl(summary.devletKatkisi)}</strong>
                 </div>
+                <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
+                  <span className="text-slate-600">Katılımcı Birikim (Brüt)</span>
+                  <strong className="text-slate-900 tabular-nums">{fmtTl(summary.katilimciBirikimBrut)}</strong>
+                </div>
+                <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
+                  <span className="text-slate-600">DK Birikim (Brüt)</span>
+                  <strong className="text-slate-900 tabular-nums">{fmtTl(summary.dkBirikimBrut)}</strong>
+                </div>
+                <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
+                  <span className="text-slate-600">Toplam Birikim (Brüt)</span>
+                  <strong className="text-slate-900 tabular-nums">{fmtTl(summary.toplamBirikimBrut)}</strong>
+                </div>
                 <div className="flex justify-between gap-4 items-center rounded-md bg-blue-600 text-white px-3 py-2.5 -mx-0.5">
-                  <span className="font-medium">Reel Birikim</span>
-                  <strong className="tabular-nums text-base">{fmtTl(summary.reelBirikim)}</strong>
+                  <span className="font-medium">Toplam Ödenen</span>
+                  <strong className="tabular-nums text-base">{fmtTl(summary.toplamOdenen)}</strong>
                 </div>
               </div>
             </ErpSection>
