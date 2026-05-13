@@ -206,13 +206,60 @@ function solveAylikKatkiForNominalHedef(hedefNominal, simForm) {
   const yil = Math.max(0.1, Number(simForm.sureYil) || 30)
   const ay = Math.round(yil * 12)
   const r = (Number(simForm.yillikFonGetirisi) || 0) / 12 / 100
-  const d = Math.max(0, (Number(simForm.devletKatkisiOrani) || 0) / 100)
+  const d = Math.max(0, (Number(simForm.devletKatkisiOrani) || 20) / 100)
   const hedef = Math.max(0, Number(hedefNominal) || 0)
   if (hedef <= 0) return 0
   const eff = 1 + d
   const fvPerAylik =
     r > 1e-12 ? eff * ((Math.pow(1 + r, ay) - 1) / r) : eff * ay
   return fvPerAylik > 0 ? hedef / fvPerAylik : 0
+}
+
+/** gg.aa.yyyy / gg.aa.yyyy benzeri doğum tarihi */
+function parseDogumTrToDate(raw) {
+  const s = String(raw || '').trim()
+  const p = s.split(/[./-]/).map((x) => x.trim())
+  if (p.length !== 3) return null
+  const gun = Number(p[0])
+  const ay = Number(p[1])
+  const yil = Number(p[2])
+  if (!yil || ay < 1 || ay > 12 || gun < 1 || gun > 31) return null
+  const d = new Date(yil, ay - 1, gun)
+  if (d.getFullYear() !== yil || d.getMonth() !== ay - 1 || d.getDate() !== gun) return null
+  return d
+}
+
+/** Demo referans tarihi (ürün ekranıyla uyumlu) */
+function yasDogumdan(dogumStr, ref = new Date(2026, 4, 13)) {
+  const b = parseDogumTrToDate(dogumStr)
+  if (!b || b.getTime() > ref.getTime()) return null
+  let yas = ref.getFullYear() - b.getFullYear()
+  const md = ref.getMonth() - b.getMonth()
+  if (md < 0 || (md === 0 && ref.getDate() < b.getDate())) yas -= 1
+  return yas
+}
+
+/** 56 yaş kuralı: kalan tam yıl (0–50). Doğum yoksa başlangıç yaşı yedek. */
+function yil56Kurali(dogumStr, baslangicYasFallback) {
+  const y = yasDogumdan(dogumStr)
+  if (y != null && Number.isFinite(y)) {
+    return Math.max(0, Math.min(50, 56 - y))
+  }
+  const by = Number(baslangicYasFallback)
+  if (Number.isFinite(by) && by >= 18 && by < 56) {
+    return Math.max(0, Math.min(50, 56 - by))
+  }
+  return null
+}
+
+/** Aylık ödemeli birikim — yıllık reel net getiri (efektif), ay bileşik */
+function fvAylikReelBirikim(aylikYatirim, annualRealRate, yilAdet) {
+  const n = Math.max(0, Math.floor(Number(yilAdet) || 0) * 12)
+  if (n <= 0 || aylikYatirim <= 0) return 0
+  const ar = Math.max(-0.99, Number(annualRealRate) || 0)
+  const rm = Math.pow(1 + ar, 1 / 12) - 1
+  if (Math.abs(rm) < 1e-14) return aylikYatirim * n
+  return aylikYatirim * ((Math.pow(1 + rm, n) - 1) / rm)
 }
 
 function planlarTaslakHaric(plans) {
@@ -226,7 +273,7 @@ function buildBirikimSerisi(simForm, iyimser) {
   const basYas = Math.max(18, Math.min(80, Number(simForm.baslangicYas) || 26))
   const yilAdet = Math.max(1, Math.min(50, Number(simForm.sureYil) || 30))
   const g = Math.max(0, (Number(simForm.yillikFonGetirisi) || 0) / 100) * 0.85
-  const devOran = Math.max(0, (Number(simForm.devletKatkisiOrani) || 0) / 100)
+  const devOran = Math.max(0, (Number(simForm.devletKatkisiOrani) || 20) / 100)
   const scen = iyimser ? 1 : 0.62
   const rows = []
   for (let i = 0; i < yilAdet; i++) {
@@ -558,7 +605,7 @@ function DemoScreen() {
     sureYil: 31,
     yillikFonGetirisi: 20,
     yillikEnflasyon: 15,
-    devletKatkisiOrani: 30,
+    devletKatkisiOrani: 20,
   })
 
   const [urunParamForm, setUrunParamForm] = useState({
@@ -834,23 +881,20 @@ function DemoScreen() {
 
   const summary = useMemo(() => {
     const aylikKatki = Number(simFormEfektif.aylikKatkiPayi) || 0
-    const yil = Number(simFormEfektif.sureYil) || 0
-    const ay = Math.max(0, yil * 12)
-    const aylikGetiri = (Number(simFormEfektif.yillikFonGetirisi) || 0) / 12 / 100
-    const devletKatkiOrani = (Number(simFormEfektif.devletKatkisiOrani) || 0) / 100
-    const enflasyon = (Number(simFormEfektif.yillikEnflasyon) || 0) / 100
+    const yilKural = yil56Kurali(person.dogumTarihi, simFormEfektif.baslangicYas)
+    const yillar =
+      yilKural != null ? yilKural : Math.max(1, Math.min(50, Number(simFormEfektif.sureYil) || 30))
 
-    const katilimciOdeme = aylikKatki * ay
-    const devletKatkisi = katilimciOdeme * devletKatkiOrani
-    const aylikToplamYatirim = aylikKatki * (1 + devletKatkiOrani)
-    const nominalBirikim =
-      aylikGetiri > 0
-        ? aylikToplamYatirim * ((Math.pow(1 + aylikGetiri, ay) - 1) / aylikGetiri)
-        : aylikToplamYatirim * ay
-    const reelBirikim = nominalBirikim / Math.pow(1 + enflasyon, yil || 0)
+    const dkOran = (Number(simFormEfektif.devletKatkisiOrani) || 20) / 100
+    const katilimciOdeme = aylikKatki * 12 * yillar
+    const devletKatkisi = aylikKatki * 12 * dkOran * yillar
 
-    return { katilimciOdeme, devletKatkisi, nominalBirikim, reelBirikim }
-  }, [simFormEfektif])
+    const reelYillik = hesapSenaryo === 'iyimser' ? 0.03 : 0.01
+    const aylikToplamKatki = aylikKatki * (1 + dkOran)
+    const reelBirikim = fvAylikReelBirikim(aylikToplamKatki, reelYillik, yillar)
+
+    return { katilimciOdeme, devletKatkisi, reelBirikim, yillar }
+  }, [simFormEfektif, person.dogumTarihi, hesapSenaryo])
 
   const onSimNumberChange = (key) => (e) => {
     setSimForm((prev) => ({ ...prev, [key]: e.target.value }))
@@ -2235,13 +2279,9 @@ function DemoScreen() {
                   <span className="text-slate-600">Toplam Devlet Katkısı</span>
                   <strong className="text-slate-900 tabular-nums">{fmtTl(summary.devletKatkisi)}</strong>
                 </div>
-                <div className="flex justify-between gap-4 border-b border-slate-200 pb-2">
-                  <span className="text-slate-600">Nominal Birikim</span>
-                  <strong className="text-slate-900 tabular-nums">{fmtTl(summary.nominalBirikim)}</strong>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-slate-600">Reel Birikim</span>
-                  <strong className="text-blue-800 tabular-nums text-base">{fmtTl(summary.reelBirikim)}</strong>
+                <div className="flex justify-between gap-4 items-center rounded-md bg-blue-600 text-white px-3 py-2.5 -mx-0.5">
+                  <span className="font-medium">Reel Birikim</span>
+                  <strong className="tabular-nums text-base">{fmtTl(summary.reelBirikim)}</strong>
                 </div>
               </div>
             </ErpSection>
