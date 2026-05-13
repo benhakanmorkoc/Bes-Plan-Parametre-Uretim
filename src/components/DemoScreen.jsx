@@ -288,6 +288,7 @@ function DemoScreen() {
   const [mainTab, setMainTab] = useState('kisi')
   const [person, setPerson] = useState(emptyPerson)
   const [kisiSecimKaynagi, setKisiSecimKaynagi] = useState(null)
+  const [kisiPopupOpen, setKisiPopupOpen] = useState(false)
 
   const [musteriArama, setMusteriArama] = useState(emptyMusteriArama)
   const [musteriListe, setMusteriListe] = useState([])
@@ -426,6 +427,7 @@ function DemoScreen() {
       return
     }
     selectMusteriFromListe(musteriSeciliRef)
+    setKisiPopupOpen(false)
   }
 
   const setMa = (patch) => setMusteriArama((prev) => ({ ...prev, ...patch }))
@@ -633,11 +635,46 @@ function DemoScreen() {
       <div className="flex-1 overflow-auto p-4 md:p-6">
         {step === 1 && mainTab === 'kisi' && (
           <div className="max-w-6xl mx-auto space-y-4">
-            {/* ERP: Müşteri Tanımlama */}
-            <div className="rounded-lg border border-slate-300 bg-slate-100/90 shadow-md overflow-hidden">
+            <div className="rounded-lg border border-slate-300 bg-white shadow-sm">
+              <div className="px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <h3 className="text-sm font-bold text-slate-800">Arama Bilgileri</h3>
+              </div>
+              <div className="px-3 py-3 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_280px] gap-3 items-end">
+                <label className="block min-w-0">
+                  <span className="block text-xs font-semibold text-slate-600 mb-1">Branş</span>
+                  <input className="form-input bg-slate-50 text-sm" readOnly value="Emeklilik" />
+                </label>
+                <label className="block min-w-0">
+                  <span className="block text-xs font-semibold text-slate-600 mb-1">Kişi No</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      className="form-input text-sm font-mono"
+                      value={person.kisiNo}
+                      onChange={(e) => setP('kisiNo', e.target.value)}
+                      list="demo-musteri-no"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setKisiPopupOpen(true)}
+                      className="h-9 w-9 shrink-0 rounded border border-slate-400 bg-gradient-to-b from-white to-slate-100 text-slate-700 hover:from-slate-50"
+                      title="Müşteri ara"
+                    >
+                      <Search className="w-4 h-4 mx-auto" />
+                    </button>
+                  </div>
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer pb-2">
+                  <input type="checkbox" checked={person.baskaFirmadanAktarim} onChange={(e) => setP('baskaFirmadanAktarim', e.target.checked)} className="rounded border-slate-300" />
+                  Başka Firmadan Aktarım Var Mı?
+                </label>
+              </div>
+            </div>
+
+            <Modal open={kisiPopupOpen} onClose={() => setKisiPopupOpen(false)} title="Müşteri Tanımlama" size="xl">
+              <div className="rounded-lg border border-slate-300 bg-slate-100/90 shadow-md overflow-hidden">
               <div className="px-3 py-2 flex items-center justify-between bg-gradient-to-b from-slate-200 to-slate-300 border-b border-slate-400">
                 <h3 className="text-sm font-bold text-slate-800">Müşteri Tanımlama</h3>
-                <button type="button" className="text-slate-500 hover:text-slate-800 p-0.5 rounded" aria-label="Kapat" title="Demo">
+                <button type="button" onClick={() => setKisiPopupOpen(false)} className="text-slate-500 hover:text-slate-800 p-0.5 rounded" aria-label="Kapat" title="Demo">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -852,6 +889,7 @@ function DemoScreen() {
                               onDoubleClick={(e) => {
                                 e.preventDefault()
                                 selectMusteriFromListe(row.refKisiNo)
+                                setKisiPopupOpen(false)
                               }}
                               className={`cursor-pointer ${musteriSeciliRef === row.refKisiNo ? 'bg-violet-50' : ''}`}
                             >
@@ -909,17 +947,7 @@ function DemoScreen() {
                 </div>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-6 px-1">
-              <label className="block">
-                <span className="block text-xs font-semibold text-slate-600 mb-1">Branş</span>
-                <input className="form-input bg-slate-50 max-w-[200px] text-sm" readOnly value="Emeklilik" />
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer mt-6">
-                <input type="checkbox" checked={person.baskaFirmadanAktarim} onChange={(e) => setP('baskaFirmadanAktarim', e.target.checked)} className="rounded border-slate-300" />
-                Başka Firmadan Aktarım Var Mı?
-              </label>
-            </div>
+            </Modal>
 
             <p className="text-xs text-slate-500 px-1">
               Listeden <strong className="text-slate-700">Seç</strong> veya satıra <strong className="text-slate-700">çift tıklayın</strong>; kişisel ve iletişim alanları müşteri verisiyle dolar ve kilitlenir. Yeni giriş için <strong>Temizle</strong> kullanın.
