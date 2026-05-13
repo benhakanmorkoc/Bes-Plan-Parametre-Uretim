@@ -177,6 +177,44 @@ const fmtTr2 = (value) =>
     maximumFractionDigits: 2,
   }).format(value || 0)
 
+const fmtTr0 = (value) =>
+  new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(Number(value) || 0))
+
+/** TR giriş: 1.000.000,50 veya 1000000 */
+function parseTrDecimal(raw) {
+  if (raw == null) return NaN
+  const s = String(raw).trim().replace(/\s/g, '')
+  if (!s) return NaN
+  const lastComma = s.lastIndexOf(',')
+  const lastDot = s.lastIndexOf('.')
+  let norm = s
+  if (lastComma > -1 && lastDot > -1) {
+    norm = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')
+  } else if (lastComma > -1) {
+    norm = s.replace(/\./g, '').replace(',', '.')
+  } else {
+    norm = s.replace(/,/g, '')
+  }
+  return Number(norm)
+}
+
+/** Simülasyon özeti ile aynı nominal birikim modelinde hedef tutara göre aylık katkı payı */
+function solveAylikKatkiForNominalHedef(hedefNominal, simForm) {
+  const yil = Math.max(0.1, Number(simForm.sureYil) || 30)
+  const ay = Math.round(yil * 12)
+  const r = (Number(simForm.yillikFonGetirisi) || 0) / 12 / 100
+  const d = Math.max(0, (Number(simForm.devletKatkisiOrani) || 0) / 100)
+  const hedef = Math.max(0, Number(hedefNominal) || 0)
+  if (hedef <= 0) return 0
+  const eff = 1 + d
+  const fvPerAylik =
+    r > 1e-12 ? eff * ((Math.pow(1 + r, ay) - 1) / r) : eff * ay
+  return fvPerAylik > 0 ? hedef / fvPerAylik : 0
+}
+
 function planlarTaslakHaric(plans) {
   return (plans || []).filter((p) => (p.durum || '').trim() !== 'Taslak')
 }
@@ -185,14 +223,16 @@ function planlarTaslakHaric(plans) {
 function buildBirikimSerisi(simForm, iyimser) {
   const aylik = Number(simForm.aylikKatkiPayi) || 0
   const yillik = aylik * 12
+  const basYas = Math.max(18, Math.min(80, Number(simForm.baslangicYas) || 26))
+  const yilAdet = Math.max(1, Math.min(50, Number(simForm.sureYil) || 30))
   const g = Math.max(0, (Number(simForm.yillikFonGetirisi) || 0) / 100) * 0.85
   const devOran = Math.max(0, (Number(simForm.devletKatkisiOrani) || 0) / 100)
   const scen = iyimser ? 1 : 0.62
   const rows = []
-  for (let i = 0; i < 31; i++) {
+  for (let i = 0; i < yilAdet; i++) {
     const yil = i + 1
-    const age = 26 + i
-    const t = yil / 31
+    const age = basYas + i
+    const t = yil / yilAdet
     const kontrib = yillik * yil * scen
     const yatirim = kontrib * (1 - devOran * 0.55) * (0.62 + 0.12 * t)
     const devlet = kontrib * devOran * (0.38 + 0.1 * t)
@@ -514,7 +554,8 @@ function DemoScreen() {
 
   const [simForm, setSimForm] = useState({
     aylikKatkiPayi: 2000,
-    sureYil: 20,
+    baslangicYas: 26,
+    sureYil: 31,
     yillikFonGetirisi: 20,
     yillikEnflasyon: 15,
     devletKatkisiOrani: 30,
@@ -537,6 +578,7 @@ function DemoScreen() {
     bauOrani: '',
     ekSureYil: '',
     baslangicKapitali: '',
+    hedefBirikimTutari: '',
   })
   const [partajModalOpen, setPartajModalOpen] = useState(false)
   const [endeksDonemPanelAcik, setEndeksDonemPanelAcik] = useState(false)
@@ -588,6 +630,7 @@ function DemoScreen() {
   )
 
   const kpAnalizAktif = urunParamForm.analizTipi === ANALIZ_TIPLERI[0]
+  const birikimdenKpAnalizAktif = urunParamForm.analizTipi === ANALIZ_TIPLERI[1]
   const aktifUrun = useMemo(() => urunPlanTarifeKartlari.find((u) => u.id === aktifUrunKod) || null, [aktifUrunKod])
   const aktifPlanlar = useMemo(() => (aktifUrunKod ? planlarTaslakHaric(urunPlanlari[aktifUrunKod] || []) : []), [aktifUrunKod])
   const filtreliAktifUrunler = useMemo(() => {
@@ -611,16 +654,37 @@ function DemoScreen() {
     }
   }, [urunParamForm.urunKod, urunParamForm.planId])
 
-  const birikimRows = useMemo(() => buildBirikimSerisi(simForm, hesapSenaryo === 'iyimser'), [simForm, hesapSenaryo])
+  /** Birikimden KP: hedef + mevcut getiri/süre ile türetilen aylık (sekme Hesapla olmadan da tutarlı) */
+  const simFormEfektif = useMemo(() => {
+    if (!birikimdenKpAnalizAktif) return simForm
+    const hedef = parseTrDecimal(urunParamForm.hedefBirikimTutari)
+    if (!Number.isFinite(hedef) || hedef <= 0) return simForm
+    const a = solveAylikKatkiForNominalHedef(hedef, simForm)
+    if (!Number.isFinite(a) || a <= 0) return simForm
+    return { ...simForm, aylikKatkiPayi: String(Math.max(1, Math.round(a))) }
+  }, [birikimdenKpAnalizAktif, urunParamForm.hedefBirikimTutari, simForm])
 
-  const yillikKpDegeri = useMemo(() => (Number(simForm.aylikKatkiPayi) || 0) * 12, [simForm.aylikKatkiPayi])
+  const birikimRows = useMemo(() => buildBirikimSerisi(simFormEfektif, hesapSenaryo === 'iyimser'), [simFormEfektif, hesapSenaryo])
+
+  const birikimdenHesapOzeti = useMemo(() => {
+    if (!birikimdenKpAnalizAktif) return null
+    const hedefNum = parseTrDecimal(urunParamForm.hedefBirikimTutari)
+    const basYas = Math.max(18, Math.min(80, Number(simForm.baslangicYas) || 26))
+    const yilAdet = Math.max(1, Math.min(50, Number(simForm.sureYil) || 30))
+    const hedefYas = basYas + yilAdet - 1
+    const aylik = Number(simFormEfektif.aylikKatkiPayi) || 0
+    if (!Number.isFinite(hedefNum) || hedefNum <= 0 || aylik <= 0) return null
+    return { hedefNum, basYas, hedefYas, aylik }
+  }, [birikimdenKpAnalizAktif, urunParamForm.hedefBirikimTutari, simForm.baslangicYas, simForm.sureYil, simFormEfektif.aylikKatkiPayi])
+
+  const yillikKpDegeri = useMemo(() => (Number(simFormEfektif.aylikKatkiPayi) || 0) * 12, [simFormEfektif.aylikKatkiPayi])
 
   const kesintiFigkOranlari = useMemo(() => {
     const raw = String(urunParamForm.bauOrani || '').replace(',', '.').trim()
     const n = raw === '' ? NaN : Number(raw)
-    const figk = !Number.isNaN(n) && n >= 0 && n <= 1 ? n * 100 : 8.25
-    const dkFigk = 11.4
-    return { figk, dkFigk }
+    // Ekran örneği: FİGK ve DK FİGK aynı oran (BAU 0–1 arası → %; yoksa demo 2,73)
+    const pct = !Number.isNaN(n) && n >= 0 && n <= 1 ? n * 100 : 2.73
+    return { figk: pct, dkFigk: pct }
   }, [urunParamForm.bauOrani])
 
   const applyMockCustomer = (kisiNo) => {
@@ -769,12 +833,12 @@ function DemoScreen() {
   }
 
   const summary = useMemo(() => {
-    const aylikKatki = Number(simForm.aylikKatkiPayi) || 0
-    const yil = Number(simForm.sureYil) || 0
+    const aylikKatki = Number(simFormEfektif.aylikKatkiPayi) || 0
+    const yil = Number(simFormEfektif.sureYil) || 0
     const ay = Math.max(0, yil * 12)
-    const aylikGetiri = (Number(simForm.yillikFonGetirisi) || 0) / 12 / 100
-    const devletKatkiOrani = (Number(simForm.devletKatkisiOrani) || 0) / 100
-    const enflasyon = (Number(simForm.yillikEnflasyon) || 0) / 100
+    const aylikGetiri = (Number(simFormEfektif.yillikFonGetirisi) || 0) / 12 / 100
+    const devletKatkiOrani = (Number(simFormEfektif.devletKatkisiOrani) || 0) / 100
+    const enflasyon = (Number(simFormEfektif.yillikEnflasyon) || 0) / 100
 
     const katilimciOdeme = aylikKatki * ay
     const devletKatkisi = katilimciOdeme * devletKatkiOrani
@@ -786,7 +850,7 @@ function DemoScreen() {
     const reelBirikim = nominalBirikim / Math.pow(1 + enflasyon, yil || 0)
 
     return { katilimciOdeme, devletKatkisi, nominalBirikim, reelBirikim }
-  }, [simForm])
+  }, [simFormEfektif])
 
   const onSimNumberChange = (key) => (e) => {
     setSimForm((prev) => ({ ...prev, [key]: e.target.value }))
@@ -844,11 +908,31 @@ function DemoScreen() {
       return
     }
     if (kpAnalizAktif) {
-      const kp = String(f.donemselKp).replace(',', '.').trim()
-      if (kp === '' || Number.isNaN(Number(kp))) {
+      const kp = parseTrDecimal(f.donemselKp)
+      if (!Number.isFinite(kp) || kp <= 0) {
         alert('Dönemsel KP tutarı giriniz.')
         return
       }
+      setSimForm((prev) => ({ ...prev, aylikKatkiPayi: String(kp) }))
+    } else if (birikimdenKpAnalizAktif) {
+      const hedef = parseTrDecimal(f.hedefBirikimTutari)
+      if (!Number.isFinite(hedef) || hedef <= 0) {
+        alert('Hedef birikim tutarını giriniz.')
+        return
+      }
+      const aylik = solveAylikKatkiForNominalHedef(hedef, simForm)
+      if (!Number.isFinite(aylik) || aylik <= 0) {
+        alert('Hedef tutar için aylık katkı payı hesaplanamadı. Süre ve getiri değerlerini kontrol ediniz.')
+        return
+      }
+      setSimForm((prev) => ({ ...prev, aylikKatkiPayi: String(Math.max(1, Math.round(aylik))) }))
+    } else {
+      const aylik = parseTrDecimal(String(simForm.aylikKatkiPayi))
+      if (!Number.isFinite(aylik) || aylik <= 0) {
+        alert('Aylık katkı payı tutarını giriniz.')
+        return
+      }
+      setSimForm((prev) => ({ ...prev, aylikKatkiPayi: String(aylik) }))
     }
     if (f.bauOrani.trim()) {
       const b = Number(String(f.bauOrani).replace(',', '.'))
@@ -1795,6 +1879,7 @@ function DemoScreen() {
                           ...p,
                           analizTipi: v,
                           donemselKp: v === ANALIZ_TIPLERI[0] ? p.donemselKp : '',
+                          hedefBirikimTutari: v === ANALIZ_TIPLERI[1] ? p.hedefBirikimTutari : '',
                         }))
                       }}
                     >
@@ -1921,6 +2006,44 @@ function DemoScreen() {
                   </label>
                 </div>
 
+                {urunParamForm.analizTipi !== ANALIZ_TIPLERI[0] ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <label className="block min-w-0">
+                      <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Aylık Katkı Payı Tutarı (TL)
+                        {urunParamForm.analizTipi === ANALIZ_TIPLERI[2] ? <span className="text-red-600"> *</span> : null}
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="form-input w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
+                        disabled={birikimdenKpAnalizAktif}
+                        placeholder={birikimdenKpAnalizAktif ? 'Hesapla ile hesaplanır' : '0'}
+                        value={simForm.aylikKatkiPayi}
+                        onChange={(e) => setSimForm((prev) => ({ ...prev, aylikKatkiPayi: e.target.value }))}
+                      />
+                    </label>
+                    {birikimdenKpAnalizAktif ? (
+                      <label className="block min-w-0 sm:col-span-2">
+                        <span className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Hedef birikim tutarı (TL)
+                          <span className="text-red-600"> *</span>
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-input w-full"
+                          placeholder="Örn. 1.000.000"
+                          value={urunParamForm.hedefBirikimTutari}
+                          onChange={(e) => setU({ hedefBirikimTutari: e.target.value })}
+                        />
+                      </label>
+                    ) : (
+                      <div className="hidden lg:block min-w-0 sm:col-span-2" aria-hidden />
+                    )}
+                  </div>
+                ) : null}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <label className="block min-w-0">
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
@@ -1996,6 +2119,18 @@ function DemoScreen() {
 
         {step === 2 && mainTab === 'hesap' && (
           <div className="max-w-6xl mx-auto space-y-4">
+            {birikimdenHesapOzeti ? (
+              <div className="rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white text-center px-6 py-8 shadow-md space-y-2">
+                <p className="text-sm font-medium text-white/95">{birikimdenHesapOzeti.hedefYas} yaşında</p>
+                <p className="text-3xl sm:text-4xl font-bold tabular-nums tracking-tight">{fmtTr0(birikimdenHesapOzeti.hedefNum)} TL</p>
+                <p className="text-sm font-medium text-white/95">tutarında birikime ulaşabilmek için</p>
+                <p className="text-sm font-medium text-white/95 max-w-xl mx-auto leading-snug">
+                  {birikimdenHesapOzeti.basYas} yaşından itibaren düzenli ödemeniz gereken aylık katkı payı:
+                </p>
+                <p className="text-3xl sm:text-4xl font-bold tabular-nums pt-2">{fmtTr0(birikimdenHesapOzeti.aylik)} TL</p>
+              </div>
+            ) : null}
+
             <ErpSection title="Seçimler ve kesinti oranları">
               <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 text-sm">
                 <div>
@@ -2048,15 +2183,20 @@ function DemoScreen() {
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-600 mb-2">Senaryo</p>
-              <div className="flex flex-wrap gap-4">
-                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'iyimser'} onChange={() => setHesapSenaryo('iyimser')} />
-                  İyimser
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'kotumser'} onChange={() => setHesapSenaryo('kotumser')} />
-                  Kötümser
-                </label>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-6">
+                  <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'iyimser'} onChange={() => setHesapSenaryo('iyimser')} />
+                    İyimser
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="hesap-senaryo" checked={hesapSenaryo === 'kotumser'} onChange={() => setHesapSenaryo('kotumser')} />
+                    Kötümser
+                  </label>
+                </div>
+                <p className="text-sm font-semibold text-slate-800 tabular-nums shrink-0">
+                  Yıllık Reel Getiri: %{hesapSenaryo === 'iyimser' ? '3' : '1'}
+                </p>
               </div>
             </div>
 
