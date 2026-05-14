@@ -7,7 +7,8 @@ const KatkiPayiTemplateleri = lazy(() => import('./components/screens/KatkiPayiT
 const GirisAidati = lazy(() => import('./components/screens/GirisAidati'))
 const KesintiRouter = lazy(() => import('./components/screens/KesintiRouter'))
 const PlanLookupRouter = lazy(() => import('./components/screens/PlanLookupRouter'))
-const Teklif = lazy(() => import('./components/screens/Teklif'))
+const TeklifAllianz = lazy(() => import('./components/screens/TeklifAllianz'))
+const TeklifAgito = lazy(() => import('./components/screens/TeklifAgito'))
 const Basvuru = lazy(() => import('./components/screens/Basvuru'))
 const Sozlesmeler = lazy(() => import('./components/screens/Sozlesmeler'))
 
@@ -99,7 +100,8 @@ const menu = [
     label: 'Üretim',
     children: [
       { id: 'demo', label: 'Demo' },
-      { id: 'teklif', label: 'Teklif' },
+      { id: 'teklifAllianz', label: 'Allianz Teklif' },
+      { id: 'teklifAgito', label: 'Agito Teklif' },
       { id: 'basvuru', label: 'Basvuru' },
       { id: 'sozlesmeler', label: 'Sozlesmeler' },
     ],
@@ -160,7 +162,8 @@ function App() {
     if (activeTab === 'katkiPayiTemplateleri') return <KatkiPayiTemplateleri />
     if (activeTab === 'girisAidati') return <GirisAidati />
     if (activeTab === 'demo') return <DemoScreen />
-    if (activeTab === 'teklif') return <Teklif />
+    if (activeTab === 'teklifAllianz') return <TeklifAllianz />
+    if (activeTab === 'teklifAgito') return <TeklifAgito />
     if (activeTab === 'basvuru') return <Basvuru />
     if (activeTab === 'sozlesmeler') return <Sozlesmeler />
     if (KESINTI_IDS.has(activeTab)) return <KesintiRouter id={activeTab} />
