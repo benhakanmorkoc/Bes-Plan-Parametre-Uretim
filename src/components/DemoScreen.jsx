@@ -256,6 +256,13 @@ function planlarTaslakHaric(plans) {
   return (plans || []).filter((p) => (p.durum || '').trim() !== 'Taslak')
 }
 
+function planDurumOzellik(durum) {
+  const s = String(durum || '').trim().toLowerCase()
+  if (s.includes('yuru')) return { label: 'Yürürlükte', cls: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80' }
+  if (s.includes('taslak')) return { label: 'Taslak', cls: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/80' }
+  return { label: durum || '—', cls: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200/80' }
+}
+
 /** Demo: simülasyon girdilerine göre yaş bazlı birikim serisi (grafik + tablo) */
 function buildBirikimSerisi(simForm, iyimser) {
   const aylik = Number(simForm.aylikKatkiPayi) || 0
@@ -626,6 +633,11 @@ function DemoScreen() {
     hedefBirikimTutari: '',
   })
   const [partajModalOpen, setPartajModalOpen] = useState(false)
+  const [demoWizardUrunModalOpen, setDemoWizardUrunModalOpen] = useState(false)
+  const [demoWizardPlanModalOpen, setDemoWizardPlanModalOpen] = useState(false)
+  const [demoWizardUrunAra, setDemoWizardUrunAra] = useState('')
+  const [demoWizardPlanAra, setDemoWizardPlanAra] = useState('')
+  const [demoWizardPlanDurum, setDemoWizardPlanDurum] = useState('Tümü')
   const [endeksDonemPanelAcik, setEndeksDonemPanelAcik] = useState(false)
   const [hesapSenaryo, setHesapSenaryo] = useState('iyimser')
   const [hesapIcerikTab, setHesapIcerikTab] = useState('grafik')
@@ -660,7 +672,7 @@ function DemoScreen() {
 
   const plansForUrun = useMemo(() => {
     if (!urunParamForm.urunKod) return []
-    return planlarTaslakHaric(urunPlanlari[urunParamForm.urunKod] || [])
+    return urunPlanlari[urunParamForm.urunKod] || []
   }, [urunParamForm.urunKod])
 
   const planDovizler = useMemo(
@@ -691,14 +703,30 @@ function DemoScreen() {
   }, [aktifPlanAra, aktifPlanlar])
   const aktifSozlesmeSeciliMi = useMemo(() => aktifSozlesmeRows.some((r) => r.sozlesmeNo === seciliSozlesmeNo), [aktifSozlesmeRows, seciliSozlesmeNo])
 
-  useEffect(() => {
-    const { urunKod, planId } = urunParamForm
-    if (!planId || !urunKod) return
-    const p = (urunPlanlari[urunKod] || []).find((x) => x.id === planId)
-    if (p && String(p.durum || '').trim() === 'Taslak') {
-      setUrunParamForm((prev) => ({ ...prev, planId: '', paraBirimi: '', endeksKod: '', endeksDonemleri: [] }))
-    }
-  }, [urunParamForm.urunKod, urunParamForm.planId])
+  const filtreliDemoWizardUrunler = useMemo(() => {
+    const q = demoWizardUrunAra.trim().toLowerCase()
+    if (!q) return urunPlanTarifeKartlari
+    return urunPlanTarifeKartlari.filter((u) =>
+      `${u.id} ${u.ad} ${u.sozlesmeTipi || ''} ${u.tipler || ''}`.toLowerCase().includes(q),
+    )
+  }, [demoWizardUrunAra])
+
+  const filtreliDemoWizardPlanlar = useMemo(() => {
+    const uk = urunParamForm.urunKod
+    if (!uk) return []
+    let plans = [...(urunPlanlari[uk] || [])]
+    const q = demoWizardPlanAra.trim().toLowerCase()
+    if (q) plans = plans.filter((p) => `${p.id} ${p.ad} ${p.durum || ''}`.toLowerCase().includes(q))
+    const d = demoWizardPlanDurum
+    if (d === 'Yürürlükte') plans = plans.filter((p) => String(p.durum || '').toLowerCase().includes('yuru'))
+    else if (d === 'Taslak') plans = plans.filter((p) => String(p.durum || '').toLowerCase().includes('taslak'))
+    return plans
+  }, [urunParamForm.urunKod, demoWizardPlanAra, demoWizardPlanDurum])
+
+  const seciliDemoWizardUrun = useMemo(
+    () => urunPlanTarifeKartlari.find((u) => u.id === urunParamForm.urunKod) || null,
+    [urunParamForm.urunKod],
+  )
 
   /** Birikimden KP: hedef + mevcut getiri/süre ile türetilen aylık (sekme Hesapla olmadan da tutarlı) */
   const simFormEfektif = useMemo(() => {
@@ -923,6 +951,11 @@ function DemoScreen() {
       endeksDonemleri: [],
     }))
     setPartajModalOpen(false)
+    setDemoWizardUrunModalOpen(false)
+    setDemoWizardPlanModalOpen(false)
+    setDemoWizardUrunAra('')
+    setDemoWizardPlanAra('')
+    setDemoWizardPlanDurum('Tümü')
   }
 
   const toggleEndeksDonem = (d) => {
@@ -1067,6 +1100,34 @@ function DemoScreen() {
       }
     }
     setDemoBilgiAdim((x) => Math.min(4, x + 1))
+  }
+
+  const demoWizardUrunSec = (urun) => {
+    setUrunParamForm((p) => ({
+      ...p,
+      urunKod: urun.id,
+      planId: '',
+      paraBirimi: '',
+      endeksKod: '',
+      endeksDonemleri: [],
+    }))
+    setDemoWizardUrunModalOpen(false)
+    setDemoWizardUrunAra('')
+  }
+
+  const demoWizardPlanSec = (plan) => {
+    const pid = plan.id
+    const dov = dovizlerForUrunPlan(urunParamForm.urunKod, pid)
+    setUrunParamForm((p) => ({
+      ...p,
+      planId: pid,
+      paraBirimi: dov[0] || '',
+      endeksKod: '',
+      endeksDonemleri: [],
+    }))
+    setDemoWizardPlanModalOpen(false)
+    setDemoWizardPlanAra('')
+    setDemoWizardPlanDurum('Tümü')
   }
 
   const aktifUrunSec = (urun) => {
@@ -1951,62 +2012,56 @@ function DemoScreen() {
                       <span className="block text-[11px] font-semibold text-slate-700 mb-1">
                         Ürün Kodu<span className="text-red-600"> *</span>
                       </span>
-                      <select
-                        className="form-select w-full"
-                        disabled={!urunParamForm.partajKod}
-                        value={urunParamForm.urunKod}
-                        onChange={(e) => {
-                          const uk = e.target.value
-                          setUrunParamForm((p) => ({
-                            ...p,
-                            urunKod: uk,
-                            planId: '',
-                            paraBirimi: '',
-                            endeksKod: '',
-                            endeksDonemleri: [],
-                          }))
-                        }}
-                      >
-                        <option value="">Seçiniz</option>
-                        {urunPlanTarifeKartlari.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.sozlesmeTipi} — {u.ad}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          readOnly
+                          className="form-input flex-1 min-w-0 bg-slate-50"
+                          placeholder="Ürün seçiniz"
+                          value={
+                            urunParamForm.urunKod
+                              ? `${urunParamForm.urunKod} — ${urunPlanTarifeKartlari.find((x) => x.id === urunParamForm.urunKod)?.ad || ''}`
+                              : ''
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={!urunParamForm.partajKod}
+                          onClick={() => setDemoWizardUrunModalOpen(true)}
+                          className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Ürün listesi"
+                        >
+                          <LayoutGrid className="w-4 h-4 text-slate-600" />
+                        </button>
+                      </div>
                     </label>
                     <label className="block min-w-0 sm:col-span-2 lg:col-span-3">
                       <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 mb-1">
                         Plan<span className="text-red-600"> *</span>
                         <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Ürüne bağlı planlar" />
                       </span>
-                      <select
-                        className="form-select w-full max-w-xl"
-                        disabled={!urunParamForm.urunKod}
-                        value={urunParamForm.planId}
-                        onChange={(e) => {
-                          const pid = e.target.value
-                          if (!pid) {
-                            setUrunParamForm((p) => ({ ...p, planId: '', paraBirimi: '', endeksKod: '', endeksDonemleri: [] }))
-                            return
+                      <div className="flex gap-1 max-w-xl">
+                        <input
+                          type="text"
+                          readOnly
+                          className="form-input flex-1 min-w-0 bg-slate-50"
+                          placeholder="Plan seçiniz"
+                          value={
+                            urunParamForm.planId && urunParamForm.urunKod
+                              ? `${urunParamForm.planId} — ${plansForUrun.find((x) => x.id === urunParamForm.planId)?.ad || ''}`
+                              : ''
                           }
-                          const dov = dovizlerForUrunPlan(urunParamForm.urunKod, pid)
-                          setUrunParamForm((p) => ({
-                            ...p,
-                            planId: pid,
-                            paraBirimi: dov[0] || '',
-                            endeksKod: '',
-                            endeksDonemleri: [],
-                          }))
-                        }}
-                      >
-                        <option value="">Seçiniz</option>
-                        {plansForUrun.map((pl) => (
-                          <option key={pl.id} value={pl.id}>
-                            {pl.ad}
-                          </option>
-                        ))}
-                      </select>
+                        />
+                        <button
+                          type="button"
+                          disabled={!urunParamForm.urunKod}
+                          onClick={() => setDemoWizardPlanModalOpen(true)}
+                          className="shrink-0 h-9 w-9 flex items-center justify-center border border-slate-300 rounded bg-gradient-to-b from-white to-slate-100 hover:from-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Plan listesi"
+                        >
+                          <LayoutGrid className="w-4 h-4 text-slate-600" />
+                        </button>
+                      </div>
                     </label>
                   </div>
                 ) : null}
@@ -2290,6 +2345,184 @@ function DemoScreen() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </Modal>
+
+            <Modal
+              open={demoWizardUrunModalOpen}
+              onClose={() => {
+                setDemoWizardUrunModalOpen(false)
+                setDemoWizardUrunAra('')
+              }}
+              title="Ürün - Plan - Tarife Tanımları"
+              description="Ürün kodu veya adına göre arayın; satıra çift tıklayın veya Seç ile onaylayın."
+              size="xl"
+            >
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="search"
+                    className="form-input w-full pl-9"
+                    placeholder="Ürün Adı, kodu, Tarife/Plan Kodu, Tarife/Plan Adı, Branş ara..."
+                    value={demoWizardUrunAra}
+                    onChange={(e) => setDemoWizardUrunAra(e.target.value)}
+                  />
+                </div>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Ürün Kodu</th>
+                        <th className="text-left px-3 py-2 font-semibold">Ürün Adı</th>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Sözleşme Tipi</th>
+                        <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Aktif Plan</th>
+                        <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">Toplam Plan</th>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Tarih</th>
+                        <th className="w-20 px-3 py-2 text-right font-semibold">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtreliDemoWizardUrunler.map((u) => (
+                        <tr
+                          key={u.id}
+                          className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                          onDoubleClick={() => demoWizardUrunSec(u)}
+                        >
+                          <td className="px-3 py-2 font-mono font-medium text-slate-800">{u.id}</td>
+                          <td className="px-3 py-2 text-slate-800">{u.ad}</td>
+                          <td className="px-3 py-2 text-slate-600">{u.sozlesmeTipi}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-700">{u.aktif ?? '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-700">{u.toplam ?? '—'}</td>
+                          <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{u.tarih || '—'}</td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-blue-700 hover:underline"
+                              onClick={() => demoWizardUrunSec(u)}
+                            >
+                              Seç
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Modal>
+
+            <Modal
+              open={demoWizardPlanModalOpen}
+              onClose={() => {
+                setDemoWizardPlanModalOpen(false)
+                setDemoWizardPlanAra('')
+                setDemoWizardPlanDurum('Tümü')
+              }}
+              title={seciliDemoWizardUrun?.ad || 'Planlar'}
+              description={seciliDemoWizardUrun?.tipler || 'Ürüne bağlı planları seçin.'}
+              size="xl"
+            >
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline"
+                  onClick={() => {
+                    setDemoWizardPlanModalOpen(false)
+                    setDemoWizardPlanAra('')
+                    setDemoWizardPlanDurum('Tümü')
+                    setDemoWizardUrunModalOpen(true)
+                  }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Ürün Listesi
+                </button>
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <label className="block flex-1 min-w-0">
+                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Plan Ara</span>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type="search"
+                        className="form-input w-full pl-9"
+                        placeholder="Plan adı veya kodu..."
+                        value={demoWizardPlanAra}
+                        onChange={(e) => setDemoWizardPlanAra(e.target.value)}
+                      />
+                    </div>
+                  </label>
+                  <label className="block w-full sm:w-44 shrink-0">
+                    <span className="block text-[11px] font-semibold text-slate-700 mb-1">Durum</span>
+                    <select
+                      className="form-select w-full"
+                      value={demoWizardPlanDurum}
+                      onChange={(e) => setDemoWizardPlanDurum(e.target.value)}
+                    >
+                      <option value="Tümü">Tümü</option>
+                      <option value="Yürürlükte">Yürürlükte</option>
+                      <option value="Taslak">Taslak</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100 border-b border-slate-200">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Plan No</th>
+                        <th className="text-left px-3 py-2 font-semibold">Plan Adı</th>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Durum</th>
+                        <th className="text-left px-3 py-2 font-semibold min-w-[140px]">Tamamlanma</th>
+                        <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">Tarih</th>
+                        <th className="w-20 px-3 py-2 text-right font-semibold">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtreliDemoWizardPlanlar.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-3 py-8 text-center text-slate-500 text-sm">
+                            {urunParamForm.urunKod ? 'Bu ürün için plan bulunamadı.' : 'Önce ürün seçiniz.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filtreliDemoWizardPlanlar.map((pl) => {
+                          const st = planDurumOzellik(pl.durum)
+                          const pct = Math.max(0, Math.min(100, Number(pl.oran) || 0))
+                          return (
+                            <tr
+                              key={pl.id}
+                              className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                              onDoubleClick={() => demoWizardPlanSec(pl)}
+                            >
+                              <td className="px-3 py-2 font-mono font-medium text-slate-800">{pl.id}</td>
+                              <td className="px-3 py-2 text-slate-800">{pl.ad}</td>
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-2 max-w-[200px]">
+                                  <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+                                    <div className="h-full rounded-full bg-blue-600" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className="text-xs font-semibold tabular-nums text-slate-700 shrink-0">{pct}%</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{pl.tarih || '—'}</td>
+                              <td className="px-3 py-2 text-right">
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-blue-700 hover:underline"
+                                  onClick={() => demoWizardPlanSec(pl)}
+                                >
+                                  Seç
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </Modal>
           </div>
