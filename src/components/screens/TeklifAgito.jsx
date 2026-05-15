@@ -1,19 +1,20 @@
+import { FileText } from 'lucide-react'
 import { ScreenHeader } from '../ui/Toolbar'
-import { Construction } from 'lucide-react'
 
 export default function TeklifAgito() {
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
         title="Agito Teklif"
-        description="Agito kanalı teklif süreci — prototip bir sonraki sprintte bağlanacak."
+        description="Agito kanalı teklif giriş süreci — sonraki sprintte adım adım eklenecek."
       />
-      <div className="flex-1 flex flex-col items-center justify-center p-10 text-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-          <Construction className="w-8 h-8" />
+      <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+        <div className="w-14 h-14 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mb-4">
+          <FileText className="w-7 h-7" />
         </div>
-        <p className="text-slate-600 text-sm max-w-md">
-          Bu ekran üretim menüsünde yer alır. Allianz Teklif akışı ile aynı çerçevede, Agito entegrasyonu ve alan eşlemesi tanımlandığında adım adım doldurulacaktır.
+        <h3 className="text-lg font-bold text-slate-800 mb-2">Yakında</h3>
+        <p className="text-sm text-slate-500 max-w-md">
+          Agito teklif ekranları Allianz sürecine paralel olarak geliştirilecek. Şimdilik Allianz Teklif menüsünü kullanabilirsiniz.
         </p>
       </div>
     </div>
