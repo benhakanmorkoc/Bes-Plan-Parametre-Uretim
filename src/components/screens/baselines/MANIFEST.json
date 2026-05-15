@@ -1,0 +1,25 @@
+{
+  "baselines": [
+    {
+      "id": "v1-digitall",
+      "file": "TeklifAllianzWizard.v1-digitall.jsx",
+      "created": "2025-05-15",
+      "description": "DigitALL | Allianz — 6 adımlı teklif sihirbazı (Teklif, Katılımcı+KPS mock, Lehdar, Plan/Fon, Ödeme, Özet + başarı ekranı)",
+      "activeModule": "../TeklifAllianzWizard.jsx",
+      "steps": [
+        "Teklif Bilgileri",
+        "Katılımcı",
+        "Lehdar",
+        "Plan/Fon",
+        "Ödeme",
+        "Özet"
+      ],
+      "buildVerified": true
+    }
+  ],
+  "workflow": {
+    "develop": "Yalnızca TeklifAllianzWizard.jsx üzerinde çalışın.",
+    "restore": "v1-digitall dosyasını TeklifAllianzWizard.jsx konumuna kopyalayın.",
+    "newBaseline": "Önemli milestone sonrası yeni v2 dosyası + MANIFEST güncellemesi."
+  }
+}

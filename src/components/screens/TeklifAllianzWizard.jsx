@@ -1,4 +1,9 @@
+/**
+ * Allianz teklif sihirbazı (aktif geliştirme dosyası).
+ * Donmuş referans: ./baselines/TeklifAllianzWizard.v1-digitall.jsx — bkz. baselines/README.md
+ */
 import { useState } from 'react'
+import KatilimciStep from './allianz/KatilimciStep'
 import {
   User,
   Search,
@@ -28,6 +33,13 @@ const ODEME_PERIYOD_LABELS = {
   '12': 'YILLIK ÖDEME',
 }
 
+const SIRKET_DEFAULT = 'ALLIANZ YAŞAM VE EMEKLİLİK A.Ş.'
+
+const ARACI_SICIL_OPTIONS = [
+  { value: '11270208416 - SEMA ARIK', label: '11270208416 - SEMA ARIK' },
+  { value: '11270208417 - ALİ YILMAZ', label: '11270208417 - ALİ YILMAZ' },
+]
+
 const FON_DAGILIM = [
   { label: 'TL Sabit Getiri', val: 31, color: 'bg-emerald-500' },
   { label: 'TL Hisse Senedi', val: 23, color: 'bg-blue-500' },
@@ -36,10 +48,20 @@ const FON_DAGILIM = [
   { label: 'Altın', val: 11, color: 'bg-yellow-500' },
 ]
 
+function StepBlockHeader({ children }) {
+  return (
+    <div className="bg-slate-100 border border-slate-200 border-b-0 px-4 py-2.5 rounded-t-lg">
+      <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wide">{children}</h3>
+    </div>
+  )
+}
+
 const initialFormData = () => ({
   teklifTipi: 'BGD',
+  sirket: SIRKET_DEFAULT,
   acenteKodu: '5',
   acenteAdi: 'EGE BÖLGE MÜDÜRLÜĞÜ',
+  araciSicil: ARACI_SICIL_OPTIONS[0].value,
   urunTipi: 'Bireysel Teklif Girişi',
   dijitalForm: 'Evet',
   mesafeliSatis: 'Hayır',
@@ -54,10 +76,27 @@ const initialFormData = () => ({
   anneAdi: '',
   uyruk: 'TÜRKİYE',
   medeniHal: 'Evli',
+  kimlikTuru: 'NÜFUS CÜZDANI',
+  kimlikSeriNo: '',
+  vergiKimlikNo: '',
+  vergiDairesi: '',
+  cocukSayisi: '',
+  maviKartTarihi: '',
   meslek: 'ACENTE',
+  meslekDetay: 'ACENTE',
+  egitimDurumu: 'ÜNİVERSİTE',
   gelir: '150-750',
+  kurumSicilNo: '',
+  isyeriUnvani: '',
   ikametgah: 'ÇUKUROVA / ADANA',
-  cepTel: '+90 542 538 33 94',
+  ikametgahAdres: '',
+  iletisimAdresAyni: '',
+  cepTel: '',
+  cepTelBolge: 'ÇUKUROVA İLÇE',
+  evIsTel: '',
+  faks: '',
+  email: '',
+  fatcaAbdIkamet: 'Hayır',
   mukimUlkeVarmi: 'Hayır',
   mukimUlke: '',
   mukimUlkeVergiNo: '',
@@ -131,9 +170,20 @@ export default function TeklifAllianzWizard() {
         ...prev,
         ad: 'NEVİN İLVE',
         soyad: 'SUNEL',
-        babaAdi: 'REZA',
+        babaAdi: prev.babaAdi || 'REZA',
         anneAdi: 'MUNİB',
         searchDogumTarihi: prev.searchDogumTarihi || '1976-08-20',
+        kimlikTuru: 'NÜFUS CÜZDANI',
+        kimlikSeriNo: 'A123456',
+        medeniHal: 'Evli',
+        uyruk: 'TÜRKİYE',
+        egitimDurumu: 'ÜNİVERSİTE',
+        gelir: '150-750',
+        meslek: 'ACENTE',
+        meslekDetay: 'ACENTE',
+        isyeriUnvani: 'APS',
+        vergiMukkellefUlke: prev.vergiMukkellefUlke || 'TÜRKİYE',
+        dogduguUlke: prev.dogduguUlke || 'TÜRKİYE',
       }))
       setIsLoading(false)
     }, 1000)
@@ -240,7 +290,7 @@ export default function TeklifAllianzWizard() {
             )}
 
             {currentStep === 1 && (
-              <div className="p-6 md:p-8 space-y-8">
+              <div className="p-6 md:p-8 space-y-6">
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Teklif Tipi</h3>
                   <div className="flex flex-wrap gap-4 md:gap-6">
@@ -264,6 +314,16 @@ export default function TeklifAllianzWizard() {
                 </section>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Şirket</label>
+                    <select
+                      className="w-full bg-slate-100 border border-slate-200 p-3 rounded font-semibold text-slate-700 cursor-not-allowed"
+                      value={formData.sirket}
+                      disabled
+                    >
+                      <option value={SIRKET_DEFAULT}>{SIRKET_DEFAULT}</option>
+                    </select>
+                  </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500 uppercase">Acente Kodu</label>
                     <input
@@ -336,155 +396,77 @@ export default function TeklifAllianzWizard() {
                     </div>
                   </div>
                 </div>
+
+                <section>
+                  <StepBlockHeader>Aracı Bilgileri</StepBlockHeader>
+                  <div className="border border-slate-200 border-t-0 rounded-b-lg p-4 md:p-5 bg-white">
+                    <div className="space-y-1 max-w-xl">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Aracı Sicil</label>
+                      <select
+                        className="w-full border border-slate-200 p-3 rounded font-semibold text-slate-800 focus:border-blue-500 outline-none"
+                        value={formData.araciSicil}
+                        onChange={(e) => handleInputChange('araciSicil', e.target.value)}
+                      >
+                        {ARACI_SICIL_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <StepBlockHeader>Ek Bilgiler</StepBlockHeader>
+                  <div className="border border-slate-200 border-t-0 rounded-b-lg p-4 md:p-5 bg-white grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Acente Tanzim Tarihi</label>
+                      <input
+                        type="date"
+                        className="w-full border border-slate-200 p-3 rounded font-semibold focus:border-blue-500 outline-none"
+                        value={formData.tanzimTarihi}
+                        onChange={(e) => handleInputChange('tanzimTarihi', e.target.value)}
+                      />
+                      <p className="text-[10px] text-slate-400 font-medium">GG/AA/YYYY</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Katılımcı ve Katkı Yapan Aynı mı?</label>
+                      <div className="flex gap-6 pt-1">
+                        <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                          <input
+                            type="radio"
+                            name="ayniKisi"
+                            checked={formData.ayniKisi === 'Evet'}
+                            onChange={() => handleInputChange('ayniKisi', 'Evet')}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          Evet
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                          <input
+                            type="radio"
+                            name="ayniKisi"
+                            checked={formData.ayniKisi === 'Hayır'}
+                            onChange={() => handleInputChange('ayniKisi', 'Hayır')}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          Hayır
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
             )}
 
             {currentStep === 2 && (
-              <div className="p-6 md:p-8 space-y-8">
-                <section className="bg-slate-50 p-6 rounded-lg border border-slate-100">
-                  <h4 className="text-sm font-bold text-blue-900 mb-6 flex items-center gap-2">
-                    <Search size={16} /> Katılımcı Bilgileri Arama
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-red-500 uppercase">TCKN/VKN/YKN</label>
-                      <input
-                        className="w-full border-b-2 border-slate-200 p-2 focus:border-blue-600 outline-none bg-transparent font-mono"
-                        placeholder="Zorunlu alan!"
-                        value={formData.tckn}
-                        onChange={(e) => handleInputChange('tckn', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-red-500 uppercase">Doğum Tarihi</label>
-                      <input
-                        type="date"
-                        className="w-full border-b-2 border-slate-200 p-2 focus:border-blue-600 outline-none bg-transparent"
-                        value={formData.searchDogumTarihi}
-                        onChange={(e) => handleInputChange('searchDogumTarihi', e.target.value)}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={simulateSearch}
-                      className="bg-blue-700 text-white px-6 py-2 rounded font-bold hover:bg-blue-800 transition flex items-center justify-center gap-2"
-                    >
-                      <Search size={16} /> Ara
-                    </button>
-                  </div>
-                </section>
-
-                {formData.ad && (
-                  <div className="space-y-8 pt-4 border-t border-slate-100">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Ad Soyad</label>
-                        <p className="font-bold text-lg text-slate-800">
-                          {formData.ad} {formData.soyad}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Cinsiyet</label>
-                        <p className="font-semibold text-slate-700">{formData.cinsiyet}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Meslek</label>
-                        <select
-                          className="w-full border-b-2 border-slate-100 p-1 font-semibold text-slate-700 outline-none focus:border-blue-600"
-                          value={formData.meslek}
-                          onChange={(e) => handleInputChange('meslek', e.target.value)}
-                        >
-                          <option value="ACENTE">ACENTE</option>
-                          <option value="MÜHENDİS">MÜHENDİS</option>
-                          <option value="DOKTOR">DOKTOR</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Adres & İletişim</h4>
-                        <button type="button" className="text-blue-700 text-xs font-bold flex items-center gap-1">
-                          <Plus size={14} /> Yeni Ekle
-                        </button>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-stretch gap-4 text-sm font-semibold text-slate-700">
-                        <div className="bg-white p-3 rounded border border-slate-200 flex-1 flex justify-between items-center shadow-sm">
-                          <span>{formData.ikametgah}</span>
-                          <Edit size={14} className="text-blue-600 shrink-0" />
-                        </div>
-                        <div className="bg-white p-3 rounded border border-slate-200 flex-1 flex justify-between items-center shadow-sm">
-                          <span>{formData.cepTel}</span>
-                          <Edit size={14} className="text-blue-600 shrink-0" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <section className="space-y-6">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b pb-2">FATCA / CRS Bilgileri</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-600">Vergi Mükellefi Olduğu Ülke</label>
-                          <select
-                            className="w-full border-b-2 border-slate-100 p-1 font-semibold outline-none focus:border-blue-600"
-                            value={formData.vergiMukkellefUlke}
-                            onChange={(e) => handleInputChange('vergiMukkellefUlke', e.target.value)}
-                          >
-                            <option value="TÜRKİYE">TÜRKİYE</option>
-                            <option value="ALMANYA">ALMANYA</option>
-                            <option value="ABD">ABD</option>
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-600">Mukim Ülke Var mı?</label>
-                          <div className="flex gap-6 mt-1">
-                            <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
-                              <input
-                                type="radio"
-                                checked={formData.mukimUlkeVarmi === 'Evet'}
-                                onChange={() => handleInputChange('mukimUlkeVarmi', 'Evet')}
-                              />{' '}
-                              Evet
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
-                              <input
-                                type="radio"
-                                checked={formData.mukimUlkeVarmi === 'Hayır'}
-                                onChange={() => handleInputChange('mukimUlkeVarmi', 'Hayır')}
-                              />{' '}
-                              Hayır
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      {formData.mukimUlkeVarmi === 'Evet' && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-amber-800 uppercase">Mukim Adres</label>
-                              <button
-                                type="button"
-                                className="w-full bg-white border border-amber-300 p-2 rounded text-xs font-bold text-amber-700 flex items-center justify-center gap-2"
-                              >
-                                <Plus size={14} /> Mukim Adres Ekle
-                              </button>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-amber-800 uppercase">Vergi Kimlik No (TIN)</label>
-                              <input
-                                className="w-full bg-white border border-amber-300 p-2 rounded text-sm outline-none focus:border-amber-500"
-                                placeholder="Zorunlu alan!"
-                                value={formData.mukimUlkeVergiNo}
-                                onChange={(e) => handleInputChange('mukimUlkeVergiNo', e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </section>
-                  </div>
-                )}
-              </div>
+              <KatilimciStep
+                formData={formData}
+                onChange={handleInputChange}
+                onSearch={simulateSearch}
+                isLoading={isLoading}
+              />
             )}
 
             {currentStep === 3 && (
