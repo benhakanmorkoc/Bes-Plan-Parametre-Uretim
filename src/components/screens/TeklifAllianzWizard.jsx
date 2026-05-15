@@ -4,6 +4,8 @@
  */
 import { useState } from 'react'
 import KatilimciStep from './allianz/KatilimciStep'
+import LehdarStep from './allianz/LehdarStep'
+import PlanFonStep from './allianz/PlanFonStep'
 import {
   User,
   Search,
@@ -38,14 +40,6 @@ const SIRKET_DEFAULT = 'ALLIANZ YAŞAM VE EMEKLİLİK A.Ş.'
 const ARACI_SICIL_OPTIONS = [
   { value: '11270208416 - SEMA ARIK', label: '11270208416 - SEMA ARIK' },
   { value: '11270208417 - ALİ YILMAZ', label: '11270208417 - ALİ YILMAZ' },
-]
-
-const FON_DAGILIM = [
-  { label: 'TL Sabit Getiri', val: 31, color: 'bg-emerald-500' },
-  { label: 'TL Hisse Senedi', val: 23, color: 'bg-blue-500' },
-  { label: 'Eurobond', val: 17, color: 'bg-amber-500' },
-  { label: 'Yabancı Hisse', val: 18, color: 'bg-indigo-500' },
-  { label: 'Altın', val: 11, color: 'bg-yellow-500' },
 ]
 
 function StepBlockHeader({ children }) {
@@ -90,9 +84,15 @@ const initialFormData = () => ({
   isyeriUnvani: '',
   ikametgah: 'ÇUKUROVA / ADANA',
   ikametgahAdres: '',
+  ikametUlke: 'TÜRKİYE',
+  ikametIl: '',
+  ikametIlce: '',
+  ikametAdres1: '',
+  ikametAdres2: '',
+  ikametAdres3: '',
   iletisimAdresAyni: '',
   cepTel: '',
-  cepTelBolge: 'ÇUKUROVA İLÇE',
+  cepTelBolge: '',
   evIsTel: '',
   faks: '',
   email: '',
@@ -104,8 +104,11 @@ const initialFormData = () => ({
   dogduguUlke: 'TÜRKİYE',
   usGreenCard: 'Hayır',
   lehdarBelirlenmis: 'Hayır',
+  lehdarMusteriTipi: 'Gerçek',
   lehdarlar: [],
   searchLehdarTckn: '',
+  searchLehdarDogumTarihi: '',
+  searchLehdarBabaAdi: '',
   plan: '518',
   varlikDagilimi: 'ÖNERİLEN FON',
   fonlar: [{ kod: 'AUA', ad: 'Önerilen Fon Sepeti', oran: 100 }],
@@ -132,6 +135,10 @@ export default function TeklifAllianzWizard() {
   ]
 
   const handleInputChange = (field, value) => {
+    if (typeof field === 'object' && field !== null) {
+      setFormData((prev) => ({ ...prev, ...field }))
+      return
+    }
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -469,147 +476,9 @@ export default function TeklifAllianzWizard() {
               />
             )}
 
-            {currentStep === 3 && (
-              <div className="p-6 md:p-8 space-y-8">
-                <section className="space-y-4">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Lehdar Belirlenmiş mi?</h3>
-                  <div className="flex gap-8">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="radio"
-                        checked={formData.lehdarBelirlenmis === 'Evet'}
-                        onChange={() => handleInputChange('lehdarBelirlenmis', 'Evet')}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className={`text-sm font-bold ${formData.lehdarBelirlenmis === 'Evet' ? 'text-slate-800' : 'text-slate-400'}`}>Evet</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="radio"
-                        checked={formData.lehdarBelirlenmis === 'Hayır'}
-                        onChange={() => handleInputChange('lehdarBelirlenmis', 'Hayır')}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <span className={`text-sm font-bold ${formData.lehdarBelirlenmis === 'Hayır' ? 'text-slate-800' : 'text-slate-400'}`}>Hayır</span>
-                    </label>
-                  </div>
-                </section>
+            {currentStep === 3 && <LehdarStep formData={formData} onChange={handleInputChange} />}
 
-                {formData.lehdarBelirlenmis === 'Hayır' ? (
-                  <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded flex items-center gap-4">
-                    <AlertCircle className="text-blue-600 shrink-0" />
-                    <p className="text-blue-900 font-semibold text-sm italic tracking-tight">Kanuni Varisler Lehdar Olarak Tanımlanacaktır.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="bg-slate-50 p-6 rounded-lg border border-slate-100">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold text-red-500 uppercase tracking-tighter">Lehdar Kimlik No</label>
-                          <input
-                            className="w-full border-b border-slate-200 p-2 bg-transparent outline-none focus:border-blue-600 font-mono"
-                            placeholder="Zorunlu alan!"
-                            value={formData.searchLehdarTckn}
-                            onChange={(e) => handleInputChange('searchLehdarTckn', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1 md:text-right md:pt-4">
-                          <button type="button" className="bg-blue-800 text-white px-8 py-2 rounded font-bold text-sm shadow-md hover:bg-blue-900 w-full md:w-auto">
-                            Ara
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <table className="w-full text-left text-xs uppercase font-bold text-slate-400">
-                      <thead className="border-b">
-                        <tr>
-                          <th className="pb-3">Kimlik No</th>
-                          <th className="pb-3">Adı Soyadı</th>
-                          <th className="pb-3">Pay %</th>
-                          <th className="pb-3 text-right">İşlemler</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b text-slate-600">
-                          <td className="py-4 italic text-center" colSpan={4}>
-                            Henüz lehdar eklenmedi. Toplam pay %100 olmalıdır.
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {currentStep === 4 && (
-              <div className="p-6 md:p-8 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Plan</label>
-                    <select
-                      className="w-full border border-slate-200 p-3 rounded font-bold text-blue-900 shadow-sm focus:border-blue-600 outline-none"
-                      value={formData.plan}
-                      onChange={(e) => handleInputChange('plan', e.target.value)}
-                    >
-                      <option value="518">518 - KİŞİYE ÖZEL PLAN</option>
-                      <option value="519">519 - SAFRAN PLAN</option>
-                      <option value="526">526 - MERCAN PLAN</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Varlık Dağılımı</label>
-                    <select
-                      className="w-full border border-slate-200 p-3 rounded font-bold text-blue-900 shadow-sm focus:border-blue-600 outline-none"
-                      value={formData.varlikDagilimi}
-                      onChange={(e) => handleInputChange('varlikDagilimi', e.target.value)}
-                    >
-                      <option value="ÖNERİLEN FON">ÖNERİLEN FON</option>
-                      <option value="SERBEST DAĞILIM">SERBEST DAĞILIM</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 text-white p-6 md:p-8 rounded-xl relative overflow-hidden shadow-2xl">
-                  <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex-1 space-y-6 w-full">
-                      <div className="flex flex-wrap justify-between items-center gap-2">
-                        <h4 className="text-blue-400 font-bold tracking-widest text-xs">MODEL PORTFÖY: AUA</h4>
-                        <div className="flex gap-2">
-                          <button type="button" className="bg-green-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase hover:bg-green-700">
-                            Fazla Döviz
-                          </button>
-                          <button type="button" className="bg-blue-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase hover:bg-blue-700">
-                            Önerilene Dön
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        {FON_DAGILIM.map((item) => (
-                          <div key={item.label} className="space-y-1">
-                            <div className="flex justify-between text-[10px] uppercase font-bold">
-                              <span className="text-slate-400">{item.label}</span>
-                              <span>%{item.val}</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-slate-800 rounded-full">
-                              <div
-                                className={`${item.color} h-full rounded-full transition-all duration-1000`}
-                                style={{ width: `${item.val}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="w-40 h-40 md:w-48 md:h-48 rounded-full border-[16px] border-slate-800 flex flex-col items-center justify-center relative shrink-0">
-                      <PieChart size={64} className="text-blue-400 opacity-20 absolute" />
-                      <span className="text-3xl font-bold">%100</span>
-                      <span className="text-[10px] text-blue-400 font-bold uppercase">Toplam Pay</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {currentStep === 4 && <PlanFonStep formData={formData} onChange={handleInputChange} />}
 
             {currentStep === 5 && (
               <div className="p-6 md:p-8 space-y-8">

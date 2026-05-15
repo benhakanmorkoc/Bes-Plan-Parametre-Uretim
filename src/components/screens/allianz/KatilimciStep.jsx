@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Search, Plus } from 'lucide-react'
+import IkametgahAdresModal, { formatIkametgahOzet, ikametgahFromForm } from './IkametgahAdresModal'
 
 const KIMLIK_TURLERI = [
   'NÜFUS CÜZDANI',
@@ -67,6 +69,21 @@ function formatDogumTr(iso) {
 export default function KatilimciStep({ formData, onChange, onSearch, isLoading }) {
   const set = (field, value) => onChange(field, value)
   const bulundu = Boolean(formData.ad)
+  const [ikametModalOpen, setIkametModalOpen] = useState(false)
+
+  const saveIkametgah = (draft) => {
+    const lokasyon = [draft.ilce, draft.il].filter(Boolean).join(' / ')
+    onChange({
+      ikametUlke: draft.ulke,
+      ikametIl: draft.il,
+      ikametIlce: draft.ilce,
+      ikametAdres1: draft.adres1,
+      ikametAdres2: draft.adres2,
+      ikametAdres3: draft.adres3,
+      ikametgah: lokasyon,
+      ikametgahAdres: formatIkametgahOzet(draft),
+    })
+  }
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -327,6 +344,7 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
                 </div>
                 <button
                   type="button"
+                  onClick={() => setIkametModalOpen(true)}
                   className="shrink-0 mt-5 sm:mt-6 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded shadow-sm"
                 >
                   YENİ
@@ -354,7 +372,7 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
               {[
                 { key: 'evIsTel', label: 'Ev/İş Telefonu', zorunlu: false },
                 { key: 'faks', label: 'Faks', zorunlu: false },
-                { key: 'cepTel', label: 'Cep Telefonu', zorunlu: true, alt: formData.cepTelBolge },
+                { key: 'cepTel', label: 'Cep Telefonu', zorunlu: true },
                 { key: 'email', label: 'E-Posta', zorunlu: true },
               ].map((f) => (
                 <div key={f.key} className="flex gap-2 items-start">
@@ -365,7 +383,6 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
                       value={formData[f.key]}
                       onChange={(e) => set(f.key, e.target.value)}
                     />
-                    {f.alt && <p className="text-[10px] text-slate-500 mt-0.5">{f.alt}</p>}
                     {f.zorunlu && !formData[f.key] && <ZorunluUyari />}
                   </div>
                   <button type="button" className="mt-6 text-blue-700 text-xs font-bold flex flex-col items-center gap-0.5 shrink-0">
@@ -374,11 +391,6 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
                   </button>
                 </div>
               ))}
-            </div>
-            <div className="flex justify-end mt-4">
-              <button type="button" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded">
-                DÜZENLE
-              </button>
             </div>
           </DetayPanel>
 
@@ -431,6 +443,13 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
           </DetayPanel>
         </div>
       )}
+
+      <IkametgahAdresModal
+        open={ikametModalOpen}
+        onClose={() => setIkametModalOpen(false)}
+        initial={ikametgahFromForm(formData)}
+        onSave={saveIkametgah}
+      />
     </div>
   )
 }
