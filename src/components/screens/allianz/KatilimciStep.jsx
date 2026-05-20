@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus } from 'lucide-react'
 import IkametgahAdresModal, { formatIkametgahOzet } from './IkametgahAdresModal'
-import { ikametgahFromBlock } from './katilimciFields'
+import { ikametgahFromBlock, YAKINLIK_DERECESI_OPTIONS } from './katilimciFields'
 
 const KIMLIK_TURLERI = [
   'NÜFUS CÜZDANI',
@@ -73,6 +73,7 @@ export default function KatilimciStep({
   onSearch,
   isLoading,
   aramaBaslik = 'Katılımcı Bilgileri Arama',
+  showYakinlikDerecesi = false,
 }) {
   const set = (field, value) => onChange({ [field]: value })
   const bulundu = Boolean(formData.ad)
@@ -126,14 +127,33 @@ export default function KatilimciStep({
             <Search size={16} /> Ara
           </button>
         </div>
-        <div className="mt-6 max-w-md">
-          <label className="text-xs font-bold text-slate-600 uppercase">Baba Adı</label>
-          <input
-            type="text"
-            className="w-full border-b-2 border-slate-200 p-2 mt-1 focus:border-blue-600 outline-none bg-transparent"
-            value={formData.babaAdi}
-            onChange={(e) => set('babaAdi', e.target.value)}
-          />
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+          <div>
+            <label className="text-xs font-bold text-slate-600 uppercase">Baba Adı</label>
+            <input
+              type="text"
+              className="w-full border-b-2 border-slate-200 p-2 mt-1 focus:border-blue-600 outline-none bg-transparent"
+              value={formData.babaAdi}
+              onChange={(e) => set('babaAdi', e.target.value)}
+            />
+          </div>
+          {showYakinlikDerecesi && (
+            <UnderlineField label="Yakınlık Derecesi" required>
+              <select
+                className="w-full border-b-2 border-slate-200 p-2 focus:border-blue-600 outline-none bg-transparent font-semibold"
+                value={formData.yakinlikDerecesi || ''}
+                onChange={(e) => set('yakinlikDerecesi', e.target.value)}
+              >
+                <option value="">Seçiniz</option>
+                {YAKINLIK_DERECESI_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+              {!formData.yakinlikDerecesi && <ZorunluUyari />}
+            </UnderlineField>
+          )}
         </div>
       </section>
 

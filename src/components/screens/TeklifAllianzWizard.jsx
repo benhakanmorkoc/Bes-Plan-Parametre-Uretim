@@ -6,9 +6,8 @@ import { useState, useMemo, useEffect } from 'react'
 import KatilimciStep from './allianz/KatilimciStep'
 import LehdarStep from './allianz/LehdarStep'
 import PlanFonStep from './allianz/PlanFonStep'
-import WizardSectionStep from './allianz/WizardSectionStep'
-import { buildVisibleSteps, getStepKey } from './allianz/wizardSteps'
-import { emptyKatilimciBlock } from './allianz/katilimciFields'
+import { buildVisibleSteps, getStepKey, URUN_TIPI_18_YAS_ALTI } from './allianz/wizardSteps'
+import { emptyKatilimciBlock, emptyYasalTemsilciBlock } from './allianz/katilimciFields'
 import {
   User,
   Search,
@@ -129,6 +128,8 @@ const initialFormData = () => ({
   odemePeriyodu: '6',
   katkiPayi: 1000,
   katki: emptyKatilimciBlock(),
+  yt1: emptyYasalTemsilciBlock(),
+  yt2: emptyYasalTemsilciBlock(),
 })
 
 export default function TeklifAllianzWizard() {
@@ -144,6 +145,7 @@ export default function TeklifAllianzWizard() {
   )
   const stepKey = getStepKey(visibleSteps, currentStep)
   const totalSteps = visibleSteps.length
+  const is18YasAlti = formData.urunTipi === URUN_TIPI_18_YAS_ALTI
 
   useEffect(() => {
     if (currentStep > totalSteps) setCurrentStep(totalSteps)
@@ -221,6 +223,22 @@ export default function TeklifAllianzWizard() {
       setFormData((prev) => ({
         ...prev,
         katki: { ...(prev.katki || emptyKatilimciBlock()), ...mockKisiDetay(prev.katki || emptyKatilimciBlock()) },
+      }))
+      setIsLoading(false)
+    }, 1000)
+  }
+
+  const simulateYtSearch = (ytKey) => {
+    const block = formData[ytKey] || emptyYasalTemsilciBlock()
+    if (!block.tckn?.trim()) return
+    setIsLoading(true)
+    setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        [ytKey]: {
+          ...(prev[ytKey] || emptyYasalTemsilciBlock()),
+          ...mockKisiDetay(prev[ytKey] || emptyYasalTemsilciBlock()),
+        },
       }))
       setIsLoading(false)
     }, 1000)
@@ -469,7 +487,9 @@ export default function TeklifAllianzWizard() {
                       <p className="text-[10px] text-slate-400 font-medium">GG/AA/YYYY</p>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Katılımcı ve Katkı Yapan Aynı mı?</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase">
+                        {is18YasAlti ? 'Yasal Temsilci ile Ödeyen Aynı mı?' : 'Katılımcı ve Katkı Yapan Aynı mı?'}
+                      </label>
                       <div className="flex gap-6 pt-1">
                         <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
                           <input
@@ -523,21 +543,37 @@ export default function TeklifAllianzWizard() {
                 }
                 onSearch={simulateKatkiSearch}
                 isLoading={isLoading}
-                aramaBaslik="Katkı Yapan Bilgileri Arama"
+                aramaBaslik={is18YasAlti ? 'Ödeyen Bilgileri Arama' : 'Katkı Yapan Bilgileri Arama'}
               />
             )}
 
             {stepKey === 'yt1' && (
-              <WizardSectionStep
-                title="Yasal Temsilci 1"
-                description="Birinci yasal temsilci bilgileri bu adımda girilecektir."
+              <KatilimciStep
+                formData={formData.yt1 || emptyYasalTemsilciBlock()}
+                onChange={(patch) =>
+                  handleInputChange({
+                    yt1: { ...(formData.yt1 || emptyYasalTemsilciBlock()), ...patch },
+                  })
+                }
+                onSearch={() => simulateYtSearch('yt1')}
+                isLoading={isLoading}
+                aramaBaslik="Yasal Temsilci 1 Bilgileri Arama"
+                showYakinlikDerecesi
               />
             )}
 
             {stepKey === 'yt2' && (
-              <WizardSectionStep
-                title="Yasal Temsilci 2"
-                description="İkinci yasal temsilci bilgileri bu adımda girilecektir."
+              <KatilimciStep
+                formData={formData.yt2 || emptyYasalTemsilciBlock()}
+                onChange={(patch) =>
+                  handleInputChange({
+                    yt2: { ...(formData.yt2 || emptyYasalTemsilciBlock()), ...patch },
+                  })
+                }
+                onSearch={() => simulateYtSearch('yt2')}
+                isLoading={isLoading}
+                aramaBaslik="Yasal Temsilci 2 Bilgileri Arama"
+                showYakinlikDerecesi
               />
             )}
 
@@ -707,18 +743,52 @@ export default function TeklifAllianzWizard() {
                   </div>
 
                   <div className="bg-slate-50 p-4 rounded-lg">
-                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Katkı Yapan Bilgileri</h4>
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">
+                      {is18YasAlti ? 'Ödeyen Bilgileri' : 'Katkı Yapan Bilgileri'}
+                    </h4>
                     <p className="text-sm font-bold text-slate-800">
                       {formData.ayniKisi === 'Evet'
-                        ? 'Katılımcı ile Katkı Yapan Aynı Kişidir!'
-                        : 'Katılımcı ile Katkı Yapan Farklı Kişidir.'}
+                        ? is18YasAlti
+                          ? 'Yasal Temsilci ile Ödeyen Aynı Kişidir!'
+                          : 'Katılımcı ile Katkı Yapan Aynı Kişidir!'
+                        : is18YasAlti
+                          ? 'Yasal Temsilci ile Ödeyen Farklı Kişidir.'
+                          : 'Katılımcı ile Katkı Yapan Farklı Kişidir.'}
                     </p>
                     {formData.ayniKisi === 'Hayır' && formData.katki?.ad && (
                       <p className="text-sm text-slate-700 mt-2">
-                        Katkı Yapan: {formData.katki.ad} {formData.katki.soyad}
+                        {is18YasAlti ? 'Ödeyen' : 'Katkı Yapan'}: {formData.katki.ad} {formData.katki.soyad}
                       </p>
                     )}
                   </div>
+
+                  {is18YasAlti && (
+                    <>
+                      {['yt1', 'yt2'].map((ytKey, idx) => {
+                        const yt = formData[ytKey] || emptyYasalTemsilciBlock()
+                        return (
+                          <div key={ytKey} className="bg-slate-50 p-4 rounded-lg">
+                            <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">
+                              Yasal Temsilci {idx + 1}
+                            </h4>
+                            {yt.ad ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <p className="text-sm font-bold text-slate-800">
+                                  {yt.ad} {yt.soyad}
+                                </p>
+                                <p className="text-sm text-slate-700">
+                                  Yakınlık: {yt.yakinlikDerecesi || '—'}
+                                </p>
+                                <p className="text-sm font-mono text-slate-700 md:col-span-2">TCKN: {yt.tckn || '—'}</p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-slate-500">Bilgi girilmedi</p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </>
+                  )}
 
                   <div className="bg-slate-50 p-4 rounded-lg">
                     <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Lehdar Bilgileri</h4>

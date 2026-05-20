@@ -41,6 +41,13 @@ export const emptyKatilimciBlock = () => ({
   usGreenCard: 'Hayır',
 })
 
+export const YAKINLIK_DERECESI_OPTIONS = ['Annesi', 'Babası', 'Diğer']
+
+export const emptyYasalTemsilciBlock = () => ({
+  ...emptyKatilimciBlock(),
+  yakinlikDerecesi: '',
+})
+
 export function ikametgahFromBlock(block) {
   if (!block) return { ulke: 'TÜRKİYE', il: '', ilce: '', adres1: '', adres2: '', adres3: '' }
   return {
