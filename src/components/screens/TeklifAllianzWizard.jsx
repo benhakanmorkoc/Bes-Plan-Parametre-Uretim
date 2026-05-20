@@ -35,6 +35,8 @@ const ODEME_PERIYOD_LABELS = {
   '12': 'YILLIK ÖDEME',
 }
 
+const ODEME_SEKLI_LABEL = 'HAVALE/ÖZEL ÖDEME SEÇENEĞİ'
+
 const SIRKET_DEFAULT = 'ALLIANZ YAŞAM VE EMEKLİLİK A.Ş.'
 
 const ARACI_SICIL_OPTIONS = [
@@ -48,6 +50,13 @@ function StepBlockHeader({ children }) {
       <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wide">{children}</h3>
     </div>
   )
+}
+
+function formatTelefon(value) {
+  if (!value) return '—'
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.length === 10) return `(TR) +90 ${digits}`
+  return value
 }
 
 const initialFormData = () => ({
@@ -587,7 +596,7 @@ export default function TeklifAllianzWizard() {
 
                   <div className="bg-white border border-slate-100 p-4 rounded-lg relative group shadow-sm">
                     <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Katılımcı Bilgileri</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-slate-400 uppercase">Ad Soyad</p>
                         <p className="text-sm font-bold text-slate-800">
@@ -599,6 +608,18 @@ export default function TeklifAllianzWizard() {
                         <p className="text-sm font-mono font-bold text-slate-800">{formData.tckn || '—'}</p>
                       </div>
                       <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Adres</p>
+                        <p className="text-sm font-bold text-slate-800">{formData.ikametgahAdres || formData.ikametgah || '—'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Faks Telefonu</p>
+                        <p className="text-sm font-bold text-slate-800">{formatTelefon(formData.faks)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">E-Posta</p>
+                        <p className="text-sm font-bold text-slate-800">{formData.email || '—'}</p>
+                      </div>
+                      <div className="space-y-1">
                         <p className="text-[10px] font-bold text-slate-400 uppercase">Doğum Tarihi</p>
                         <p className="text-sm font-bold text-slate-800">
                           {formData.searchDogumTarihi
@@ -606,9 +627,17 @@ export default function TeklifAllianzWizard() {
                             : '—'}
                         </p>
                       </div>
-                      <div className="space-y-1 col-span-full">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">İkametgah</p>
-                        <p className="text-sm font-bold text-slate-800">{formData.ikametgah}</p>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Meslek</p>
+                        <p className="text-sm font-bold text-slate-800">{formData.meslekDetay || formData.meslek || '—'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Ev Telefonu</p>
+                        <p className="text-sm font-bold text-slate-800">{formatTelefon(formData.evIsTel)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Cep Telefonu</p>
+                        <p className="text-sm font-bold text-slate-800">{formatTelefon(formData.cepTel)}</p>
                       </div>
                     </div>
                     <button
@@ -621,23 +650,86 @@ export default function TeklifAllianzWizard() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-lg">
-                      <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Plan / Fon</h4>
-                      <p className="text-sm font-bold text-slate-800 mb-1">{PLAN_LABELS[formData.plan] || formData.plan}</p>
-                      <p className="text-xs text-blue-600 font-bold uppercase">{formData.varlikDagilimi} (%100)</p>
+                  <div className="bg-slate-50 p-4 rounded-lg">
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Katkı Yapan Bilgileri</h4>
+                    <p className="text-sm font-bold text-slate-800">
+                      {formData.ayniKisi === 'Evet' ? 'Katılımcı ile Katkı Yapan Aynı Kişidir!' : 'Katılımcı ile Katkı Yapan Farklı Kişidir.'}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-lg">
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Lehdar Bilgileri</h4>
+                    {formData.lehdarBelirlenmis === 'Hayır' ? (
+                      <p className="text-sm font-bold text-slate-800">Kanuni Varisler</p>
+                    ) : (
+                      <p className="text-sm font-bold text-slate-800">{(formData.lehdarlar || []).length} adet lehdar tanımlı</p>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-lg md:col-span-2">
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Plan / Fon Bilgileri</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <p className="text-sm font-bold text-slate-800">{PLAN_LABELS[formData.plan] || formData.plan}</p>
+                      <p className="text-sm font-bold text-slate-800 md:text-right">{formData.varlikDagilimi}</p>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-lg">
-                      <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Ödeme</h4>
-                      <div className="flex justify-between">
-                        <span className="text-xs font-bold text-slate-500">Katkı Payı</span>
-                        <span className="text-sm font-bold text-red-600">{formData.katkiPayi} TL</span>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left min-w-[480px]">
+                        <thead className="border-b border-slate-200">
+                          <tr className="text-[10px] font-bold uppercase text-slate-500">
+                            <th className="py-2">Fon Kodu</th>
+                            <th className="py-2">Fon Açıklaması</th>
+                            <th className="py-2 text-right">Oran</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(formData.fonlar || []).map((f) => (
+                            <tr key={f.kod} className="border-b border-slate-100 text-sm font-bold text-slate-800">
+                              <td className="py-2">{f.kod}</td>
+                              <td className="py-2">{f.ad || (f.oran === 100 ? 'ÖNERİLEN FON' : '—')}</td>
+                              <td className="py-2 text-right">{f.oran ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-lg md:col-span-2">
+                    <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Ödeme Bilgileri</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Ödeme Şekli</span>
+                          <span className="text-sm font-bold text-slate-800">{ODEME_SEKLI_LABEL}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Katkı Payı Tutarı</span>
+                          <span className="text-sm font-bold text-red-600">{formData.katkiPayi}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Ödeme Günü</span>
+                          <span className="text-sm font-bold text-slate-800">{formData.odemeGunu}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs font-bold text-slate-500">Sıklık</span>
-                        <span className="text-sm font-bold text-slate-800">
-                          {ODEME_PERIYOD_LABELS[formData.odemePeriyodu] || `${formData.odemePeriyodu} Ayda Bir`}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Ödeme Sıklığı</span>
+                          <span className="text-sm font-bold text-slate-800">
+                            {ODEME_PERIYOD_LABELS[formData.odemePeriyodu] || `${formData.odemePeriyodu} Ayda Bir`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Ödeme Başlangıç Tarihi</span>
+                          <span className="text-sm font-bold text-slate-800">
+                            {formData.odemeBaslangic
+                              ? new Date(formData.odemeBaslangic).toLocaleDateString('tr-TR')
+                              : '—'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-bold text-slate-500">Başlangıç Toplu Ödemesi</span>
+                          <span className="text-sm font-bold text-slate-800">—</span>
+                        </div>
                       </div>
                     </div>
                   </div>
