@@ -2,10 +2,13 @@
  * Allianz teklif sihirbazı (aktif geliştirme dosyası).
  * Donmuş referans: ./baselines/TeklifAllianzWizard.v1-digitall.jsx — bkz. baselines/README.md
  */
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import KatilimciStep from './allianz/KatilimciStep'
 import LehdarStep from './allianz/LehdarStep'
 import PlanFonStep from './allianz/PlanFonStep'
+import WizardSectionStep from './allianz/WizardSectionStep'
+import { buildVisibleSteps, getStepKey } from './allianz/wizardSteps'
+import { emptyKatilimciBlock } from './allianz/katilimciFields'
 import {
   User,
   Search,
@@ -125,6 +128,7 @@ const initialFormData = () => ({
   odemeGunu: '10',
   odemePeriyodu: '6',
   katkiPayi: 1000,
+  katki: emptyKatilimciBlock(),
 })
 
 export default function TeklifAllianzWizard() {
@@ -134,14 +138,16 @@ export default function TeklifAllianzWizard() {
   const [teklifNo] = useState(TEKLIF_NO_DEFAULT)
   const [formData, setFormData] = useState(initialFormData)
 
-  const steps = [
-    { id: 1, label: 'Teklif Bilgileri', icon: <FileText size={18} /> },
-    { id: 2, label: 'Katılımcı', icon: <User size={18} /> },
-    { id: 3, label: 'Lehdar', icon: <User size={18} /> },
-    { id: 4, label: 'Plan/Fon', icon: <PieChart size={18} /> },
-    { id: 5, label: 'Ödeme', icon: <CreditCard size={18} /> },
-    { id: 6, label: 'Özet', icon: <CheckCircle size={18} /> },
-  ]
+  const visibleSteps = useMemo(
+    () => buildVisibleSteps(formData),
+    [formData.ayniKisi, formData.urunTipi]
+  )
+  const stepKey = getStepKey(visibleSteps, currentStep)
+  const totalSteps = visibleSteps.length
+
+  useEffect(() => {
+    if (currentStep > totalSteps) setCurrentStep(totalSteps)
+  }, [totalSteps, currentStep])
 
   const handleInputChange = (field, value) => {
     if (typeof field === 'object' && field !== null) {
@@ -152,8 +158,9 @@ export default function TeklifAllianzWizard() {
   }
 
   const handleNext = () => {
-    if (currentStep === 2 && !formData.ad) return
-    if (currentStep < 6) {
+    if (stepKey === 'katilimci' && !formData.ad) return
+    if (stepKey === 'katki' && !formData.katki?.ad) return
+    if (currentStep < totalSteps) {
       setIsLoading(true)
       setTimeout(() => {
         setIsLoading(false)
@@ -178,28 +185,42 @@ export default function TeklifAllianzWizard() {
     setSuccess(false)
   }
 
+  const mockKisiDetay = (prev) => ({
+    ad: 'NEVİN İLVE',
+    soyad: 'SUNEL',
+    babaAdi: prev.babaAdi || 'REZA',
+    anneAdi: 'MUNİB',
+    searchDogumTarihi: prev.searchDogumTarihi || '1976-08-20',
+    kimlikTuru: 'NÜFUS CÜZDANI',
+    kimlikSeriNo: 'A123456',
+    medeniHal: 'Evli',
+    uyruk: 'TÜRKİYE',
+    egitimDurumu: 'ÜNİVERSİTE',
+    gelir: '150-750',
+    meslek: 'ACENTE',
+    meslekDetay: 'ACENTE',
+    isyeriUnvani: 'APS',
+    vergiMukkellefUlke: prev.vergiMukkellefUlke || 'TÜRKİYE',
+    dogduguUlke: prev.dogduguUlke || 'TÜRKİYE',
+  })
+
   const simulateSearch = () => {
     if (!formData.tckn.trim()) return
     setIsLoading(true)
     setTimeout(() => {
+      setFormData((prev) => ({ ...prev, ...mockKisiDetay(prev) }))
+      setIsLoading(false)
+    }, 1000)
+  }
+
+  const simulateKatkiSearch = () => {
+    const k = formData.katki || emptyKatilimciBlock()
+    if (!k.tckn?.trim()) return
+    setIsLoading(true)
+    setTimeout(() => {
       setFormData((prev) => ({
         ...prev,
-        ad: 'NEVİN İLVE',
-        soyad: 'SUNEL',
-        babaAdi: prev.babaAdi || 'REZA',
-        anneAdi: 'MUNİB',
-        searchDogumTarihi: prev.searchDogumTarihi || '1976-08-20',
-        kimlikTuru: 'NÜFUS CÜZDANI',
-        kimlikSeriNo: 'A123456',
-        medeniHal: 'Evli',
-        uyruk: 'TÜRKİYE',
-        egitimDurumu: 'ÜNİVERSİTE',
-        gelir: '150-750',
-        meslek: 'ACENTE',
-        meslekDetay: 'ACENTE',
-        isyeriUnvani: 'APS',
-        vergiMukkellefUlke: prev.vergiMukkellefUlke || 'TÜRKİYE',
-        dogduguUlke: prev.dogduguUlke || 'TÜRKİYE',
+        katki: { ...(prev.katki || emptyKatilimciBlock()), ...mockKisiDetay(prev.katki || emptyKatilimciBlock()) },
       }))
       setIsLoading(false)
     }, 1000)
@@ -232,11 +253,11 @@ export default function TeklifAllianzWizard() {
       </header>
 
       <div className="bg-white border-b border-slate-200 px-4 py-4 md:py-6 overflow-x-auto shrink-0">
-        <div className="flex justify-between min-w-[560px] max-w-4xl mx-auto">
-          {steps.map((s) => (
+        <div className="flex justify-between min-w-[900px] max-w-6xl mx-auto">
+          {visibleSteps.map((s) => (
             <div
-              key={s.id}
-              className={`flex flex-col items-center gap-2 flex-1 relative ${s.id !== 6 ? "after:content-[''] after:h-[2px] after:w-full after:bg-slate-100 after:absolute after:top-5 after:left-1/2 after:-z-10" : ''}`}
+              key={s.key}
+              className={`flex flex-col items-center gap-2 flex-1 relative min-w-[72px] ${s.id !== totalSteps ? "after:content-[''] after:h-[2px] after:w-full after:bg-slate-100 after:absolute after:top-5 after:left-1/2 after:-z-10" : ''}`}
             >
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10 bg-white
@@ -248,7 +269,7 @@ export default function TeklifAllianzWizard() {
                       : 'border-slate-200 text-slate-400'
                 }`}
               >
-                {currentStep > s.id ? <CheckCircle size={20} /> : s.icon}
+                {currentStep > s.id ? <CheckCircle size={20} /> : <s.Icon size={18} />}
               </div>
               <span
                 className={`text-[10px] uppercase font-bold tracking-wider text-center px-1 ${currentStep === s.id ? 'text-blue-600' : 'text-slate-400'}`}
@@ -305,7 +326,7 @@ export default function TeklifAllianzWizard() {
               </div>
             )}
 
-            {currentStep === 1 && (
+            {stepKey === 'teklif' && (
               <div className="p-6 md:p-8 space-y-6">
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Teklif Tipi</h3>
@@ -365,6 +386,7 @@ export default function TeklifAllianzWizard() {
                     >
                       <option value="Bireysel Teklif Girişi">Bireysel Teklif Girişi</option>
                       <option value="Vakıf/Dernek Üyelik">Vakıf/Dernek Üyelik</option>
+                      <option value="18 Yaş Altı">18 Yaş Altı</option>
                     </select>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 sm:items-end">
@@ -464,7 +486,12 @@ export default function TeklifAllianzWizard() {
                             type="radio"
                             name="ayniKisi"
                             checked={formData.ayniKisi === 'Hayır'}
-                            onChange={() => handleInputChange('ayniKisi', 'Hayır')}
+                            onChange={() =>
+                              handleInputChange({
+                                ayniKisi: 'Hayır',
+                                katki: formData.katki || emptyKatilimciBlock(),
+                              })
+                            }
                             className="w-4 h-4 text-blue-600"
                           />
                           Hayır
@@ -476,20 +503,49 @@ export default function TeklifAllianzWizard() {
               </div>
             )}
 
-            {currentStep === 2 && (
+            {stepKey === 'katilimci' && (
               <KatilimciStep
                 formData={formData}
                 onChange={handleInputChange}
                 onSearch={simulateSearch}
                 isLoading={isLoading}
+                aramaBaslik="Katılımcı Bilgileri Arama"
               />
             )}
 
-            {currentStep === 3 && <LehdarStep formData={formData} onChange={handleInputChange} />}
+            {stepKey === 'katki' && (
+              <KatilimciStep
+                formData={formData.katki || emptyKatilimciBlock()}
+                onChange={(patch) =>
+                  handleInputChange({
+                    katki: { ...(formData.katki || emptyKatilimciBlock()), ...patch },
+                  })
+                }
+                onSearch={simulateKatkiSearch}
+                isLoading={isLoading}
+                aramaBaslik="Katkı Yapan Bilgileri Arama"
+              />
+            )}
 
-            {currentStep === 4 && <PlanFonStep formData={formData} onChange={handleInputChange} />}
+            {stepKey === 'yt1' && (
+              <WizardSectionStep
+                title="Yasal Temsilci 1"
+                description="Birinci yasal temsilci bilgileri bu adımda girilecektir."
+              />
+            )}
 
-            {currentStep === 5 && (
+            {stepKey === 'yt2' && (
+              <WizardSectionStep
+                title="Yasal Temsilci 2"
+                description="İkinci yasal temsilci bilgileri bu adımda girilecektir."
+              />
+            )}
+
+            {stepKey === 'lehdar' && <LehdarStep formData={formData} onChange={handleInputChange} />}
+
+            {stepKey === 'plan' && <PlanFonStep formData={formData} onChange={handleInputChange} />}
+
+            {stepKey === 'odeme' && (
               <div className="p-6 md:p-8 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
@@ -567,7 +623,7 @@ export default function TeklifAllianzWizard() {
               </div>
             )}
 
-            {currentStep === 6 && (
+            {stepKey === 'ozet' && (
               <div className="p-6 md:p-8 space-y-6">
                 <div className="flex justify-between items-center border-b pb-4">
                   <h3 className="text-blue-900 font-black text-xl italic uppercase tracking-tighter">Özet Teklif Bilgileri</h3>
@@ -653,8 +709,15 @@ export default function TeklifAllianzWizard() {
                   <div className="bg-slate-50 p-4 rounded-lg">
                     <h4 className="text-[10px] font-black text-blue-800 uppercase mb-4 border-b pb-1">Katkı Yapan Bilgileri</h4>
                     <p className="text-sm font-bold text-slate-800">
-                      {formData.ayniKisi === 'Evet' ? 'Katılımcı ile Katkı Yapan Aynı Kişidir!' : 'Katılımcı ile Katkı Yapan Farklı Kişidir.'}
+                      {formData.ayniKisi === 'Evet'
+                        ? 'Katılımcı ile Katkı Yapan Aynı Kişidir!'
+                        : 'Katılımcı ile Katkı Yapan Farklı Kişidir.'}
                     </p>
+                    {formData.ayniKisi === 'Hayır' && formData.katki?.ad && (
+                      <p className="text-sm text-slate-700 mt-2">
+                        Katkı Yapan: {formData.katki.ad} {formData.katki.soyad}
+                      </p>
+                    )}
                   </div>
 
                   <div className="bg-slate-50 p-4 rounded-lg">
@@ -755,16 +818,18 @@ export default function TeklifAllianzWizard() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={currentStep === 2 && !formData.ad}
+                  disabled={
+                    (stepKey === 'katilimci' && !formData.ad) || (stepKey === 'katki' && !formData.katki?.ad)
+                  }
                   className={`flex items-center gap-2 px-8 md:px-10 py-3 rounded-lg font-bold text-white transition duration-300 shadow-xl ${
-                    currentStep === 2 && !formData.ad
+                    (stepKey === 'katilimci' && !formData.ad) || (stepKey === 'katki' && !formData.katki?.ad)
                       ? 'bg-slate-300 cursor-not-allowed'
-                      : currentStep === 6
+                      : stepKey === 'ozet'
                         ? 'bg-green-600 hover:bg-green-700 shadow-green-100'
                         : 'bg-blue-800 hover:bg-blue-900 shadow-blue-100'
                   }`}
                 >
-                  {currentStep === 6 ? 'ONAYLA VE BİTİR' : 'İLERİ'} <ChevronRight size={20} />
+                  {stepKey === 'ozet' ? 'ONAYLA VE BİTİR' : 'İLERİ'} <ChevronRight size={20} />
                 </button>
               </div>
             </footer>

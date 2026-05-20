@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus } from 'lucide-react'
-import IkametgahAdresModal, { formatIkametgahOzet, ikametgahFromForm } from './IkametgahAdresModal'
+import IkametgahAdresModal, { formatIkametgahOzet } from './IkametgahAdresModal'
+import { ikametgahFromBlock } from './katilimciFields'
 
 const KIMLIK_TURLERI = [
   'NÜFUS CÜZDANI',
@@ -66,8 +67,14 @@ function formatDogumTr(iso) {
   return d.toLocaleDateString('tr-TR')
 }
 
-export default function KatilimciStep({ formData, onChange, onSearch, isLoading }) {
-  const set = (field, value) => onChange(field, value)
+export default function KatilimciStep({
+  formData,
+  onChange,
+  onSearch,
+  isLoading,
+  aramaBaslik = 'Katılımcı Bilgileri Arama',
+}) {
+  const set = (field, value) => onChange({ [field]: value })
   const bulundu = Boolean(formData.ad)
   const [ikametModalOpen, setIkametModalOpen] = useState(false)
 
@@ -89,7 +96,7 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
     <div className="p-6 md:p-8 space-y-6">
       <section className="bg-slate-50 p-6 rounded-lg border border-slate-100">
         <h4 className="text-sm font-bold text-blue-900 mb-6 flex items-center gap-2">
-          <Search size={16} /> Katılımcı Bilgileri Arama
+          <Search size={16} /> {aramaBaslik}
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
           <UnderlineField label="TCKN/VKN/YKN" required>
@@ -447,7 +454,7 @@ export default function KatilimciStep({ formData, onChange, onSearch, isLoading 
       <IkametgahAdresModal
         open={ikametModalOpen}
         onClose={() => setIkametModalOpen(false)}
-        initial={ikametgahFromForm(formData)}
+        initial={ikametgahFromBlock(formData)}
         onSave={saveIkametgah}
       />
     </div>
