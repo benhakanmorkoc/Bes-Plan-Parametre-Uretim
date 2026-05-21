@@ -52,6 +52,92 @@ const BRANCH_OPTIONS = [
 
 const SOZLESME_TIPLERI = ['Ferdi', 'Grup', 'EGP', 'OKS', 'OKS-EGP']
 
+const HAYAT_ALT_BRANS = ['Hayat', 'Ferdi Kaza']
+const HAYAT_URUN_TIPI_HAYAT = ['Risk', 'Birikimli', 'İrat']
+const HAYAT_URUN_TIPI_FERDI = ['Risk']
+const HAYAT_SURE_TIPI = ['Yıllık', 'Uzun Süreli', 'Kısa Süreli (Günlük)']
+
+const emptyHayatCreateForm = () => ({
+  altBrans: 'Hayat',
+  urunTipi: 'Risk',
+  sureTipi: 'Yıllık',
+  urunNo: '',
+  urunAdi: '',
+  aciklama: '',
+})
+
+const emptyBireyselCreateForm = () => ({
+  sozlesmeTipi: 'Ferdi',
+  urunNo: '',
+  urunAdi: '',
+  aciklama: '',
+})
+
+const SAGMER_BRANS_OPTIONS = ['Sağlık', 'Seyahat', 'Acil', 'TSS', 'Gündelik', 'Yabancılar', 'Hastalık']
+const SAGLIK_URUN_TIPI = ['Ferdi', 'Grup']
+
+const emptySaglikCreateForm = () => ({
+  sagmerBrans: 'Sağlık',
+  urunTipi: 'Ferdi',
+  urunNo: '',
+  urunAdi: '',
+  baslangicTarihi: new Date().toISOString().slice(0, 10),
+  sagmerTarifeKodu: '',
+  aciklama: '',
+})
+
+const ELEMENTER_ANA_BRANS = [
+  'Araç',
+  'Finansal',
+  'Genel Zararlar',
+  'Sağlık',
+  'Kaza',
+  'Mühendislik',
+  'Nakliyat',
+  'Araç Sorumluluk',
+  'Sorumluluk',
+  'Yangın',
+]
+
+const emptyElementerCreateForm = () => ({
+  anaBrans: 'Araç',
+  urunNo: '',
+  urunAdi: '',
+  baslangicTarihi: new Date().toISOString().slice(0, 10),
+  yasalUrunKodu: '',
+  aciklama: '',
+})
+
+const createFormForBranch = (branchKey) => {
+  if (branchKey === 'hayat') return emptyHayatCreateForm()
+  if (branchKey === 'saglik') return emptySaglikCreateForm()
+  if (branchKey === 'elementer') return emptyElementerCreateForm()
+  return emptyBireyselCreateForm()
+}
+
+function WizardSegmentGroup({ label, required, options, value, onChange }) {
+  return (
+    <div>
+      <div className="text-sm font-semibold text-slate-700 mb-2">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <button
+            type="button"
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`px-4 h-10 rounded-xl border text-sm font-semibold transition ${value === opt ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300 hover:border-violet-300'}`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** Plan konfigürasyon kartı — demo oranları (çubuk rengi yüzdeye göre) */
 function planKonfigProgressTone(pct) {
   const p = Number(pct) || 0
@@ -6264,20 +6350,48 @@ export default function UrunPlanTarifeTanimlari() {
 
   const handleBranchSelect = (branch) => {
     setSelectedBranch(branch)
-    if (branch.key === 'bireysel') {
+    if (branch.key === 'bireysel' || branch.key === 'hayat' || branch.key === 'saglik' || branch.key === 'elementer') {
       setCreateStep(2)
       return
     }
-    alert('Bu branş için akış henüz eklenmedi. Şimdilik Bireysel Emeklilik ile ilerleyebilirsiniz.')
+    alert('Bu branş için akış henüz eklenmedi.')
   }
 
   const handleMethodSelect = (method) => {
     setCreateMethod(method)
     if (method === 'new') {
+      setCreateForm(createFormForBranch(selectedBranch?.key))
       setCreateStep(3)
       return
     }
     setCreateStep(4)
+  }
+
+  const hayatUrunTipiOptions =
+    createForm.altBrans === 'Ferdi Kaza' ? HAYAT_URUN_TIPI_FERDI : HAYAT_URUN_TIPI_HAYAT
+  const hayatSureTipiAktif = createForm.urunTipi === 'Risk'
+
+  const setHayatAltBrans = (altBrans) => {
+    setCreateForm((prev) => {
+      const next = { ...prev, altBrans }
+      if (altBrans === 'Ferdi Kaza') {
+        next.urunTipi = 'Risk'
+        next.sureTipi = prev.sureTipi || 'Yıllık'
+      }
+      return next
+    })
+  }
+
+  const setHayatUrunTipi = (urunTipi) => {
+    setCreateForm((prev) => {
+      const next = { ...prev, urunTipi }
+      if (urunTipi !== 'Risk') {
+        next.sureTipi = ''
+      } else if (!next.sureTipi) {
+        next.sureTipi = 'Yıllık'
+      }
+      return next
+    })
   }
 
   const selectExistingProduct = (product) => {
@@ -6326,12 +6440,50 @@ export default function UrunPlanTarifeTanimlari() {
   const handleCreateFromWizard = () => {
     if (!createForm.urunNo.trim()) return alert('Ürün No zorunludur.')
     if (!createForm.urunAdi.trim()) return alert('Ürün Adı zorunludur.')
+    const branchKey = selectedBranch?.key
+    const isHayat = branchKey === 'hayat'
+    const isSaglik = branchKey === 'saglik'
+    const isElementer = branchKey === 'elementer'
+    if (isHayat) {
+      if (!createForm.urunTipi) return alert('Ürün Tipi zorunludur.')
+      if (createForm.urunTipi === 'Risk' && !createForm.sureTipi) return alert('Süre Tipi zorunludur.')
+    }
+    if (isSaglik) {
+      if (!createForm.urunTipi) return alert('Ürün Tipi zorunludur.')
+      if (!createForm.baslangicTarihi) return alert('Başlangıç Tarihi zorunludur.')
+    }
+    if (isElementer) {
+      if (!createForm.anaBrans) return alert('Ana Branş zorunludur.')
+      if (!createForm.baslangicTarihi) return alert('Başlangıç Tarihi zorunludur.')
+    }
+    const tipler = isHayat
+      ? [
+          'Hayat & Kaza',
+          createForm.altBrans,
+          createForm.urunTipi,
+          createForm.urunTipi === 'Risk' ? createForm.sureTipi : null,
+        ]
+          .filter(Boolean)
+          .join('  ·  ')
+      : isSaglik
+        ? ['Sağlık', createForm.sagmerBrans, createForm.urunTipi].join('  ·  ')
+        : isElementer
+          ? ['Elementer', createForm.anaBrans].join('  ·  ')
+          : `Bireysel  ·  ${selectedBranch?.label || 'Bireysel Emeklilik'}`
     const payload = normalizeProduct({
       id: createForm.urunNo.trim(),
       ad: createForm.urunAdi.trim(),
-      tipler: `Bireysel  ·  ${selectedBranch?.label || 'Bireysel Emeklilik'}`,
-      sozlesmeTipi: createForm.sozlesmeTipi,
-      tarih: normalizeDate(),
+      tipler,
+      sozlesmeTipi: isHayat ? createForm.altBrans : isSaglik ? createForm.urunTipi : isElementer ? createForm.anaBrans : createForm.sozlesmeTipi,
+      altBrans: isHayat ? createForm.altBrans : undefined,
+      anaBrans: isElementer ? createForm.anaBrans : undefined,
+      sagmerBrans: isSaglik ? createForm.sagmerBrans : undefined,
+      urunTipi: isHayat || isSaglik ? createForm.urunTipi : undefined,
+      sureTipi: isHayat && createForm.urunTipi === 'Risk' ? createForm.sureTipi : undefined,
+      sagmerTarifeKodu: isSaglik ? createForm.sagmerTarifeKodu : undefined,
+      yasalUrunKodu: isElementer ? createForm.yasalUrunKodu : undefined,
+      aciklama: createForm.aciklama,
+      tarih: isSaglik || isElementer ? normalizeDate(createForm.baslangicTarihi) : normalizeDate(),
       toplam: 0,
       aktif: 0,
       kapali: 0,
@@ -6558,7 +6710,25 @@ export default function UrunPlanTarifeTanimlari() {
         open={createWizardOpen}
         onClose={closeCreateWizard}
         title={createStep === 1 ? 'Branş Seçimi' : createStep === 2 ? 'Tanımlama Yöntemi' : createStep === 3 ? 'Ürün Tanımlama' : createStep === 4 ? 'Ürün Seçimi' : createStep === 5 ? 'Tanım Yöntemi' : 'Plan Genel Bilgileri'}
-        description={createStep === 1 ? 'İşlem yapmak istediğiniz sigorta branşını seçiniz.' : createStep === 2 ? 'Bireysel Emeklilik branşı için ilerleme yönteminizi belirleyin.' : createStep === 3 ? 'Yeni ürün için temel parametreleri belirleyiniz.' : createStep === 4 ? 'Lütfen plan eklemek istediğiniz ana ürünü seçiniz.' : createStep === 5 ? 'Plan oluşturma yöntemini seçiniz.' : 'Temel plan bilgilerini giriniz'}
+        description={
+          createStep === 1
+            ? 'İşlem yapmak istediğiniz sigorta branşını seçiniz.'
+            : createStep === 2
+              ? selectedBranch?.key === 'hayat'
+                ? 'Hayat & Kaza branşı için ilerleme yönteminizi belirleyin.'
+                : selectedBranch?.key === 'saglik'
+                  ? 'Sağlık branşı için ilerleme yönteminizi belirleyin.'
+                  : selectedBranch?.key === 'elementer'
+                    ? 'Elementer branşı için ilerleme yönteminizi belirleyin.'
+                    : 'Bireysel Emeklilik branşı için ilerleme yönteminizi belirleyin.'
+              : createStep === 3
+                ? 'Yeni ürün için temel parametreleri belirleyiniz.'
+                : createStep === 4
+                  ? 'Lütfen plan eklemek istediğiniz ana ürünü seçiniz.'
+                  : createStep === 5
+                    ? 'Plan oluşturma yöntemini seçiniz.'
+                    : 'Temel plan bilgilerini giriniz'
+        }
         size="lg"
         footer={createStep === 3 ? (
           <>
@@ -6630,7 +6800,156 @@ export default function UrunPlanTarifeTanimlari() {
           </div>
         )}
 
-        {createStep === 3 && (
+        {createStep === 3 && selectedBranch?.key === 'hayat' && (
+          <div className="space-y-4">
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Branş</span>
+              <input className="form-input bg-slate-50" value="Hayat & Kaza" disabled />
+            </label>
+            <WizardSegmentGroup
+              label="Alt Branş"
+              options={HAYAT_ALT_BRANS}
+              value={createForm.altBrans}
+              onChange={setHayatAltBrans}
+            />
+            <WizardSegmentGroup
+              label="Ürün Tipi"
+              required
+              options={hayatUrunTipiOptions}
+              value={createForm.urunTipi}
+              onChange={setHayatUrunTipi}
+            />
+            {hayatSureTipiAktif && (
+              <WizardSegmentGroup
+                label="Süre Tipi"
+                required
+                options={HAYAT_SURE_TIPI}
+                value={createForm.sureTipi}
+                onChange={(sureTipi) => setCreateForm((prev) => ({ ...prev, sureTipi }))}
+              />
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün No <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün No" value={createForm.urunNo} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunNo: e.target.value }))} />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün Adı <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün Adı" value={createForm.urunAdi} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunAdi: e.target.value }))} />
+              </label>
+            </div>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Açıklama</span>
+              <textarea className="form-input min-h-[112px] resize-none" placeholder="Ürün hakkında kısa açıklama..." value={createForm.aciklama} onChange={(e) => setCreateForm((prev) => ({ ...prev, aciklama: e.target.value }))} />
+            </label>
+          </div>
+        )}
+
+        {createStep === 3 && selectedBranch?.key === 'saglik' && (
+          <div className="space-y-4">
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Branş</span>
+              <input className="form-input bg-slate-50" value="Sağlık" disabled />
+            </label>
+            <WizardSegmentGroup
+              label="SAGMER Branş"
+              options={SAGMER_BRANS_OPTIONS}
+              value={createForm.sagmerBrans}
+              onChange={(sagmerBrans) => setCreateForm((prev) => ({ ...prev, sagmerBrans }))}
+            />
+            <WizardSegmentGroup
+              label="Ürün Tipi"
+              required
+              options={SAGLIK_URUN_TIPI}
+              value={createForm.urunTipi}
+              onChange={(urunTipi) => setCreateForm((prev) => ({ ...prev, urunTipi }))}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün No <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün No" value={createForm.urunNo} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunNo: e.target.value }))} />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün Adı <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün Adı" value={createForm.urunAdi} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunAdi: e.target.value }))} />
+              </label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Başlangıç Tarihi <span className="text-red-500">*</span></span>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={createForm.baslangicTarihi || ''}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, baslangicTarihi: e.target.value }))}
+                />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Sagmer Tarife Kodu</span>
+                <input
+                  className="form-input"
+                  placeholder="Örn: Sag-001"
+                  value={createForm.sagmerTarifeKodu || ''}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, sagmerTarifeKodu: e.target.value }))}
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Açıklama</span>
+              <textarea className="form-input min-h-[112px] resize-none" placeholder="Ürün hakkında kısa açıklama..." value={createForm.aciklama} onChange={(e) => setCreateForm((prev) => ({ ...prev, aciklama: e.target.value }))} />
+            </label>
+          </div>
+        )}
+
+        {createStep === 3 && selectedBranch?.key === 'elementer' && (
+          <div className="space-y-4">
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Branş</span>
+              <input className="form-input bg-slate-50" value="Elementer" disabled />
+            </label>
+            <WizardSegmentGroup
+              label="Ana Branş"
+              required
+              options={ELEMENTER_ANA_BRANS}
+              value={createForm.anaBrans}
+              onChange={(anaBrans) => setCreateForm((prev) => ({ ...prev, anaBrans }))}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün No <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün No" value={createForm.urunNo} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunNo: e.target.value }))} />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Ürün Adı <span className="text-red-500">*</span></span>
+                <input className="form-input" placeholder="Ürün Adı" value={createForm.urunAdi} onChange={(e) => setCreateForm((prev) => ({ ...prev, urunAdi: e.target.value }))} />
+              </label>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-700 mb-1">Başlangıç Tarihi <span className="text-red-500">*</span></span>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={createForm.baslangicTarihi || ''}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, baslangicTarihi: e.target.value }))}
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Yasal Ürün Kodu</span>
+              <input
+                className="form-input"
+                placeholder="Yasal Ürün Kodu"
+                value={createForm.yasalUrunKodu || ''}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, yasalUrunKodu: e.target.value }))}
+              />
+            </label>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-700 mb-1">Açıklama</span>
+              <textarea className="form-input min-h-[112px] resize-none" placeholder="Ürün hakkında kısa açıklama..." value={createForm.aciklama} onChange={(e) => setCreateForm((prev) => ({ ...prev, aciklama: e.target.value }))} />
+            </label>
+          </div>
+        )}
+
+        {createStep === 3 && selectedBranch?.key === 'bireysel' && (
           <div className="space-y-4">
             <label className="block">
               <span className="block text-sm font-semibold text-slate-700 mb-1">Branş</span>
