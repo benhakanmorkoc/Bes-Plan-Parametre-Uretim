@@ -1032,6 +1032,7 @@ const PLAN_DOVIZ_SECENEKLERI = [
   { kod: 'USD', label: 'USD' },
   { kod: 'EUR', label: 'EUR' },
 ]
+const BASVURU_TIPI_SECENEKLERI = basvuruTipleri.map((b) => ({ kod: b.kod, label: b.aciklama }))
 
 function kurTipiEtiket(row) {
   const m = { EA: 'Efektif Alış', ES: 'Efektif Satış', DA: 'Döviz Alış', DS: 'Döviz Satış' }
@@ -4071,7 +4072,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       hazineTescilTarihi: '',
       egmPlanKodu: '',
       egmYururlukTarihi: '',
-      basvuruKod: '',
+      basvuruKodlari: [],
       durum: plan?.durum || 'Taslak',
       durumKod: planDurumToKod(plan?.durum),
       dovizKodlari: [],
@@ -4167,15 +4168,13 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                 <input type="date" className="form-input" value={form.egmYururlukTarihi} onChange={(e) => setValue('egmYururlukTarihi', e.target.value)} />
               </label>
 
-              <label className="block">
-                <span className="block text-xs font-medium text-slate-600 mb-1">Başvuru Tipi <span className="text-red-500">*</span></span>
-                <select className="form-select" value={form.basvuruKod} onChange={(e) => setValue('basvuruKod', e.target.value)}>
-                  <option value="">Seçiniz</option>
-                  {basvuruTipleri.map((b) => (
-                    <option key={b.kod} value={b.kod}>{b.aciklama}</option>
-                  ))}
-                </select>
-              </label>
+              <OksMultiSelectDropdown
+                label="Başvuru Tipi"
+                required
+                options={BASVURU_TIPI_SECENEKLERI}
+                selectedKodlar={form.basvuruKodlari}
+                onChange={(kodlar) => setForm((prev) => ({ ...prev, basvuruKodlari: kodlar }))}
+              />
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Durum <span className="text-red-500">*</span></span>
                 <select className="form-select" value={form.durumKod} onChange={(e) => setValue('durumKod', e.target.value)}>
@@ -4339,15 +4338,13 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               <input className="form-input" placeholder="dd......yyyy" value={form.hazineTescilTarihi} onChange={(e) => setValue('hazineTescilTarihi', e.target.value)} />
             </label>
 
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Başvuru Tipi *</span>
-              <select className="form-select" value={form.basvuruKod} onChange={(e) => setValue('basvuruKod', e.target.value)}>
-                <option value="">Seçiniz</option>
-                {basvuruTipleri.map((b) => (
-                  <option key={b.kod} value={b.kod}>{b.aciklama}</option>
-                ))}
-              </select>
-            </label>
+            <OksMultiSelectDropdown
+              label="Başvuru Tipi"
+              required
+              options={BASVURU_TIPI_SECENEKLERI}
+              selectedKodlar={form.basvuruKodlari}
+              onChange={(kodlar) => setForm((prev) => ({ ...prev, basvuruKodlari: kodlar }))}
+            />
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Durum *</span>
               <select className="form-select" value={form.durumKod} onChange={(e) => setValue('durumKod', e.target.value)}>
