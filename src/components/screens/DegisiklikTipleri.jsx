@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ArrowLeft, Link2, List, MoreVertical, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Link2, List, MoreVertical, Pencil, Plus, Search, Trash2, ChevronDown, HelpCircle } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import { degisiklikTipleri as seedRows } from '../../data/mockData'
@@ -28,12 +28,114 @@ const AVAILABLE_GONDERI = [
   { id: '4', sistem: 'Teklif', kategori: 'Aktarım Bilgi Formu', ad: 'Teklif Aktarım Bilgilendirme', sebep: 'Mevzuat' },
 ]
 
+const BRANS_OPTIONS = [
+  { kod: 'BES', label: 'BES' },
+  { kod: 'Hayat', label: 'Hayat' },
+  { kod: 'Elementer', label: 'Elementer' },
+  { kod: 'Sağlık', label: 'Sağlık' },
+]
+
+function bransLabel(kod) {
+  return BRANS_OPTIONS.find((o) => o.kod === kod)?.label || kod
+}
+
+function bransDisplay(kodlar) {
+  return (kodlar || []).map(bransLabel).join(', ')
+}
+
+function normalizeDegisiklikRow(row) {
+  const bransKodlari = row.bransKodlari?.length
+    ? [...row.bransKodlari]
+    : row.brans
+      ? String(row.brans).split(',').map((s) => s.trim()).filter(Boolean)
+      : []
+  return {
+    ...row,
+    bransKodlari,
+    brans: bransDisplay(bransKodlari) || row.brans || '',
+  }
+}
+
 function emptyForm() {
-  return { id: null, brans: 'BES', zeyilKodu: '', zeyilAdi: '', yilLimit: '', primDegistirir: 'Hayir', uwVarMi: 'Hayir' }
+  return {
+    id: null,
+    brans: '',
+    bransKodlari: [],
+    zeyilKodu: '',
+    zeyilAdi: '',
+    yilLimit: '',
+    primDegistirir: 'Hayir',
+    uwVarMi: 'Hayir',
+  }
+}
+
+function BransMultiSelect({ label, required, selectedKodlar, onChange }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const summary = selectedKodlar.length === 0
+    ? 'Seçiniz'
+    : bransDisplay(selectedKodlar)
+
+  const toggle = (kod) => {
+    const next = selectedKodlar.includes(kod)
+      ? selectedKodlar.filter((k) => k !== kod)
+      : [...selectedKodlar, kod]
+    onChange([...new Set(next)])
+  }
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <span className="block text-sm font-semibold text-slate-700 mb-2 inline-flex items-center gap-1">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+        <HelpCircle className="w-3.5 h-3.5 text-blue-500" aria-hidden />
+      </span>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full min-h-11 px-3 py-2 border border-slate-300 rounded-md text-sm text-left bg-white flex items-center justify-between gap-2 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span className={`truncate ${selectedKodlar.length === 0 ? 'text-slate-400' : 'text-slate-800'}`}>{summary}</span>
+        <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          className="absolute z-40 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-[0_8px_24px_rgba(15,23,42,0.12)] max-h-56 overflow-y-auto py-1"
+          role="listbox"
+        >
+          {BRANS_OPTIONS.map((opt) => (
+            <label
+              key={opt.kod}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                className="rounded border-slate-300 w-4 h-4 text-violet-600 focus:ring-violet-500"
+                checked={selectedKodlar.includes(opt.kod)}
+                onChange={() => toggle(opt.kod)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function DegisiklikTipleri() {
-  const [rows, setRows] = useState(() => seedRows.map((x) => ({ ...x })))
+  const [rows, setRows] = useState(() => seedRows.map((x) => normalizeDegisiklikRow(x)))
   const [view, setView] = useState('list')
   const [editingId, setEditingId] = useState(null)
   const [menuId, setMenuId] = useState(null)
@@ -141,17 +243,22 @@ export default function DegisiklikTipleri() {
 
   const openEdit = (row) => {
     setEditingId(row.id)
-    setForm({ ...row })
+    const normalized = normalizeDegisiklikRow(row)
+    setForm({
+      ...normalized,
+      bransKodlari: [...(normalized.bransKodlari || [])],
+    })
     setView('create')
     setMenuId(null)
   }
 
   const saveForm = () => {
-    if (!form.brans) return alert('Branş Kodu zorunludur.')
+    if (!form.bransKodlari?.length) return alert('Branş Kodu zorunludur.')
     if (!String(form.zeyilKodu).trim()) return alert('Zeyil Kodu zorunludur.')
     if (!String(form.zeyilAdi).trim()) return alert('Zeyil Adı zorunludur.')
     if (!String(form.yilLimit).trim()) return alert('Yılda Kaç Kez Yapılabilir zorunludur.')
-    const payload = { ...form, id: form.id || Date.now() }
+    const bransKodlari = [...form.bransKodlari]
+    const payload = normalizeDegisiklikRow({ ...form, bransKodlari, id: form.id || Date.now() })
     const existsByCode = rows.some((r) => r.zeyilKodu === payload.zeyilKodu && r.id !== payload.id)
     if (existsByCode) return alert('Bu zeyil kodu mevcut.')
     if (editingId) setRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)))
@@ -181,12 +288,16 @@ export default function DegisiklikTipleri() {
         </div>
         <div className="p-6 flex-1">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <label>
-              <span className="block text-sm font-semibold text-slate-700 mb-2">Branş Kodu *</span>
-              <select className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.brans} onChange={(e) => setForm((f) => ({ ...f, brans: e.target.value }))}>
-                <option>BES</option>
-              </select>
-            </label>
+            <BransMultiSelect
+              label="Branş Kodu"
+              required
+              selectedKodlar={form.bransKodlari || []}
+              onChange={(bransKodlari) => setForm((f) => ({
+                ...f,
+                bransKodlari,
+                brans: bransDisplay(bransKodlari),
+              }))}
+            />
             <label>
               <span className="block text-sm font-semibold text-slate-700 mb-2">Zeyil Kodu *</span>
               <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.zeyilKodu} onChange={(e) => setForm((f) => ({ ...f, zeyilKodu: e.target.value }))} />
@@ -262,8 +373,14 @@ export default function DegisiklikTipleri() {
             {filteredRows.map((r) => (
               <tr key={r.id}>
                 <td><input type="checkbox" checked={selectedIds.includes(r.id)} onChange={() => toggleRow(r.id)} /></td>
-                <td className="font-semibold">{r.brans}</td>
-                <td><span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{r.brans}</span></td>
+                <td className="font-semibold">{r.brans || bransDisplay(r.bransKodlari)}</td>
+                <td>
+                  <div className="flex flex-wrap gap-1">
+                    {(r.bransKodlari?.length ? r.bransKodlari : [r.brans]).filter(Boolean).map((b) => (
+                      <span key={b} className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{bransLabel(b)}</span>
+                    ))}
+                  </div>
+                </td>
                 <td className="font-semibold">{r.zeyilKodu}</td>
                 <td>{r.zeyilAdi}</td>
                 <td>{r.yilLimit}</td>

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import {
   Plus, Search, Link as LinkIcon, ChevronDown, ChevronUp, MoreVertical, Edit2, Trash2, List, ArrowLeft, X, AlertCircle, CheckCircle2,
 } from 'lucide-react'
@@ -8,6 +8,9 @@ import Modal from '../ui/Modal'
 
 const ODEME_PERIYOTLARI = ['Aylık', 'Üç Aylık', 'Altı Aylık', 'Yıllık']
 const KP_HESAPLAMA_TURU_SECENEKLERI = ['Tefe', 'Tüfe', 'Sabit Oran', 'Artışsız']
+const DOVIZ_KP_SECENEKLERI = ['TL', 'USD', 'EUR']
+const GECERLILIK_SECENEKLERI = ['Aktif', 'Pasif']
+const YUVARLAMA_AKTIF = (v) => v === 'Tavana' || v === 'Tabana'
 const GUNLER = Array.from({ length: 31 }, (_, i) => String(i + 1))
 const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
@@ -19,6 +22,18 @@ function toOdemeArray(val) {
 function displayOdeme(val) {
   const a = toOdemeArray(val)
   return a.length ? a.join(', ') : '—'
+}
+
+function displayDonemGunAy(gun, ay) {
+  if (!gun && !ay) return '—'
+  if (gun && ay) return `${gun} / ${ay}`
+  return gun || ay || '—'
+}
+
+function displayYuvarlama(yuvarlama, deger) {
+  if (!yuvarlama || yuvarlama === 'Yok') return 'Yok'
+  if (deger) return `${yuvarlama} (${deger})`
+  return yuvarlama
 }
 
 function latestByTemplateCode(rows) {
@@ -61,6 +76,7 @@ function FieldHint({ label, hint, required, children }) {
 const emptyForm = () => ({
   dovizKp: 'TL',
   odemePeriyodu: [],
+  tumOdemePeriyotlari: 'Hayır',
   kpTemplateKodu: '',
   adi: '',
   versiyon: '1',
@@ -80,9 +96,11 @@ const emptyForm = () => ({
 
 function itemToForm(item) {
   const arr = toOdemeArray(item.odemePeriyodu)
+  const tumOdeme = ODEME_PERIYOTLARI.every((p) => arr.includes(p)) && arr.length === ODEME_PERIYOTLARI.length
   return {
     dovizKp: item.dovizKp || 'TL',
     odemePeriyodu: arr,
+    tumOdemePeriyotlari: tumOdeme ? 'Evet' : 'Hayır',
     kpTemplateKodu: item.kpTemplateKodu || '',
     adi: item.adi || '',
     versiyon: String(item.versiyon || '1'),
@@ -115,6 +133,17 @@ export default function KatkiPayiTemplateleri() {
   const [currentEditId, setCurrentEditId] = useState(null)
   const [kptForm, setKptForm] = useState(emptyForm)
   const [odemeDropdownOpen, setOdemeDropdownOpen] = useState(false)
+  const odemeDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (odemeDropdownRef.current && !odemeDropdownRef.current.contains(e.target)) {
+        setOdemeDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
   const [selectedIds, setSelectedIds] = useState([])
   const [menuRowId, setMenuRowId] = useState(null)
   const [searchText, setSearchText] = useState('')
@@ -200,6 +229,10 @@ export default function KatkiPayiTemplateleri() {
     }
     if (!kptForm.odemePeriyodu || kptForm.odemePeriyodu.length === 0) {
       setUiError('Ödeme Periyodu alanından en az bir seçim yapmalısınız.')
+      return
+    }
+    if (YUVARLAMA_AKTIF(kptForm.yuvarlama) && !String(kptForm.yuvarlamaDegeri || '').trim()) {
+      setUiError('Yuvarlama Tavana veya Tabana seçildiğinde Yuvarlama Değeri zorunludur.')
       return
     }
     const codeExists = kptData.some(
@@ -394,111 +427,140 @@ export default function KatkiPayiTemplateleri() {
             </OutlineButton>
             <h2 className="text-lg font-bold text-slate-800">{currentEditId ? 'KP Template Güncelle' : 'Yeni KP Template Ekle'}</h2>
           </div>
-          <div className="flex gap-2">
-            <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>İptal</OutlineButton>
-            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
-          </div>
         </div>
-        <div className="flex-1 overflow-auto p-6 space-y-4">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Ana Tanımlar</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <FieldHint required label="KP Template Kodu">
-                <input type="text" className="form-input" value={kptForm.kpTemplateKodu} onChange={(e) => setKptForm({ ...kptForm, kpTemplateKodu: e.target.value })} />
-              </FieldHint>
-              <FieldHint required label="KP Template Adı">
-                <input type="text" className="form-input" value={kptForm.adi} onChange={(e) => setKptForm({ ...kptForm, adi: e.target.value })} />
-              </FieldHint>
-              <FieldHint label="Döviz Türü KP">
-                <select className="form-input" value={kptForm.dovizKp} onChange={(e) => setKptForm({ ...kptForm, dovizKp: e.target.value })}>
-                  <option value="TL">TL</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </FieldHint>
-              <FieldHint required label="Ödeme Periyodu">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setOdemeDropdownOpen((v) => !v)}
-                    className="form-input min-h-[42px] h-auto flex items-center justify-between gap-2"
-                  >
-                    <div className="flex flex-wrap gap-2 text-left">
-                      {kptForm.odemePeriyodu?.length > 0 ? (
-                        kptForm.odemePeriyodu.map((item) => (
-                          <span key={item} className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 text-xs font-medium">{item}</span>
-                        ))
-                      ) : (
-                        <span className="text-slate-400">Seçiniz</span>
-                      )}
-                    </div>
-                    <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 ${odemeDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {odemeDropdownOpen && (
-                    <div className="absolute z-30 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 max-h-52 overflow-auto">
-                      {ODEME_PERIYOTLARI.map((period) => (
-                        <label key={period} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-sm">
-                          <input
-                            type="checkbox"
-                            checked={kptForm.odemePeriyodu.includes(period)}
-                            onChange={() => {
-                              const on = kptForm.odemePeriyodu.includes(period)
-                              const next = on ? kptForm.odemePeriyodu.filter((p) => p !== period) : [...kptForm.odemePeriyodu, period]
-                              setKptForm({ ...kptForm, odemePeriyodu: next })
-                            }}
-                          />
-                          <span>{period}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </FieldHint>
-              <FieldHint label="Versiyon">
-                <input className="form-input bg-slate-100" disabled value={kptForm.versiyon || '1'} />
-              </FieldHint>
-            </div>
-          </div>
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-6xl">
+            <FieldHint required label="KP Template Kodu">
+              <input type="text" className="form-input" value={kptForm.kpTemplateKodu} onChange={(e) => setKptForm({ ...kptForm, kpTemplateKodu: e.target.value })} />
+            </FieldHint>
+            <FieldHint required label="KP Template Adı">
+              <input type="text" className="form-input" value={kptForm.adi} onChange={(e) => setKptForm({ ...kptForm, adi: e.target.value })} />
+            </FieldHint>
+            <FieldHint label="Versiyon">
+              <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" disabled readOnly value={kptForm.versiyon || '1'} />
+            </FieldHint>
 
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Katkı Payı Bilgileri</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <FieldHint label="KP Hesaplama Türü">
-                <select
-                  className="form-input"
-                  value={kptForm.kpHesaplamaTuru}
-                  onChange={(e) => setKptForm({ ...kptForm, kpHesaplamaTuru: e.target.value, kpDonemGun: '', kpDonemAy: '' })}
+            <FieldHint required label="Döviz Türü KP">
+              <select className="form-input" value={kptForm.dovizKp} onChange={(e) => setKptForm({ ...kptForm, dovizKp: e.target.value })}>
+                {DOVIZ_KP_SECENEKLERI.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </FieldHint>
+            <FieldHint label="KP Hesaplama Türü">
+              <select
+                className="form-input"
+                value={kptForm.kpHesaplamaTuru}
+                onChange={(e) => setKptForm({ ...kptForm, kpHesaplamaTuru: e.target.value, kpDonemGun: '', kpDonemAy: '' })}
+              >
+                <option value="">Seçiniz...</option>
+                {KP_HESAPLAMA_TURU_SECENEKLERI.map((kp) => (
+                  <option key={kp} value={kp}>{kp}</option>
+                ))}
+              </select>
+            </FieldHint>
+            <FieldHint required label="Tüm Ödeme Periyotları">
+              <select
+                className="form-input"
+                value={kptForm.tumOdemePeriyotlari}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setKptForm({
+                    ...kptForm,
+                    tumOdemePeriyotlari: val,
+                    odemePeriyodu: val === 'Evet' ? [...ODEME_PERIYOTLARI] : kptForm.odemePeriyodu,
+                  })
+                }}
+              >
+                <option value="Evet">Evet</option>
+                <option value="Hayır">Hayır</option>
+              </select>
+            </FieldHint>
+
+            <FieldHint required label="Ödeme Periyodu">
+              <div className="relative" ref={odemeDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setOdemeDropdownOpen((v) => !v)}
+                  className="form-input min-h-[42px] h-auto w-full flex items-center justify-between gap-2"
                 >
-                  <option value="">Seçiniz...</option>
-                  {KP_HESAPLAMA_TURU_SECENEKLERI.map((kp) => (
-                    <option key={kp} value={kp}>{kp}</option>
-                  ))}
-                </select>
-              </FieldHint>
-              <div className="grid grid-cols-2 gap-2">
-                <FieldHint label="Gün">
-                  <select
-                    className={`form-input ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
-                    disabled={!kptForm.kpHesaplamaTuru}
-                    value={kptForm.kpDonemGun}
-                    onChange={(e) => setKptForm({ ...kptForm, kpDonemGun: e.target.value })}
-                  >
-                    <option value="">Gün</option>
-                    {GUNLER.map((g) => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </FieldHint>
-                <FieldHint label="Ay">
-                  <select
-                    className={`form-input ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
-                    disabled={!kptForm.kpHesaplamaTuru}
-                    value={kptForm.kpDonemAy}
-                    onChange={(e) => setKptForm({ ...kptForm, kpDonemAy: e.target.value })}
-                  >
-                    <option value="">Ay</option>
-                    {AYLAR.map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </FieldHint>
+                  <div className="flex flex-wrap gap-1.5 text-left flex-1">
+                    {kptForm.odemePeriyodu?.length > 0 ? (
+                      kptForm.odemePeriyodu.map((item) => (
+                        <span key={item} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
+                          {item}
+                          {kptForm.tumOdemePeriyotlari !== 'Evet' && (
+                            <button
+                              type="button"
+                              className="text-slate-400 hover:text-slate-600"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const next = kptForm.odemePeriyodu.filter((p) => p !== item)
+                                setKptForm({
+                                  ...kptForm,
+                                  odemePeriyodu: next,
+                                  tumOdemePeriyotlari: next.length === ODEME_PERIYOTLARI.length ? 'Evet' : 'Hayır',
+                                })
+                              }}
+                              aria-label={`${item} kaldır`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-400">Seçiniz</span>
+                    )}
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 ${odemeDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {odemeDropdownOpen && (
+                  <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 max-h-52 overflow-auto">
+                    {ODEME_PERIYOTLARI.map((period) => (
+                      <label key={period} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={kptForm.odemePeriyodu.includes(period)}
+                          onChange={() => {
+                            const on = kptForm.odemePeriyodu.includes(period)
+                            const next = on ? kptForm.odemePeriyodu.filter((p) => p !== period) : [...kptForm.odemePeriyodu, period]
+                            setKptForm({
+                              ...kptForm,
+                              odemePeriyodu: next,
+                              tumOdemePeriyotlari: next.length === ODEME_PERIYOTLARI.length ? 'Evet' : 'Hayır',
+                            })
+                          }}
+                        />
+                        <span>{period}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
+            </FieldHint>
+            <FieldHint label="Dönem Gün/Ay">
+              <div className="flex items-center gap-2">
+                <select
+                  className={`form-input flex-1 ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                  disabled={!kptForm.kpHesaplamaTuru}
+                  value={kptForm.kpDonemGun}
+                  onChange={(e) => setKptForm({ ...kptForm, kpDonemGun: e.target.value })}
+                >
+                  <option value="">Gün</option>
+                  {GUNLER.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <span className="text-slate-400 shrink-0">/</span>
+                <select
+                  className={`form-input flex-1 ${!kptForm.kpHesaplamaTuru ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                  disabled={!kptForm.kpHesaplamaTuru}
+                  value={kptForm.kpDonemAy}
+                  onChange={(e) => setKptForm({ ...kptForm, kpDonemAy: e.target.value })}
+                >
+                  <option value="">Ay</option>
+                  {AYLAR.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </FieldHint>
+            <div>
               <FieldHint label="Yuvarlama">
                 <select
                   className="form-input"
@@ -506,7 +568,7 @@ export default function KatkiPayiTemplateleri() {
                   onChange={(e) => setKptForm({
                     ...kptForm,
                     yuvarlama: e.target.value,
-                    yuvarlamaDegeri: e.target.value === 'Tabana' || e.target.value === 'Tavana' ? kptForm.yuvarlamaDegeri : '',
+                    yuvarlamaDegeri: YUVARLAMA_AKTIF(e.target.value) ? kptForm.yuvarlamaDegeri : '',
                   })}
                 >
                   <option value="Yok">Yok</option>
@@ -514,50 +576,57 @@ export default function KatkiPayiTemplateleri() {
                   <option value="Tabana">Tabana</option>
                 </select>
               </FieldHint>
-              <FieldHint label="Yuvarlama değeri">
-                <input
-                  type="text"
-                  className={`form-input ${(kptForm.yuvarlama === 'Tabana' || kptForm.yuvarlama === 'Tavana') ? '' : 'bg-slate-100 cursor-not-allowed'}`}
-                  disabled={!(kptForm.yuvarlama === 'Tabana' || kptForm.yuvarlama === 'Tavana')}
-                  value={kptForm.yuvarlamaDegeri}
-                  onChange={(e) => setKptForm({ ...kptForm, yuvarlamaDegeri: e.target.value.replace(/[^0-9.,]/g, '') })}
-                />
-              </FieldHint>
+              {YUVARLAMA_AKTIF(kptForm.yuvarlama) && (
+                <FieldHint label="Yuvarlama Değeri" required>
+                  <input
+                    type="text"
+                    className="form-input mt-3"
+                    value={kptForm.yuvarlamaDegeri}
+                    onChange={(e) => setKptForm({ ...kptForm, yuvarlamaDegeri: e.target.value.replace(/[^0-9.,]/g, '') })}
+                  />
+                </FieldHint>
+              )}
             </div>
-          </div>
 
-          <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Değerler</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <FieldHint required label="Katkı Payı Tutarı">
-                <input type="text" className="form-input" value={kptForm.katkiPayiTutari} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutari: e.target.value.replace(/[^0-9.,]/g, '') })} />
-              </FieldHint>
-              <FieldHint label="Azami KP Tutarı">
-                <input type="text" className="form-input" value={kptForm.azamiKp} onChange={(e) => setKptForm({ ...kptForm, azamiKp: e.target.value.replace(/[^0-9.,]/g, '') })} />
-              </FieldHint>
-              <FieldHint label="Katkı Payı Tutarı (İGES)">
-                <input type="text" className="form-input" value={kptForm.katkiPayiTutariIges} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutariIges: e.target.value.replace(/[^0-9.,]/g, '') })} />
-              </FieldHint>
-              <FieldHint label="Giriş Fon Büyüklüğü">
-                <input type="text" className="form-input" value={kptForm.girisFonBuyuklugu} onChange={(e) => setKptForm({ ...kptForm, girisFonBuyuklugu: e.target.value.replace(/[^0-9.,]/g, '') })} />
-              </FieldHint>
-              <FieldHint label="Başlangıç Kapitali">
-                <input type="text" className="form-input" value={kptForm.baslangicKapitali} onChange={(e) => setKptForm({ ...kptForm, baslangicKapitali: e.target.value.replace(/[^0-9.,]/g, '') })} />
-              </FieldHint>
-              <FieldHint label="Döviz Türü - BK">
-                <select
-                  className={`form-input ${!dovizDigerEnabled ? 'bg-slate-100 cursor-not-allowed' : ''}`}
-                  value={kptForm.dovizDiger}
-                  disabled={!dovizDigerEnabled}
-                  onChange={(e) => setKptForm({ ...kptForm, dovizDiger: e.target.value })}
-                >
-                  <option value="TL">TL</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </FieldHint>
-            </div>
+            <FieldHint required label="Katkı Payı Tutarı">
+              <input type="text" className="form-input" value={kptForm.katkiPayiTutari} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutari: e.target.value.replace(/[^0-9.,]/g, '') })} />
+            </FieldHint>
+            <FieldHint label="Katkı Payı Tutarı (İGES)">
+              <input type="text" className="form-input" value={kptForm.katkiPayiTutariIges} onChange={(e) => setKptForm({ ...kptForm, katkiPayiTutariIges: e.target.value.replace(/[^0-9.,]/g, '') })} />
+            </FieldHint>
+            <FieldHint label="Azami KP Tutarı">
+              <input type="text" className="form-input" value={kptForm.azamiKp} onChange={(e) => setKptForm({ ...kptForm, azamiKp: e.target.value.replace(/[^0-9.,]/g, '') })} />
+            </FieldHint>
+
+            <FieldHint label="Başlangıç Kapitali">
+              <input type="text" className="form-input" value={kptForm.baslangicKapitali} onChange={(e) => setKptForm({ ...kptForm, baslangicKapitali: e.target.value.replace(/[^0-9.,]/g, '') })} />
+            </FieldHint>
+            <FieldHint label="Giriş Fon Büyüklüğü">
+              <input type="text" className="form-input" value={kptForm.girisFonBuyuklugu} onChange={(e) => setKptForm({ ...kptForm, girisFonBuyuklugu: e.target.value.replace(/[^0-9.,]/g, '') })} />
+            </FieldHint>
+            <FieldHint label="Döviz Türü">
+              <select
+                className={`form-input ${!dovizDigerEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                value={kptForm.dovizDiger}
+                disabled={!dovizDigerEnabled}
+                onChange={(e) => setKptForm({ ...kptForm, dovizDiger: e.target.value })}
+              >
+                {DOVIZ_KP_SECENEKLERI.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </FieldHint>
+
           </div>
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2">
+          <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>İptal</OutlineButton>
+          <OutlineButton
+            className="border-red-200 text-red-600 hover:bg-red-50"
+            onClick={() => { setKptForm(emptyForm()); setUiError(''); setOdemeDropdownOpen(false) }}
+          >
+            <Trash2 className="w-4 h-4" /> Temizle
+          </OutlineButton>
+          <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
         </div>
       </div>
     )
@@ -660,11 +729,15 @@ export default function KatkiPayiTemplateleri() {
               <SortHeader label="Adı" col="adi" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Versiyon" col="versiyon" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Katkı Payı Tutarı" col="katkiPayiTutari" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Katkı Payı Tutarı (İGES)" col="katkiPayiTutariIges" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Geçerlilik" col="gecerlilik" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Başlangıç Kapitali" col="baslangicKapitali" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Giriş Fon Büyüklüğü" col="girisFonBuyuklugu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Döviz Türü(KP)" col="dovizKp" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="KP Hesaplama Türü" col="kpHesaplamaTuru" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Dönem Gün/Ay" col="kpDonemGun" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Ödeme Periyodu" col="odemePeriyodu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader label="Yuvarlama" col="yuvarlama" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Azami KP" col="azamiKp" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Döviz Türü(Diğer)" col="dovizDiger" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Oluşturan" col="olusturan" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
@@ -684,11 +757,15 @@ export default function KatkiPayiTemplateleri() {
                 <td>{row.adi}</td>
                 <td>{row.versiyon}</td>
                 <td>{row.katkiPayiTutari}</td>
+                <td>{row.katkiPayiTutariIges || '—'}</td>
                 <td>{row.gecerlilik}</td>
                 <td>{row.baslangicKapitali}</td>
                 <td>{row.girisFonBuyuklugu}</td>
                 <td>{row.dovizKp}</td>
+                <td>{row.kpHesaplamaTuru || '—'}</td>
+                <td>{displayDonemGunAy(row.kpDonemGun, row.kpDonemAy)}</td>
                 <td className="max-w-[200px]">{displayOdeme(row.odemePeriyodu)}</td>
+                <td>{displayYuvarlama(row.yuvarlama, row.yuvarlamaDegeri)}</td>
                 <td>{row.azamiKp}</td>
                 <td>{row.dovizDiger || '—'}</td>
                 <td>{row.olusturan}</td>
@@ -728,7 +805,7 @@ export default function KatkiPayiTemplateleri() {
               </tr>
             ))}
             {filteredLatest.length === 0 && (
-              <tr><td colSpan={17} className="text-center py-12 text-slate-400">Kayıt bulunamadı.</td></tr>
+              <tr><td colSpan={21} className="text-center py-12 text-slate-400">Kayıt bulunamadı.</td></tr>
             )}
           </tbody>
         </table>

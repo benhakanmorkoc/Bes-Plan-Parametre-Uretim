@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2, HelpCircle, Download } from 'lucide-react'
+import { Plus, Search, ArrowLeft, LayoutGrid, List as ListIcon, MoreHorizontal, Eye, Pencil, Copy, List, Trash2, Settings, Filter, Heart, Activity, PiggyBank, Briefcase, FilePlus, BookOpen, Sparkles, Upload, ArrowRight, ChevronRight, ChevronDown, CheckCircle2, SlidersHorizontal, FileText, Calendar, RefreshCw, Save, Link2, HelpCircle, Download, History, Ban, CircleOff } from 'lucide-react'
 import {
   urunPlanTarifeKartlari,
   urunPlanlari,
@@ -25,14 +25,47 @@ import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/T
 import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
 
-const PLAN_ACTIONS = [
-  { key: 'view', label: 'İncele', icon: 'view' },
-  { key: 'edit', label: 'Güncelle', icon: 'edit' },
-  { key: 'copy', label: 'Planı Kopyala', icon: 'copy' },
-  { key: 'version', label: 'Yeni Versiyon', icon: 'version' },
-  { key: 'history', label: 'Versiyonlar', icon: 'history' },
-  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
-]
+function planRowActions(plan) {
+  const isTaslak = plan?.durum === 'Taslak'
+  const isYururlukte = plan?.durum === 'Yururlukte'
+  const actions = [
+    { key: 'view', label: 'İncele', icon: 'view' },
+    { key: 'edit', label: 'Düzenle', icon: 'edit' },
+    { key: 'history', label: 'Versiyonlar', icon: 'history' },
+    { key: 'copy', label: 'Kopyala', icon: 'copy' },
+    { key: 'export', label: 'Dışarı Aktar', icon: 'download' },
+  ]
+  if (isTaslak) {
+    actions.push({ key: 'yururlugeAl', label: 'Yürürlüğe Al', icon: 'version' })
+  }
+  if (isYururlukte) {
+    actions.push({ key: 'satisaKapa', label: 'Satışa Kapa', icon: 'link' })
+    actions.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', icon: 'copy' })
+  }
+  actions.push({ key: 'delete', label: 'Sil', icon: 'delete', danger: true })
+  return actions
+}
+
+function planCardMenuItems(plan) {
+  const isTaslak = plan?.durum === 'Taslak'
+  const isYururlukte = plan?.durum === 'Yururlukte'
+  const items = [
+    { key: 'view', label: 'İncele', Icon: Eye },
+    { key: 'edit', label: 'Düzenle', Icon: Pencil },
+    { key: 'history', label: 'Versiyonlar', Icon: History, accent: true },
+    { key: 'copy', label: 'Kopyala', Icon: Copy },
+    { key: 'export', label: 'Dışarı Aktar', Icon: Download },
+  ]
+  if (isTaslak) {
+    items.push({ key: 'yururlugeAl', label: 'Yürürlüğe Al', Icon: CheckCircle2, accent: true })
+  }
+  if (isYururlukte) {
+    items.push({ key: 'satisaKapa', label: 'Satışa Kapa', Icon: Ban })
+    items.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', Icon: CircleOff })
+  }
+  items.push({ key: 'delete', label: 'Sil', Icon: Trash2, danger: true })
+  return items
+}
 
 const URUN_ACTIONS = [
   { key: 'view', label: 'Planlarını Görüntüle', icon: 'view' },
@@ -707,6 +740,20 @@ function branchLabelFromUrun(urun) {
   return parts[parts.length - 1] || 'Bireysel Emeklilik'
 }
 
+function formatPlanDurum(durum) {
+  if (durum === 'Yururlukte') return 'Yürürlükte'
+  if (durum === 'Taslak') return 'Taslak'
+  return durum || '—'
+}
+
+function planKategoriKodu(urun) {
+  const tip = (urun?.sozlesmeTipi || '').toUpperCase()
+  if (tip === 'EGP' || tip === 'OKS-EGP') return 'EGP.AP'
+  if (tip === 'OKS') return 'OKS.AP'
+  if (tip === 'GRUP') return 'BES.GP'
+  return 'BES.AP'
+}
+
 function toHeaderIsoDate(raw) {
   if (!raw) return new Date().toISOString().slice(0, 10)
   const s = String(raw)
@@ -980,6 +1027,11 @@ function planDurumToKod(durum) {
 
 const OKS_PLAN_DURUM_ETIKET = { D: 'Taslak', A: 'Yürürlükte', K: 'Satışa Kapalı', Y: 'Yürürlükten Kaldırıldı' }
 const OKS_PLAN_DURUM_SECENEKLERI = tarifePlanDurum.map((r) => ({ kod: r.kod, label: OKS_PLAN_DURUM_ETIKET[r.kod] || r.aciklama }))
+const PLAN_DOVIZ_SECENEKLERI = [
+  { kod: 'TL', label: 'TL' },
+  { kod: 'USD', label: 'USD' },
+  { kod: 'EUR', label: 'EUR' },
+]
 
 function kurTipiEtiket(row) {
   const m = { EA: 'Efektif Alış', ES: 'Efektif Satış', DA: 'Döviz Alış', DS: 'Döviz Satış' }
@@ -1097,7 +1149,7 @@ function normalizePlan(payload, source = {}) {
   }
 }
 
-function ProductCard({ urun, onOpen, onAction, menuOpenId, setMenuOpenId }) {
+function ProductCard({ urun, onOpen, onOpenPlans, onAction, menuOpenId, setMenuOpenId }) {
   return (
     <div className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all">
       <div className="flex items-start justify-between gap-3">
@@ -1138,15 +1190,113 @@ function ProductCard({ urun, onOpen, onAction, menuOpenId, setMenuOpenId }) {
       </div>
       <div className="border-t border-slate-100 px-5 py-3 flex items-center justify-between bg-white">
         <span className="text-xs text-slate-400">{urun.tarih}</span>
-        <button type="button" className="px-3 py-1 rounded-full border border-violet-200 text-violet-700 text-xs font-medium bg-violet-50/30">Aktif Planlar</button>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-full border border-violet-200 text-violet-700 text-xs font-medium bg-violet-50/30 hover:bg-violet-50"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpenPlans?.(urun, { activeOnly: true })
+          }}
+        >
+          Aktif Planlar
+        </button>
       </div>
     </div>
   )
 }
 
-function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewPlanFlow }) {
+function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenId }) {
+  const progressColor = Number(plan.oran) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all flex flex-col h-full">
+      <div className="p-4 pb-2 flex items-start justify-between gap-2">
+        <span className="inline-flex px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 text-[11px] font-semibold">{plan.id}</span>
+        <div className="relative">
+          <button
+            type="button"
+            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100"
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpenId((prev) => (prev === plan.id ? null : plan.id))
+            }}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+          {menuOpenId === plan.id && (
+            <div className="absolute right-0 mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1 text-sm">
+              {planCardMenuItems(plan).map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2 ${
+                    item.danger ? 'text-red-600 hover:bg-red-50' : item.accent ? 'text-violet-700' : 'text-slate-700'
+                  }`}
+                  onClick={() => {
+                    onPlanAction(item.key, plan)
+                    setMenuOpenId(null)
+                  }}
+                >
+                  <item.Icon className={`w-3.5 h-3.5 shrink-0 ${item.danger ? 'text-red-500' : item.accent ? 'text-violet-500' : 'text-slate-400'}`} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="px-4 pb-3">
+        <StatusBadge value={plan.durum}>{formatPlanDurum(plan.durum)}</StatusBadge>
+        <h3 className="text-lg font-bold text-slate-800 mt-2 leading-snug">{plan.ad}</h3>
+      </div>
+
+      <div className="px-4 pb-3">
+        <p className="text-[10px] font-bold text-slate-400 tracking-wide mb-2">ÖZET</p>
+        <div className="text-sm space-y-1 text-slate-700">
+          <p><span className="text-slate-500">Kategori Kodu:</span> {planKategoriKodu(urun)}</p>
+          <p><span className="text-slate-500">Sözleşme Tipi:</span> {urun.sozlesmeTipi || '—'}</p>
+        </div>
+      </div>
+
+      <div className="px-4 pb-4">
+        <div className="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+          <span>Tanımlanma</span>
+          <span className="font-semibold tabular-nums">%{plan.oran}</span>
+        </div>
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className={`h-full ${progressColor} transition-all`} style={{ width: `${Math.min(Number(plan.oran) || 0, 100)}%` }} />
+        </div>
+      </div>
+
+      <div className="mt-auto border-t border-slate-100 px-4 py-3 flex items-center justify-between bg-white">
+        <span className="text-xs text-slate-400">{plan.tarih}</span>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-amber-400 hover:bg-amber-500 text-slate-900 text-xs font-semibold"
+          onClick={() => onDetail(plan)}
+        >
+          Detaylar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PlanList({
+  urun,
+  planlar,
+  activeOnly = false,
+  onBack,
+  onSavePlan,
+  onPlanAction,
+  onStartNewPlanFlow,
+  onPlanDetail,
+}) {
+  const [planView, setPlanView] = useState('grid')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState(activeOnly ? 'Yururlukte' : '')
+  const [menuOpenId, setMenuOpenId] = useState(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ id: '', ad: '', durum: 'Taslak', oran: 30, tarih: '' })
@@ -1167,6 +1317,18 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewP
     setFormOpen(true)
   }
 
+  const handlePlanAction = (key, row) => {
+    if (key === 'edit') {
+      openEdit(row)
+      return
+    }
+    if (key === 'view') {
+      onPlanDetail?.(row)
+      return
+    }
+    onPlanAction(key, row)
+  }
+
   const save = () => {
     if (!form.id.trim()) return alert('Plan No zorunludur.')
     if (!form.ad.trim()) return alert('Plan Adi zorunludur.')
@@ -1179,77 +1341,106 @@ function PlanList({ urun, planlar, onBack, onSavePlan, onPlanAction, onStartNewP
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col h-full">
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <OutlineButton onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" /> Ürün Listesi
-          </OutlineButton>
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">{urun.ad}</h2>
-            <div className="text-xs text-slate-500">{urun.tipler}</div>
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+            aria-label="Ürün listesine dön"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-800 truncate">{urun.ad}</h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="inline-flex px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px] font-bold tracking-wide">PLANLAR LİSTESİ</span>
+              <span className="text-xs text-slate-500">Seçili ürünün planları</span>
+            </div>
           </div>
         </div>
-        <PrimaryButton onClick={openCreate}><Plus className="w-4 h-4" /> Yeni Plan</PrimaryButton>
-      </div>
-
-      <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[220px]">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Plan Ara</label>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input type="text" className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm" placeholder="Plan adı veya kodu..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-        </div>
-        <div className="w-48">
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Durum</label>
-          <select className="w-full h-10 px-3 border border-slate-300 rounded-md text-sm bg-white" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Tümü</option>
-            <option value="Yururlukte">Yürürlükte</option>
-            <option value="Taslak">Taslak</option>
-          </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <OutlineButton onClick={() => setPlanView('grid')} className={planView === 'grid' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><LayoutGrid className="w-4 h-4" /></OutlineButton>
+          <OutlineButton onClick={() => setPlanView('list')} className={planView === 'list' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><ListIcon className="w-4 h-4" /></OutlineButton>
+          <PrimaryButton onClick={openCreate} className="bg-violet-600 hover:bg-violet-700"><Plus className="w-4 h-4" /> Yeni Plan Ekle</PrimaryButton>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full grid-table">
-          <thead>
-            <tr>
-              <th>Plan No</th>
-              <th>Plan Adı</th>
-              <th>Durum</th>
-              <th>Tamamlanma</th>
-              <th>Tarih</th>
-              <th className="w-12 text-right">İşlemler</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="px-6 py-3 border-b border-slate-100 flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <input
+            type="text"
+            className="w-full h-10 pl-9 pr-3 border border-slate-300 rounded-md text-sm"
+            placeholder="Ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="w-44 h-10 px-3 border border-slate-300 rounded-md text-sm bg-white"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">Tüm Durumlar</option>
+          <option value="Yururlukte">Yürürlükte</option>
+          <option value="Taslak">Taslak</option>
+        </select>
+      </div>
+
+      <div className="flex-1 overflow-auto p-6">
+        {planView === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map((p) => (
-              <tr key={p.id}>
-                <td className="font-mono text-xs">{p.id}</td>
-                <td>{p.ad}</td>
-                <td><StatusBadge value={p.durum} /></td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${p.oran}%` }} /></div>
-                    <span className="text-xs text-slate-600 w-10 text-right">{p.oran}%</span>
-                  </div>
-                </td>
-                <td>{p.tarih}</td>
-                <td className="text-right">
-                  <RowActions
-                    row={p}
-                    actions={PLAN_ACTIONS}
-                    onAction={(key, row) => {
-                      if (key === 'edit') openEdit(row)
-                      else onPlanAction(key, row)
-                    }}
-                  />
-                </td>
-              </tr>
+              <PlanCard
+                key={p.id}
+                plan={p}
+                urun={urun}
+                onDetail={onPlanDetail}
+                onPlanAction={handlePlanAction}
+                menuOpenId={menuOpenId}
+                setMenuOpenId={setMenuOpenId}
+              />
             ))}
-            {filtered.length === 0 && <tr><td colSpan={6} className="text-center text-slate-500 py-6 text-sm">Sonuç bulunamadı</td></tr>}
-          </tbody>
-        </table>
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center text-slate-500 py-12 text-sm">Sonuç bulunamadı</div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-auto border border-slate-200 rounded-lg">
+            <table className="w-full grid-table text-sm">
+              <thead>
+                <tr>
+                  <th>KOD</th>
+                  <th>AD</th>
+                  <th>DURUM</th>
+                  <th>SON GÜNCELLEME</th>
+                  <th className="w-12 text-right">İŞLEM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr key={p.id}>
+                    <td className="font-semibold text-violet-700">{p.id}</td>
+                    <td>{p.ad}</td>
+                    <td><StatusBadge value={p.durum}>{formatPlanDurum(p.durum)}</StatusBadge></td>
+                    <td>{p.tarih}</td>
+                    <td className="text-right">
+                      <RowActions
+                        row={p}
+                        actions={planRowActions(p)}
+                        onAction={handlePlanAction}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={5} className="text-center text-slate-500 py-8 text-sm">Sonuç bulunamadı</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <Modal
@@ -3883,7 +4074,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
       basvuruKod: '',
       durum: plan?.durum || 'Taslak',
       durumKod: planDurumToKod(plan?.durum),
-      doviz: '',
+      dovizKodlari: [],
       kurTipKod: '',
       minGirisYasi: '',
       maxGirisYasi: '',
@@ -3993,15 +4184,13 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                   ))}
                 </select>
               </label>
-              <label className="block">
-                <span className="block text-xs font-medium text-slate-600 mb-1">Döviz <span className="text-red-500">*</span></span>
-                <select className="form-select" value={form.doviz} onChange={(e) => setValue('doviz', e.target.value)}>
-                  <option value="">Seçiniz</option>
-                  <option value="TL">TL</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </label>
+              <OksMultiSelectDropdown
+                label="Döviz"
+                required
+                options={PLAN_DOVIZ_SECENEKLERI}
+                selectedKodlar={form.dovizKodlari}
+                onChange={(kodlar) => setForm((prev) => ({ ...prev, dovizKodlari: kodlar }))}
+              />
               <label className="block">
                 <span className="block text-xs font-medium text-slate-600 mb-1">Kur Tipi</span>
                 <select className="form-select" value={form.kurTipKod} onChange={(e) => setValue('kurTipKod', e.target.value)}>
@@ -4167,15 +4356,13 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="block text-xs text-slate-600 mb-1">Döviz *</span>
-              <select className="form-select" value={form.doviz} onChange={(e) => setValue('doviz', e.target.value)}>
-                <option value="">Seçiniz</option>
-                <option value="TL">TL</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </label>
+            <OksMultiSelectDropdown
+              label="Döviz"
+              required
+              options={PLAN_DOVIZ_SECENEKLERI}
+              selectedKodlar={form.dovizKodlari}
+              onChange={(kodlar) => setForm((prev) => ({ ...prev, dovizKodlari: kodlar }))}
+            />
             <label className="block">
               <span className="block text-xs text-slate-600 mb-1">Kur Tipi *</span>
               <select className="form-select" value={form.kurTipKod} onChange={(e) => setValue('kurTipKod', e.target.value)}>
@@ -6237,6 +6424,20 @@ export default function UrunPlanTarifeTanimlari() {
   const [planBelgeleriByPlanKey, setPlanBelgeleriByPlanKey] = useState({})
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
   const [menuOpenId, setMenuOpenId] = useState(null)
+  const [planListActiveOnly, setPlanListActiveOnly] = useState(false)
+
+  const openPlanList = (urun, { activeOnly = false } = {}) => {
+    setSelected(urun)
+    setPlanListActiveOnly(activeOnly)
+    setMenuOpenId(null)
+  }
+
+  const openPlanDetail = (plan) => {
+    if (!selected) return
+    setPlanSetupContext({ urun: selected, plan, returnToPlans: true, activeOnly: planListActiveOnly })
+    setPlanSetupView('board')
+    setSelected(null)
+  }
 
   const filtered = useMemo(() => {
     if (!search) return products
@@ -6507,14 +6708,21 @@ export default function UrunPlanTarifeTanimlari() {
     })
   }
 
+  const updatePlanRow = (rowId, patch) => {
+    if (!selected) return
+    setPlansByProduct((prev) => {
+      const existing = prev[selected.id] || []
+      const next = existing.map((p) => (p.id === rowId ? normalizePlan({ ...p, ...patch, tarih: normalizeDate() }) : p))
+      const nextMap = { ...prev, [selected.id]: next }
+      setProducts((prodPrev) => recalcCounts(selected.id, prodPrev, nextMap))
+      return nextMap
+    })
+  }
+
   const handlePlanAction = (key, row) => {
     if (!selected) return
     if (key === 'view') {
-      setInfoModal({
-        open: true,
-        title: 'Plan İncele',
-        body: <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 overflow-auto">{JSON.stringify(row, null, 2)}</pre>,
-      })
+      openPlanDetail(row)
       return
     }
     if (key === 'copy') {
@@ -6534,10 +6742,38 @@ export default function UrunPlanTarifeTanimlari() {
       showVersions(`${row.id} - Versiyonlar`, versions, (r) => ({
         'Plan No': r.id,
         'Plan Adi': r.ad,
-        Durum: r.durum,
+        Durum: formatPlanDurum(r.durum),
         'Tamamlanma %': r.oran,
         Tarih: r.tarih,
       }))
+      return
+    }
+    if (key === 'export') {
+      const blob = new Blob([JSON.stringify(row, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${row.id}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      return
+    }
+    if (key === 'yururlugeAl') {
+      if (row.durum !== 'Taslak') return
+      if (!window.confirm(`${row.ad} yürürlüğe alınsın mı?`)) return
+      updatePlanRow(row.id, { durum: 'Yururlukte', oran: 100, satisKapali: false })
+      return
+    }
+    if (key === 'satisaKapa') {
+      if (row.durum !== 'Yururlukte') return
+      if (!window.confirm(`${row.ad} satışa kapatılsın mı?`)) return
+      updatePlanRow(row.id, { satisKapali: true })
+      return
+    }
+    if (key === 'yururluktenKaldir') {
+      if (row.durum !== 'Yururlukte') return
+      if (!window.confirm(`${row.ad} yürürlükten kaldırılsın mı?`)) return
+      updatePlanRow(row.id, { durum: 'Taslak', satisKapali: false })
       return
     }
     if (key === 'delete') {
@@ -6554,7 +6790,7 @@ export default function UrunPlanTarifeTanimlari() {
 
   const handleUrunAction = (key, row) => {
     setMenuOpenId(null)
-    if (key === 'view') { setSelected(row); return }
+    if (key === 'view') { openPlanList(row); return }
     if (key === 'edit') { openEditProduct(row); return }
     if (key === 'newPlan') { startExistingProductPlanFlow(row); return }
     if (key === 'copy') {
@@ -6595,7 +6831,21 @@ export default function UrunPlanTarifeTanimlari() {
   }
 
   if (selected) {
-    return <PlanList urun={selected} planlar={getPlans(selected.id)} onBack={() => setSelected(null)} onSavePlan={handleSavePlan} onPlanAction={handlePlanAction} onStartNewPlanFlow={startExistingProductPlanFlow} />
+    return (
+      <PlanList
+        urun={selected}
+        planlar={getPlans(selected.id)}
+        activeOnly={planListActiveOnly}
+        onBack={() => {
+          setSelected(null)
+          setPlanListActiveOnly(false)
+        }}
+        onSavePlan={handleSavePlan}
+        onPlanAction={handlePlanAction}
+        onStartNewPlanFlow={startExistingProductPlanFlow}
+        onPlanDetail={openPlanDetail}
+      />
+    )
   }
 
   if (planSetupContext) {
@@ -6635,7 +6885,16 @@ export default function UrunPlanTarifeTanimlari() {
         />
       )
     }
-    return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupContext(null)} onOpenCard={(cardId) => {
+    return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => {
+      if (planSetupContext.returnToPlans) {
+        setSelected(planSetupContext.urun)
+        setPlanListActiveOnly(planSetupContext.activeOnly ?? false)
+        setPlanSetupContext(null)
+        setPlanSetupView('board')
+        return
+      }
+      setPlanSetupContext(null)
+    }} onOpenCard={(cardId) => {
       if (cardId === 'genel') setPlanSetupView('genel')
       else if (cardId === 'fonlar') setPlanSetupView('fonlar')
       else if (cardId === 'katki') setPlanSetupView('katki')
@@ -6672,14 +6931,24 @@ export default function UrunPlanTarifeTanimlari() {
       <div className="flex-1 overflow-auto p-6">
         {view === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((u) => <ProductCard key={u.id} urun={u} onOpen={setSelected} onAction={handleUrunAction} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />)}
+            {filtered.map((u) => (
+              <ProductCard
+                key={u.id}
+                urun={u}
+                onOpen={(row) => openPlanList(row)}
+                onOpenPlans={openPlanList}
+                onAction={handleUrunAction}
+                menuOpenId={menuOpenId}
+                setMenuOpenId={setMenuOpenId}
+              />
+            ))}
           </div>
         ) : (
           <table className="w-full grid-table bg-white border border-slate-200 rounded-md overflow-hidden">
             <thead><tr><th>Ürün Kodu</th><th>Ürün Adı</th><th>Sözleşme Tipi</th><th>Aktif Plan</th><th>Toplam Plan</th><th>Tarih</th><th className="w-12 text-right">İşlemler</th></tr></thead>
             <tbody>
               {filtered.map((u) => (
-                <tr key={u.id} className="cursor-pointer" onClick={() => setSelected(u)}>
+                <tr key={u.id} className="cursor-pointer" onClick={() => openPlanList(u)}>
                   <td className="font-mono text-xs">{u.id}</td>
                   <td className="font-semibold text-slate-800">{u.ad}</td>
                   <td>{u.sozlesmeTipi}</td>

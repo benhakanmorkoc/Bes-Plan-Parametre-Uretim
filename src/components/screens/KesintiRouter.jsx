@@ -1,4 +1,9 @@
 import KesintiList from './KesintiList'
+import YgkParametreleri from './YgkParametreleri'
+import YgkMuafiyet from './YgkMuafiyet'
+import AraVermeKesintisi from './AraVermeKesintisi'
+import KesintiBes30 from './KesintiBes30'
+import YgkBes30Parametreleri from './YgkBes30Parametreleri'
 import EgpGenelParametreleri from './EgpGenelParametreleri'
 import EgpGeriOdemeTipleri from './EgpGeriOdemeTipleri'
 import EgpAraOdemeParametresi from './EgpAraOdemeParametresi'
@@ -15,7 +20,7 @@ const REGISTRY = {
       { key: 'versiyon', label: 'V' },
       { key: 'tarih', label: 'Tarih' },
       { key: 'doviz', label: 'Doviz' },
-      { key: 'tablo', label: 'Hesaplama Tablosu' },
+      { key: 'borcTipi', label: 'Borc Tipi' },
       { key: 'yil', label: 'Yil Tipi' },
       { key: 'limit', label: 'Limit Tutar' },
       { key: 'kademe', label: 'Kademe' },
@@ -144,6 +149,11 @@ const REGISTRY = {
 }
 
 export default function KesintiRouter({ id }) {
+  if (id === 'ygk') return <YgkParametreleri />
+  if (id === 'ygkMuafiyet') return <YgkMuafiyet />
+  if (id === 'araverme') return <AraVermeKesintisi />
+  if (id === 'bes30') return <KesintiBes30 />
+  if (id === 'ygkBes30') return <YgkBes30Parametreleri />
   if (id === 'egpGenel') return <EgpGenelParametreleri />
   if (id === 'egpGeriOdeme') return <EgpGeriOdemeTipleri />
   if (id === 'egpAraOdeme') return <EgpAraOdemeParametresi />

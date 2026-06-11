@@ -81,29 +81,108 @@ export const katkiPayiHesaplamaDetaylari = {
 
 // --- KESINTI ---
 export const girisAidati = [
-  { id: 1, gaKodu: 'GA-01', versiyon: '1', tarih: '01.01.2024', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Ardisik', taksitAdedi: '12', pesinat: '1000', taksit: '150', erteleme: '0', toplam: '2800' },
-  { id: 2, gaKodu: 'GA-02', versiyon: '2', tarih: '15.02.2024', doviz: 'USD', tip: 'Cikisa Ertelenmis', taksitTipi: '-', taksitAdedi: '-', pesinat: '0', taksit: '0', erteleme: '50', toplam: '50' },
-  { id: 3, gaKodu: 'GA-03', versiyon: '1', tarih: '01.03.2024', doviz: 'TL', tip: 'Pesin+Cikisa Ert.', taksitTipi: 'Donem', taksitAdedi: 'Aylik', pesinat: '500', taksit: '200', erteleme: '100', toplam: '2900' },
-  { id: 4, gaKodu: 'GA-04', versiyon: '3', tarih: '10.04.2024', doviz: 'EUR', tip: 'Yok', taksitTipi: '-', taksitAdedi: '-', pesinat: '0', taksit: '0', erteleme: '0', toplam: '0' },
-  { id: 5, gaKodu: 'GA-05', versiyon: '1', tarih: '01.05.2024', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Pesin', taksitAdedi: '1', pesinat: '1500', taksit: '0', erteleme: '0', toplam: '1500' },
+  { id: 1, gaKodu: 'GA-01', gaAdi: 'Standart Giriş Aidatı', versiyon: '1', tarih: '01.01.2024', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Ardisik', taksitAdedi: '12', pesinat: '1000', taksit: '150', erteleme: '0', toplam: '2800', gaRule: 'Standart Kural', abauDateType: 'Teklif Tarihi', exitGaCalcType: '(P) Katkı Payı Ödeme Süresi', maxDeduction: 'Evet', olusturan: 'endeksleme', olusturulmaTarihi: '2024-01-01 09:00', guncelleyen: 'endeksleme', guncellemeTarihi: '2024-01-01 09:00' },
+  { id: 2, gaKodu: 'GA-02', gaAdi: 'Çıkışa Ertelenmiş GA', versiyon: '2', tarih: '15.02.2024', doviz: 'USD', tip: 'Cikisa Ertelenmis', taksitTipi: '-', taksitAdedi: '-', pesinat: '0', taksit: '0', erteleme: '50', toplam: '50', gaRule: 'Ertelemeli Kural', abauDateType: 'Çıkış Tarihi', exitGaCalcType: 'Sistemde Geçen Süre', maxDeduction: 'Evet', exitGaRules: [{ id: 1, sureTipi: 'Ay', altLimit: '1', ustLimit: '12', oran: '5' }, { id: 2, sureTipi: 'Yıl', altLimit: '2', ustLimit: '5', oran: '7' }], olusturan: 'endeksleme', olusturulmaTarihi: '2024-02-15 10:30', guncelleyen: 'endeksleme', guncellemeTarihi: '2024-02-16 11:00' },
+  { id: 3, gaKodu: 'GA-03', gaAdi: 'Peşin + Çıkışa Ertelenmiş', versiyon: '1', tarih: '01.03.2024', doviz: 'TL', tip: 'Pesin+Cikisa Ert.', taksitTipi: 'Donem', taksitAdedi: 'Aylik', pesinat: '500', taksit: '200', erteleme: '100', toplam: '2900', gaRule: 'Yasal Limit Kuralı', abauDateType: 'Teklif Tarihi', exitGaCalcType: '(P) Katkı Payı Ödeme Süresi', maxDeduction: 'Hayır', exitGaRules: [{ id: 1, sureTipi: 'Yıl', altLimit: '3', ustLimit: '10', oran: '6' }], olusturan: 'endeksleme', olusturulmaTarihi: '2024-03-01 08:15', guncelleyen: 'endeksleme', guncellemeTarihi: '2024-03-01 08:15' },
+  { id: 4, gaKodu: 'GA-04', gaAdi: 'Giriş Aidatı Yok', versiyon: '3', tarih: '10.04.2024', doviz: 'EUR', tip: 'Yok', taksitTipi: '-', taksitAdedi: '-', pesinat: '0', taksit: '0', erteleme: '0', toplam: '0', olusturan: 'endeksleme', olusturulmaTarihi: '2024-04-10 14:00', guncelleyen: 'endeksleme', guncellemeTarihi: '2024-04-11 09:30' },
+  { id: 5, gaKodu: 'GA-05', gaAdi: 'Peşin Tek Seferlik', versiyon: '1', tarih: '01.05.2024', doviz: 'TL', tip: 'Pesin', taksitTipi: 'Pesin', taksitAdedi: '1', pesinat: '1500', taksit: '0', erteleme: '0', toplam: '1500', gaRule: 'Standart Kural', abauDateType: 'Teklif Tarihi', maxDeduction: 'Evet', olusturan: 'endeksleme', olusturulmaTarihi: '2024-05-01 11:45', guncelleyen: 'endeksleme', guncellemeTarihi: '2024-05-01 11:45' },
 ]
 
 export const ygk = [
-  { id: 1, kod: 'YGK-001', ad: 'YGK Standart Kural', versiyon: '1', tarih: '30.07.2024', doviz: 'TRL', tablo: 'P - Katki Payi', yil: 'Yururluk Tarihi', limit: 'Sozlesme Birikim', kademe: 'Kumul Kademe', sifirla: 'Hayir' },
-  { id: 2, kod: 'YGK-002', ad: 'YGK Alternatif', versiyon: '2', tarih: '01.01.2025', doviz: 'USD', tablo: 'B - Birikim Trans.', yil: 'Tahsilat Tarihi', limit: 'Toplam Tahsilat', kademe: 'Kademe', sifirla: 'Evet' },
-  { id: 3, kod: 'YGK-000', ad: 'YGK Kesinti Yok', versiyon: '1', tarih: '01.01.2026', doviz: 'TRL', tablo: 'Yok', yil: 'Yok', limit: 'Yok', kademe: 'Yok', sifirla: 'Hayir' },
+  {
+    id: 1,
+    kod: 'YGK-001',
+    ad: 'YGK Standart Kural',
+    versiyon: '1',
+    tarih: '30.07.2024',
+    doviz: 'TRL',
+    borcTipi: 'Katkı Payı Tahsilatı',
+    yil: 'Yürürlük Tarihi',
+    limit: 'Sözleşme Birikim Tutarı',
+    limitGuncelleme: 'Sabit Oran Artisli',
+    araVermeKural: '',
+    donemGun: '15',
+    donemAy: 'Ocak',
+    yuvarlama: 'Tavana',
+    yuvarlamaDegeri: '2',
+    kademe: 'Kümül Kademe',
+    sifirla: 'Hayır',
+    yillikParametreler: [
+      { id: 1, yilAlt: '1', yilUst: '5', tutarAlt: '0', tutarUst: '50000', tutarAltLimitKurali: '', tutarUstLimitKurali: 'KRL-LMT-01', doviz: 'TL', kademeDonemi: 'Aylık', odemeDonemi: 'Aylık', odemeAraci: 'Kredi Kartı', banka: 'Garanti', degerTipi: 'Tutar', ygkTutari: '2.5' },
+      { id: 2, yilAlt: '6', yilUst: '10', tutarAlt: '50000', tutarUst: '100000', tutarAltLimitKurali: 'KRL-LMT-02', tutarUstLimitKurali: '', doviz: 'TL', kademeDonemi: 'Yıllık', odemeDonemi: 'Yıllık', odemeAraci: 'Havale', banka: 'İŞ Bankası', degerTipi: 'Oran', ygkOrani: '2' },
+    ],
+  },
+  {
+    id: 2,
+    kod: 'YGK-002',
+    ad: 'YGK Alternatif Kural',
+    versiyon: '2',
+    tarih: '01.01.2025',
+    doviz: 'USD',
+    borcTipi: 'Birikim Transferi',
+    yil: 'Tahsilat Tarihi',
+    limit: 'Toplam Tahsilat',
+    limitGuncelleme: 'TEFE1',
+    araVermeKural: 'KRL-AV-02',
+    donemGun: '1',
+    donemAy: 'Ocak',
+    yuvarlama: 'Yok',
+    yuvarlamaDegeri: '',
+    kademe: 'Kademe',
+    sifirla: 'Evet',
+    yillikParametreler: [
+      { id: 1, yilAlt: '1', yilUst: '5', tutarAlt: '0', tutarUst: '25000', tutarAltLimitKurali: 'KRL-LMT-01', tutarUstLimitKurali: '', doviz: 'USD', kademeDonemi: 'Aylık', odemeDonemi: 'Aylık', odemeAraci: 'Havale', banka: 'Ziraat Bankası', degerTipi: 'Oran', ygkOrani: '3' },
+    ],
+  },
+  {
+    id: 3,
+    kod: 'YGK-000',
+    ad: 'YGK Kesinti Yok',
+    versiyon: '1',
+    tarih: '01.01.2026',
+    doviz: 'TRL',
+    borcTipi: 'Yok',
+    yil: 'Yok',
+    limit: 'Yok',
+    limitGuncelleme: '',
+    araVermeKural: '',
+    donemGun: '',
+    donemAy: '',
+    yuvarlama: 'Yok',
+    yuvarlamaDegeri: '',
+    kademe: 'Yok',
+    sifirla: 'Hayır',
+    yillikParametreler: [],
+  },
 ]
 
 export const ygkMuafiyet = [
-  { id: 1, kod: 'YGKM-001', ad: 'YGK Muafiyet Kurali', versiyon: '1', tarih: '30.07.2024', yil: '2', toplamKp: '850', doviz: 'TRL', oran: '0.6' },
-  { id: 2, kod: 'YGKM-002', ad: 'Alternatif Muafiyet', versiyon: '2', tarih: '01.01.2025', yil: '3', toplamKp: '1200', doviz: 'USD', oran: '0.5' },
+  { id: 1, kod: 'YGKM-001', ad: 'YGK Muafiyet Kuralı', versiyon: '1', tarih: '30.07.2024', yil: '2', toplamKp: '850', doviz: 'TRL', oran: '0.6' },
+  { id: 2, kod: 'YGKM-002', ad: 'Alternatif Muafiyet Kuralı', versiyon: '2', tarih: '01.01.2025', yil: '3', toplamKp: '1200', doviz: 'USD', oran: '0.5' },
   { id: 3, kod: 'YGKM-000', ad: 'Muafiyet Yok', versiyon: '1', tarih: '01.01.2026', yil: '0', toplamKp: '0', doviz: 'TRL', oran: '0' },
 ]
 
 export const araverme = [
-  { id: 1, kod: 'AVK-001', ad: 'Ara Verme Standart', versiyon: '1', tarih: '01.01.2026', tutar: '2 TL', hesaplama: 'Sabit', onKosul: '-' },
-  { id: 2, kod: 'AVK-002', ad: 'Ara Verme Esnek', versiyon: '1', tarih: '15.06.2025', tutar: '5 TL', hesaplama: 'Oran', onKosul: 'Min 12 ay' },
-  { id: 3, kod: 'AVK-000', ad: 'Ara Verme Yok', versiyon: '1', tarih: '01.01.2026', tutar: '0 TL', hesaplama: '-', onKosul: '-' },
+  { id: 1, kod: 'AVK-001', ad: 'Ara Verme Standart', versiyon: '1', tarih: '01.01.2026', tip: 'Yıllık(EGM)', tutar: '2', hesaplamaKuralKodu: 'KRL-AV-01', hesaplamaKuralAdi: 'Ara Verme Sabit Tutar Kuralı', onKosulKodu: 'ONK-AV-01', onKosulAdi: 'Minimum 12 Ay Ön Koşulu', hesaplama: 'KRL-AV-01', onKosul: 'ONK-AV-01' },
+  { id: 2, kod: 'AVK-002', ad: 'Ara Verme Esnek', versiyon: '1', tarih: '15.06.2025', tip: 'Aylık(Şirket)', tutar: '5', hesaplamaKuralKodu: 'KRL-AV-02', hesaplamaKuralAdi: 'Ara Verme Oran Kuralı', onKosulKodu: 'ONK-AV-02', onKosulAdi: 'Aktif Sözleşme Ön Koşulu', hesaplama: 'KRL-AV-02', onKosul: 'ONK-AV-02' },
+  { id: 3, kod: 'AVK-000', ad: 'Ara Verme Yok', versiyon: '1', tarih: '01.01.2026', tip: 'Yıllık(EGM)', tutar: '0', hesaplamaKuralKodu: '', hesaplamaKuralAdi: '', onKosulKodu: '', onKosulAdi: '', hesaplama: '-', onKosul: '-' },
+]
+
+/** Kurallar ekranı — Ara Verme lookup kaynak listesi (prototip) */
+export const kurallar = [
+  { id: 1, kod: 'KRL-AV-01', ad: 'Ara Verme Sabit Tutar Kuralı', kategori: 'Hesaplama', aciklama: 'Sabit tutar ile ara verme kesintisi hesaplar' },
+  { id: 2, kod: 'KRL-AV-02', ad: 'Ara Verme Oran Kuralı', kategori: 'Hesaplama', aciklama: 'Oran bazlı ara verme kesintisi hesaplar' },
+  { id: 3, kod: 'KRL-AV-03', ad: 'YGK Standart Hesaplama Kuralı', kategori: 'Hesaplama', aciklama: 'Standart YGK hesaplama kuralı' },
+  { id: 4, kod: 'ONK-AV-01', ad: 'Minimum 12 Ay Ön Koşulu', kategori: 'Ön Koşul', aciklama: 'Sözleşme süresi en az 12 ay olmalıdır' },
+  { id: 5, kod: 'ONK-AV-02', ad: 'Aktif Sözleşme Ön Koşulu', kategori: 'Ön Koşul', aciklama: 'Sözleşme aktif durumda olmalıdır' },
+  { id: 6, kod: 'ONK-AV-03', ad: 'Tahsilat Tamamlanma Ön Koşulu', kategori: 'Ön Koşul', aciklama: 'İlgili dönem tahsilatı tamamlanmış olmalıdır' },
+]
+
+/** YGK BES 3.0 — Formül lookup kaynak listesi (prototip) */
+export const ygkFormulleri = [
+  { id: 1, kod: 'FRM-YGK-01', ad: 'KP * 0.05', aciklama: 'Katkı payının %5\'i' },
+  { id: 2, kod: 'FRM-YGK-02', ad: 'BRK * ORAN', aciklama: 'Birikim üzerinden oransal kesinti' },
+  { id: 3, kod: 'FRM-YGK-03', ad: 'MIN(KP, MAX_YASAL)', aciklama: 'Yasal üst sınır ile sınırlı KP kesintisi' },
 ]
 
 export const bes30 = [
@@ -114,9 +193,10 @@ export const bes30 = [
 ]
 
 export const ygkBes30 = [
-  { id: 1, kod: 'YB30-001', ad: 'YGK BES3.0 Kural 1', versiyon: '1', tarih: '01.01.2025', doviz: 'TRL', tip: 'Katki Payi Araligi', oran: '-', formul: '-', donem: 'Aylik', yil: '1', birikim: 'Anapara' },
-  { id: 2, kod: 'YB30-002', ad: 'YGK BES3.0 Kural 2', versiyon: '2', tarih: '31.07.2024', doviz: 'TRL', tip: 'Oran', oran: '0.03', formul: '-', donem: 'Yillik', yil: '5', birikim: 'Toplam' },
-  { id: 3, kod: 'YB30-003', ad: 'YGK BES3.0 Kural 3', versiyon: '1', tarih: '01.03.2026', doviz: 'USD', tip: 'Oran', oran: '0.02', formul: '-', donem: 'Aylik', yil: '1', birikim: 'Anapara' },
+  { id: 1, kod: 'YB30-001', ad: 'YGK BES3.0 Kuralı 1', versiyon: '1', tarih: '01.01.2025', doviz: 'TRL', tip: 'Katki Payi Araligi', oran: '-', yillikTutar: '-', formul: '-', donem: 'Aylik', yil: '1', birikim: 'Anapara', kesintiZamani: 'Dönem Sonunda', tahsilatYgkKontrolu: true, maxKesintiYap: true },
+  { id: 2, kod: 'YB30-002', ad: 'YGK BES3.0 Kuralı 2', versiyon: '2', tarih: '01.01.2025', doviz: 'TRL', tip: 'Oran', oran: '0.03', yillikTutar: '-', formul: '-', donem: 'Yillik', yil: '5', birikim: 'Toplam', kesintiZamani: 'Dönem Başında', tahsilatYgkKontrolu: true, maxKesintiYap: false },
+  { id: 3, kod: 'YB30-003', ad: 'YGK BES3.0 Kuralı 3', versiyon: '1', tarih: '01.06.2025', doviz: 'USD', tip: 'Yok', oran: '-', yillikTutar: '-', formul: '-', donem: '-', yil: '0', birikim: '-', kesintiZamani: '', tahsilatYgkKontrolu: false, maxKesintiYap: false },
+  { id: 4, kod: 'YB30-004', ad: 'YGK BES3.0 Kuralı 4', versiyon: '1', tarih: '01.03.2026', doviz: 'EUR', tip: 'Oran', oran: '0.02', yillikTutar: '-', formul: '-', donem: 'Aylik', yil: '1-3', birikim: 'Anapara', kesintiZamani: 'Dönem Sonunda', tahsilatYgkKontrolu: false, maxKesintiYap: true },
 ]
 
 // --- EGP ---
@@ -723,6 +803,27 @@ export const araVermeTipDetaylari = {
     { id: 2, parametre: 'Bekleme', deger: '365 Gun', not: 'Yillik bekleme suresi' },
   ],
 }
+
+export const ygkBes30BirikimTipi = [
+  { id: 1, tanimAdi: 'Toplam Birikim' },
+  { id: 2, tanimAdi: 'Anapara Birikim' },
+]
+
+export const ygkBes30KesintiDonemi = [
+  { id: 1, tanimAdi: 'Aylık' },
+  { id: 2, tanimAdi: 'Yıllık' },
+]
+
+export const ygkBes30KesintiZamani = [
+  { id: 1, tanimAdi: 'Dönem Başında' },
+  { id: 2, tanimAdi: 'Dönem Sonunda' },
+]
+
+export const ygkBes30YgkKesintiTipi = [
+  { id: 1, tanimAdi: 'Oran' },
+  { id: 2, tanimAdi: 'Katkı Payı Aralığı' },
+  { id: 3, tanimAdi: 'Sabit Tutar' },
+]
 
 export const egpBireyTipi = [
   { id: 1, kod: 'FP', ad: 'Fert-Personel', aciklama: 'Fert-Personel' },

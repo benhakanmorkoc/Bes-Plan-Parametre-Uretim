@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Link as LinkIcon } from 'lucide-react'
+import { Plus, Search, Link as LinkIcon, ArrowLeft, Trash2 } from 'lucide-react'
 import { girisAidati } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import Modal from '../ui/Modal'
 
 const GA_TYPE_OPTIONS = ['Peşin', 'Taksitli', 'Erteleme', 'Çıkışa Ertelenmiş']
-const CURRENCY_OPTIONS = ['TL', 'USD', 'EUR']
+const CURRENCY_OPTIONS = [
+  { code: 'TL', label: 'Türk Lirası (TL)' },
+  { code: 'USD', label: 'Amerikan Doları (USD)' },
+  { code: 'EUR', label: 'Euro (EUR)' },
+]
 
 const INSTALLMENT_TYPE_OPTIONS = ['Ardışık', 'Dönem', 'Peşin']
 
 const ABAU_DATE_TYPE_OPTIONS = ['Teklif Tarihi', 'Çıkış Tarihi']
-const EXIT_GA_CALC_OPTIONS = ['Katkı Payı Ödeme Süresi', 'Sistemde Geçen Süre']
+const EXIT_GA_CALC_OPTIONS = ['(P) Katkı Payı Ödeme Süresi', 'Sistemde Geçen Süre']
 const EXIT_RULE_DURATION_OPTIONS = ['Yıl', 'Ay']
 const GA_RULE_OPTIONS = ['Standart Kural', 'Ertelemeli Kural', 'Yasal Limit Kuralı']
 const GA_BIND_PLANS = [
@@ -33,6 +37,13 @@ function formatTypes(arr) {
   return arr && arr.length ? arr.join(', ') : ''
 }
 
+function displayExitGaRules(rules) {
+  if (!rules || rules.length === 0) return '—'
+  const filled = rules.filter((r) => r.altLimit || r.ustLimit || r.oran)
+  if (!filled.length) return `${rules.length} kademe (boş)`
+  return `${rules.length} kademe`
+}
+
 function toDisplayDate(d = new Date()) {
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -49,25 +60,31 @@ function emptyForm() {
     currency: 'TL',
     version: '1',
     girisAidatiYok: false,
-    maxDeduction: '',
-    abauDateType: '',
+    maxDeduction: 'Evet',
+    abauDateType: 'Teklif Tarihi',
     gaRule: '',
-    gaTypes: ['Peşin'],
-    exitGaCalcType: '',
+    gaTypes: [],
+    exitGaCalcType: '(P) Katkı Payı Ödeme Süresi',
     installmentType: '',
     installmentCount: '',
-    cashType: '',
+    cashType: 'Oran',
     cashRate: '',
     cashAmount: '',
-    instType: '',
+    instType: 'Oran',
     instRate: '',
     instAmount: '',
-    deferType: '',
+    deferType: 'Oran',
     deferRate: '',
     deferAmount: '',
     totalAmount: '0.00',
     exitGaRules: [{ id: 1, sureTipi: 'Yıl', altLimit: '', ustLimit: '', oran: '' }],
   }
+}
+
+function formatTotalTr(amount) {
+  const n = parseFloat(String(amount || '0').replace(',', '.'))
+  if (Number.isNaN(n)) return '0,00 TL'
+  return `${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 }
 
 function calcPartValue(type, rate, amount, baseAmount) {
@@ -83,28 +100,39 @@ function calcPartValue(type, rate, amount, baseAmount) {
   return 0
 }
 
+function mapSeedRow(r) {
+  const gaTypes = mapTipToTypes(r.tip)
+  const hasExitDeferred = gaTypes.includes('Çıkışa Ertelenmiş')
+  return {
+    id: r.id,
+    gaCode: r.gaKodu,
+    gaName: r.gaAdi || `Giriş Aidatı ${r.gaKodu}`,
+    currency: r.doviz,
+    gaTypes,
+    installmentType: r.taksitTipi === '-' ? '' : r.taksitTipi,
+    installmentCount: r.taksitAdedi === '-' ? '' : r.taksitAdedi,
+    cashValue: r.pesinat,
+    installmentValue: r.taksit,
+    deferValue: r.erteleme,
+    totalAmount: r.toplam,
+    gaRule: r.gaRule || '',
+    abauDateType: r.abauDateType || 'Teklif Tarihi',
+    exitGaCalcType: r.exitGaCalcType || EXIT_GA_CALC_OPTIONS[0],
+    maxDeduction: r.maxDeduction || 'Evet',
+    exitGaRules: r.exitGaRules?.length
+      ? r.exitGaRules.map((rule, idx) => ({ ...rule, id: rule.id ?? idx + 1 }))
+      : (hasExitDeferred ? [{ id: 1, sureTipi: 'Yıl', altLimit: '1', ustLimit: '5', oran: '7' }] : []),
+    createdBy: r.olusturan || 'mock.user',
+    createdAt: r.olusturulmaTarihi || toDisplayDate(new Date()),
+    updatedBy: r.guncelleyen || 'mock.user',
+    updatedAt: r.guncellemeTarihi || toDisplayDate(new Date()),
+    version: Number(r.versiyon || 1),
+    inUse: r.id === 1,
+  }
+}
+
 export default function GirisAidati() {
-  const [rows, setRows] = useState(() =>
-    girisAidati.map((r) => ({
-      id: r.id,
-      gaCode: r.gaKodu,
-      gaName: `Giriş Aidatı ${r.gaKodu}`,
-      currency: r.doviz,
-      gaTypes: mapTipToTypes(r.tip),
-      installmentType: r.taksitTipi === '-' ? '' : r.taksitTipi,
-      installmentCount: r.taksitAdedi === '-' ? '' : r.taksitAdedi,
-      cashValue: r.pesinat,
-      installmentValue: r.taksit,
-      deferValue: r.erteleme,
-      totalAmount: r.toplam,
-      createdBy: 'mock.user',
-      createdAt: toDisplayDate(new Date()),
-      updatedBy: 'mock.user',
-      updatedAt: toDisplayDate(new Date()),
-      version: Number(r.versiyon || 1),
-      inUse: r.id === 1,
-    })),
-  )
+  const [rows, setRows] = useState(() => girisAidati.map(mapSeedRow))
   const [search, setSearch] = useState('')
   const [selectedCodes, setSelectedCodes] = useState([])
   const [openMenuCode, setOpenMenuCode] = useState(null)
@@ -112,7 +140,7 @@ export default function GirisAidati() {
   const [form, setForm] = useState(emptyForm)
   const [formMode, setFormMode] = useState('create') // 'create' | 'update'
   const [currentEditCode, setCurrentEditCode] = useState(null)
-  const [formOpen, setFormOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('list')
 
   const [simpleModal, setSimpleModal] = useState({ open: false, title: '', body: null })
   const [bindOpen, setBindOpen] = useState(false)
@@ -162,7 +190,7 @@ export default function GirisAidati() {
     setForm(emptyForm())
     setFormMode('create')
     setCurrentEditCode(null)
-    setFormOpen(true)
+    setViewMode('form')
   }
 
   const openUpdate = (code, forceNewVersion) => {
@@ -176,38 +204,35 @@ export default function GirisAidati() {
       currency: row.currency,
       version: String(nextVersion),
       girisAidatiYok,
-      maxDeduction: '',
-      abauDateType: ABAU_DATE_TYPE_OPTIONS[0],
-      gaRule: '',
+      maxDeduction: row.maxDeduction || 'Evet',
+      abauDateType: row.abauDateType || ABAU_DATE_TYPE_OPTIONS[0],
+      gaRule: row.gaRule || '',
       gaTypes: girisAidatiYok ? [] : row.gaTypes,
-      exitGaCalcType: row.gaTypes.includes('Çıkışa Ertelenmiş') ? EXIT_GA_CALC_OPTIONS[0] : '',
+      exitGaCalcType: row.exitGaCalcType || EXIT_GA_CALC_OPTIONS[0],
       installmentType: row.installmentType || '',
       installmentCount: row.installmentCount || '',
-      cashType: row.cashValue ? 'Tutar' : '',
+      cashType: row.cashValue ? 'Tutar' : 'Oran',
       cashRate: '',
       cashAmount: row.cashValue || '',
-      instType: row.installmentValue ? 'Tutar' : '',
+      instType: row.installmentValue ? 'Tutar' : 'Oran',
       instRate: '',
       instAmount: row.installmentValue || '',
-      deferType: row.deferValue ? 'Tutar' : '',
+      deferType: row.deferValue ? 'Tutar' : 'Oran',
       deferRate: '',
       deferAmount: row.deferValue || '',
       totalAmount: row.totalAmount || '0.00',
-      exitGaRules: [{ id: 1, sureTipi: 'Yıl', altLimit: '', ustLimit: '', oran: '' }],
+      exitGaRules: row.exitGaRules?.length
+        ? row.exitGaRules.map((rule) => ({ ...rule }))
+        : [{ id: 1, sureTipi: 'Yıl', altLimit: '', ustLimit: '', oran: '' }],
     })
     setFormMode('update')
     setCurrentEditCode(code)
-    setFormOpen(true)
+    setViewMode('form')
   }
 
   const validateForm = () => {
     if (!form.gaCode.trim() || !form.gaName.trim() || !form.currency) {
       alert('Giriş Aidatı Kodu, Giriş Aidatı Adı ve Döviz zorunludur.')
-      return false
-    }
-    const hasPesin = form.gaTypes.includes('Peşin')
-    if (hasPesin && !form.installmentType) {
-      alert('Peşin tipi seçiliyken Taksit Tipi zorunludur.')
       return false
     }
     if (formMode === 'create') {
@@ -234,6 +259,11 @@ export default function GirisAidati() {
       installmentValue: calcPartValue(form.instType, form.instRate, form.instAmount, baseAmount).toFixed(2),
       deferValue: calcPartValue(form.deferType, form.deferRate, form.deferAmount, baseAmount).toFixed(2),
       totalAmount: currentTotal,
+      gaRule: form.gaRule,
+      abauDateType: form.abauDateType,
+      exitGaCalcType: form.exitGaCalcType,
+      maxDeduction: form.maxDeduction,
+      exitGaRules: form.exitGaRules.map((rule) => ({ ...rule })),
       createdBy: 'current.user',
       createdAt:
         formMode === 'update'
@@ -249,7 +279,7 @@ export default function GirisAidati() {
     } else {
       setRows((prev) => [...prev, { id: Date.now(), ...payload }])
     }
-    setFormOpen(false)
+    setViewMode('list')
   }
 
   const openInspect = (code) => {
@@ -271,6 +301,21 @@ export default function GirisAidati() {
           </p>
           <p>
             <strong>GA Tipi:</strong> {formatTypes(row.gaTypes)}
+          </p>
+          <p>
+            <strong>GA Hesaplama Kuralı:</strong> {row.gaRule || '—'}
+          </p>
+          <p>
+            <strong>ABAÜ Tarih Tipi:</strong> {row.abauDateType || '—'}
+          </p>
+          <p>
+            <strong>Çıkışa Ert. GA Hes. Tipi:</strong> {row.exitGaCalcType || '—'}
+          </p>
+          <p>
+            <strong>Max Kesinti:</strong> {row.maxDeduction || '—'}
+          </p>
+          <p>
+            <strong>Çıkış GA Kademe:</strong> {displayExitGaRules(row.exitGaRules)}
           </p>
         </div>
       ),
@@ -439,6 +484,440 @@ export default function GirisAidati() {
     `${p.id} ${p.ad}`.toLowerCase().includes(bindSearch.toLowerCase()),
   )
 
+  const toggleGaType = (type) => {
+    setForm((f) => {
+      const exists = f.gaTypes.includes(type)
+      const nextTypes = exists ? f.gaTypes.filter((x) => x !== type) : [...f.gaTypes, type]
+      return {
+        ...f,
+        gaTypes: nextTypes,
+        exitGaCalcType: nextTypes.includes('Çıkışa Ertelenmiş') ? f.exitGaCalcType || EXIT_GA_CALC_OPTIONS[0] : f.exitGaCalcType,
+      }
+    })
+  }
+
+  if (viewMode === 'form') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className="text-slate-500 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100"
+            aria-label="Geri"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-lg font-bold text-slate-800">
+            {formMode === 'create' ? 'Giriş Aidatı Ekle' : `Giriş Aidatı Güncelle (${form.gaCode})`}
+          </h2>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-5xl space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Kodu <span className="text-red-500">*</span></label>
+                <input
+                  className="form-input"
+                  value={form.gaCode}
+                  disabled={formMode === 'update'}
+                  onChange={(e) => setForm((f) => ({ ...f, gaCode: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Adı <span className="text-red-500">*</span></label>
+                <input
+                  className="form-input"
+                  value={form.gaName}
+                  onChange={(e) => setForm((f) => ({ ...f, gaName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Versiyon</label>
+                <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" disabled readOnly value={form.version} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Döviz <span className="text-red-500">*</span></label>
+                <select
+                  className="form-select"
+                  value={form.currency}
+                  onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+                >
+                  {CURRENCY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3">
+              <label className="inline-flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 mt-0.5"
+                  checked={form.girisAidatiYok}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      girisAidatiYok: e.target.checked,
+                      gaTypes: e.target.checked ? [] : f.gaTypes,
+                    }))
+                  }
+                />
+                <span>
+                  <span className="font-semibold">Giriş Aidatı Yok</span>
+                  <span className="block text-xs text-blue-700 mt-0.5">
+                    Bu seçenek işaretlendiğinde aidat kuralları devre dışı kalır; yalnızca kod, ad, versiyon ve döviz bilgileri kaydedilir.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-2">Giriş Aidatı Kesinti Tipi (Çoklu Seçim Yapılabilir)</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {GA_TYPE_OPTIONS.map((t) => (
+                  <label key={t} className={`inline-flex items-center gap-2 text-sm text-slate-700 ${!hasFee ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300"
+                      checked={form.gaTypes.includes(t)}
+                      disabled={!hasFee}
+                      onChange={() => toggleGaType(t)}
+                    />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Değer Tipi</label>
+                <select
+                  className="form-select"
+                  disabled={form.girisAidatiYok || !hasPesin}
+                  value={form.cashType}
+                  onChange={(e) => setForm((f) => ({ ...f, cashType: e.target.value, cashRate: '', cashAmount: '' }))}
+                >
+                  <option value="Oran">Oran</option>
+                  <option value="Tutar">Tutar</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Değer Tipi</label>
+                <select
+                  className="form-select"
+                  disabled={form.girisAidatiYok || !hasTaksitli}
+                  value={form.instType}
+                  onChange={(e) => setForm((f) => ({ ...f, instType: e.target.value, instRate: '', instAmount: '' }))}
+                >
+                  <option value="Oran">Oran</option>
+                  <option value="Tutar">Tutar</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Değer Tipi</label>
+                <select
+                  className="form-select"
+                  disabled={form.girisAidatiYok || !hasErteleme}
+                  value={form.deferType}
+                  onChange={(e) => setForm((f) => ({ ...f, deferType: e.target.value, deferRate: '', deferAmount: '' }))}
+                >
+                  <option value="Oran">Oran</option>
+                  <option value="Tutar">Tutar</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Oranı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 0.50"
+                    disabled={form.girisAidatiYok || !hasPesin || form.cashType !== 'Oran'}
+                    value={form.cashRate}
+                    onChange={(e) => setForm((f) => ({ ...f, cashRate: e.target.value }))}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Tutarı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 1500"
+                    disabled={form.girisAidatiYok || !hasPesin || form.cashType !== 'Tutar'}
+                    value={form.cashAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, cashAmount: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Oranı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 0.20"
+                    disabled={form.girisAidatiYok || !hasTaksitli || form.instType !== 'Oran'}
+                    value={form.instRate}
+                    onChange={(e) => setForm((f) => ({ ...f, instRate: e.target.value }))}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tutarı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 500"
+                    disabled={form.girisAidatiYok || !hasTaksitli || form.instType !== 'Tutar'}
+                    value={form.instAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, instAmount: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Oranı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 1.00"
+                    disabled={form.girisAidatiYok || !hasErteleme || form.deferType !== 'Oran'}
+                    value={form.deferRate}
+                    onChange={(e) => setForm((f) => ({ ...f, deferRate: e.target.value }))}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Tutarı</label>
+                  <input
+                    className="form-input text-sm"
+                    placeholder="Örn: 2000"
+                    disabled={form.girisAidatiYok || !hasErteleme || form.deferType !== 'Tutar'}
+                    value={form.deferAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, deferAmount: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Hesaplanan Toplam Tutar</label>
+              <input className="form-input bg-slate-50 font-semibold text-slate-800" disabled readOnly value={formatTotalTr(currentTotal)} />
+            </div>
+
+            {hasPesin && !form.girisAidatiYok && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tipi</label>
+                  <select
+                    className="form-select"
+                    value={form.installmentType}
+                    onChange={(e) => setForm((f) => ({ ...f, installmentType: e.target.value, installmentCount: '' }))}
+                  >
+                    <option value="">Seçiniz</option>
+                    {INSTALLMENT_TYPE_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Adedi</label>
+                  <select
+                    className="form-select"
+                    disabled={!form.installmentType}
+                    value={form.installmentCount}
+                    onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))}
+                  >
+                    <option value="">Seçiniz</option>
+                    {installmentCountOptions.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">GA Hesaplama Kuralı</label>
+                <div className="flex gap-2">
+                  <select
+                    className="form-select flex-1"
+                    disabled={form.girisAidatiYok}
+                    value={form.gaRule}
+                    onChange={(e) => setForm((f) => ({ ...f, gaRule: e.target.value }))}
+                  >
+                    <option value="">Seçiniz</option>
+                    {GA_RULE_OPTIONS.map((rule) => (
+                      <option key={rule} value={rule}>{rule}</option>
+                    ))}
+                  </select>
+                  <OutlineButton
+                    disabled={form.girisAidatiYok}
+                    onClick={() => setForm((f) => ({ ...f, gaRule: GA_RULE_OPTIONS[0] }))}
+                  >
+                    <Search className="w-4 h-4" />
+                  </OutlineButton>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">ABAÜ Tarih Tipi</label>
+                <select
+                  className="form-select"
+                  disabled={form.girisAidatiYok}
+                  value={form.abauDateType}
+                  onChange={(e) => setForm((f) => ({ ...f, abauDateType: e.target.value }))}
+                >
+                  {ABAU_DATE_TYPE_OPTIONS.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Çıkışa Ert. GA Hesaplama Tipi</label>
+                <select
+                  className="form-select"
+                  disabled={form.girisAidatiYok || !hasErtelenmis}
+                  value={form.exitGaCalcType}
+                  onChange={(e) => setForm((f) => ({ ...f, exitGaCalcType: e.target.value }))}
+                >
+                  {EXIT_GA_CALC_OPTIONS.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="rounded border-slate-300"
+                checked={form.maxDeduction === 'Evet'}
+                disabled={form.girisAidatiYok}
+                onChange={(e) => setForm((f) => ({ ...f, maxDeduction: e.target.checked ? 'Evet' : 'Hayır' }))}
+              />
+              Max Kesinti (Yasal Limiti Otomatik Kontrol Et)
+            </label>
+
+            {hasErtelenmis && !form.girisAidatiYok && (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-700">Çıkışta Alınacak GA Tanımları (Kademe)</h4>
+                  <OutlineButton
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        exitGaRules: [...f.exitGaRules, { id: Date.now(), sureTipi: 'Yıl', altLimit: '', ustLimit: '', oran: '' }],
+                      }))
+                    }
+                  >
+                    + Ekle
+                  </OutlineButton>
+                </div>
+                <div className="overflow-auto">
+                  <table className="w-full grid-table text-sm">
+                    <thead>
+                      <tr>
+                        <th>Süre Tipi</th>
+                        <th>Alt Limit</th>
+                        <th>Üst Limit</th>
+                        <th>Oran (%)</th>
+                        <th className="w-20 text-center">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.exitGaRules.map((rule) => (
+                        <tr key={rule.id}>
+                          <td>
+                            <select
+                              className="form-select"
+                              value={rule.sureTipi}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, sureTipi: e.target.value } : r)),
+                                }))
+                              }
+                            >
+                              {EXIT_RULE_DURATION_OPTIONS.map((o) => (
+                                <option key={o} value={o}>{o}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              className="form-input"
+                              value={rule.altLimit}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, altLimit: e.target.value } : r)),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="form-input"
+                              value={rule.ustLimit}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, ustLimit: e.target.value } : r)),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="form-input"
+                              value={rule.oran}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, oran: e.target.value } : r)),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td className="text-center">
+                            <button
+                              type="button"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  exitGaRules: f.exitGaRules.length > 1 ? f.exitGaRules.filter((r) => r.id !== rule.id) : f.exitGaRules,
+                                }))
+                              }
+                            >
+                              🗑
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2">
+          <OutlineButton onClick={() => setViewMode('list')}>İptal</OutlineButton>
+          <OutlineButton
+            className="border-red-200 text-red-600 hover:bg-red-50"
+            onClick={() => setForm(emptyForm())}
+          >
+            <Trash2 className="w-4 h-4" /> Temizle
+          </OutlineButton>
+          <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
@@ -486,6 +965,7 @@ export default function GirisAidati() {
                 <input type="checkbox" className="rounded" checked={allChecked} onChange={toggleSelectAll} />
               </th>
               <th>GA Kodu</th>
+              <th>Versiyon</th>
               <th>GA Adı</th>
               <th>Döviz</th>
               <th>GA Tipi</th>
@@ -495,6 +975,11 @@ export default function GirisAidati() {
               <th>Taksit</th>
               <th>Erteleme</th>
               <th>Toplam Tutar (ÇE Hariç)</th>
+              <th>GA Hesaplama Kuralı</th>
+              <th>ABAÜ Tarih Tipi</th>
+              <th>Çıkışa Ert. GA Hes. Tipi</th>
+              <th>Max Kesinti</th>
+              <th>Çıkış GA Kademe</th>
               <th>Oluşturan</th>
               <th>Oluşturulma Tarihi</th>
               <th>Güncelleyen</th>
@@ -514,6 +999,7 @@ export default function GirisAidati() {
                   />
                 </td>
                 <td className="font-mono text-xs">{row.gaCode}</td>
+                <td>{row.version}</td>
                 <td>{row.gaName}</td>
                 <td>{row.currency}</td>
                 <td>{formatTypes(row.gaTypes)}</td>
@@ -523,6 +1009,11 @@ export default function GirisAidati() {
                 <td>{row.installmentValue}</td>
                 <td>{row.deferValue}</td>
                 <td className="font-semibold text-slate-800">{row.totalAmount}</td>
+                <td>{row.gaRule || '—'}</td>
+                <td>{row.abauDateType || '—'}</td>
+                <td className="max-w-[180px] truncate" title={row.exitGaCalcType || ''}>{row.exitGaCalcType || '—'}</td>
+                <td>{row.maxDeduction || '—'}</td>
+                <td>{displayExitGaRules(row.exitGaRules)}</td>
                 <td>{row.createdBy}</td>
                 <td>{row.createdAt}</td>
                 <td>{row.updatedBy}</td>
@@ -579,7 +1070,7 @@ export default function GirisAidati() {
             ))}
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={16} className="text-center text-slate-500 py-6 text-sm">
+                <td colSpan={22} className="text-center text-slate-500 py-6 text-sm">
                   Sonuç bulunamadı.
                 </td>
               </tr>
@@ -587,452 +1078,6 @@ export default function GirisAidati() {
           </tbody>
         </table>
       </div>
-
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title={formMode === 'create' ? 'Giriş Aidatı - Yeni Ekle' : `Giriş Aidatı - Güncelle (${form.gaCode})`}
-        size="xl"
-        footer={
-          <>
-            <OutlineButton onClick={() => setFormOpen(false)}>Vazgeç</OutlineButton>
-            <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Kodu *</label>
-              <input
-                className="form-input"
-                value={form.gaCode}
-                disabled={formMode === 'update'}
-                onChange={(e) => setForm((f) => ({ ...f, gaCode: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Giriş Aidatı Adı *</label>
-              <input
-                className="form-input"
-                value={form.gaName}
-                onChange={(e) => setForm((f) => ({ ...f, gaName: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Versiyon</label>
-              <div className="h-9 px-3 flex items-center rounded-md border border-slate-200 bg-slate-50 text-sm">
-                {form.version}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Döviz Kodu *</label>
-              <select
-                className="form-select"
-                value={form.currency}
-                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
-              >
-                <option value="">Seçiniz</option>
-                {CURRENCY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">ABAÜ Tarih Tipi</label>
-              <select
-                className="form-select"
-                value={form.abauDateType}
-                disabled={form.girisAidatiYok}
-                onChange={(e) => setForm((f) => ({ ...f, abauDateType: e.target.value }))}
-              >
-                <option value="">Seçiniz</option>
-                {ABAU_DATE_TYPE_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">GA Hesaplama Kuralı</label>
-              <div className="flex gap-2">
-                <select
-                  className="form-select flex-1"
-                  value={form.gaRule}
-                  disabled={form.girisAidatiYok}
-                  onChange={(e) => setForm((f) => ({ ...f, gaRule: e.target.value }))}
-                >
-                  <option value="">Seçiniz</option>
-                  {GA_RULE_OPTIONS.map((rule) => (
-                    <option key={rule} value={rule}>
-                      {rule}
-                    </option>
-                  ))}
-                </select>
-                <OutlineButton
-                  disabled={form.girisAidatiYok}
-                  onClick={() => setForm((f) => ({ ...f, gaRule: GA_RULE_OPTIONS[0] }))}
-                >
-                  Ara
-                </OutlineButton>
-              </div>
-            </div>
-            <div className="md:col-span-3">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="rounded"
-                  checked={form.girisAidatiYok}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      girisAidatiYok: e.target.checked,
-                      gaTypes: e.target.checked ? [] : f.gaTypes,
-                    }))
-                  }
-                />
-                <span className="font-semibold">Giriş Aidatı Yok</span>
-                <span className="text-xs text-blue-600">
-                  (Bu seçenek işaretlendiğinde aidat kuralları devre dışı kalır.)
-                </span>
-              </label>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tipi</label>
-              <select
-                className="form-select"
-                disabled={form.girisAidatiYok || !hasPesin}
-                value={form.installmentType}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    installmentType: e.target.value,
-                    installmentCount: '',
-                  }))
-                }
-              >
-                <option value="">Seçiniz</option>
-                {INSTALLMENT_TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Adedi</label>
-              <select
-                className="form-select"
-                disabled={form.girisAidatiYok || !form.installmentType}
-                value={form.installmentCount}
-                onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))}
-              >
-                <option value="">Seçiniz</option>
-                {installmentCountOptions.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Toplam Tutar (ÇE Hariç)
-              </label>
-              <input className="form-input bg-slate-50" disabled value={`${currentTotal} TL`} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Çıkışa Ert. GA Hesaplama Tipi</label>
-              <select
-                className="form-select"
-                disabled={form.girisAidatiYok || !hasErtelenmis}
-                value={form.exitGaCalcType}
-                onChange={(e) => setForm((f) => ({ ...f, exitGaCalcType: e.target.value }))}
-              >
-                <option value="">Seçiniz</option>
-                {EXIT_GA_CALC_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="border border-slate-200 rounded-lg p-3">
-            <h4 className="text-xs font-semibold text-slate-700 mb-2">
-              Giriş Aidatı Tipi (Çoklu seçim)
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {GA_TYPE_OPTIONS.map((t) => {
-                const selected = form.gaTypes.includes(t)
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`px-3 py-1 rounded-full text-xs border ${
-                      selected
-                        ? 'bg-violet-600 border-violet-600 text-white'
-                        : 'bg-white border-slate-300 text-slate-700'
-                    } ${!hasFee ? 'opacity-50 pointer-events-none' : ''}`}
-                    onClick={() =>
-                      setForm((f) => {
-                        const exists = f.gaTypes.includes(t)
-                        return {
-                          ...f,
-                          gaTypes: exists
-                            ? f.gaTypes.filter((x) => x !== t)
-                            : [...f.gaTypes, t],
-                        }
-                      })
-                    }
-                  >
-                    {t}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-slate-200 rounded-lg p-3">
-              <h4 className="text-xs font-semibold text-slate-700 mb-2">Peşinat</h4>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Değer Tipi</label>
-                  <select
-                    className="form-select"
-                    disabled={form.girisAidatiYok || !hasPesin}
-                    value={form.cashType}
-                    onChange={(e) => setForm((f) => ({ ...f, cashType: e.target.value, cashRate: '', cashAmount: '' }))}
-                  >
-                    <option value="">Seçiniz</option>
-                    <option value="Oran">Oran</option>
-                    <option value="Tutar">Tutar</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Oranı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasPesin || form.cashType !== 'Oran'}
-                    value={form.cashRate}
-                    onChange={(e) => setForm((f) => ({ ...f, cashRate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Peşinat Tutarı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasPesin || form.cashType !== 'Tutar'}
-                    value={form.cashAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, cashAmount: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-slate-200 rounded-lg p-3">
-              <h4 className="text-xs font-semibold text-slate-700 mb-2">Taksit</h4>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Değer Tipi</label>
-                  <select
-                    className="form-select"
-                    disabled={form.girisAidatiYok || !hasTaksitli}
-                    value={form.instType}
-                    onChange={(e) => setForm((f) => ({ ...f, instType: e.target.value, instRate: '', instAmount: '' }))}
-                  >
-                    <option value="">Seçiniz</option>
-                    <option value="Oran">Oran</option>
-                    <option value="Tutar">Tutar</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Oranı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasTaksitli || form.instType !== 'Oran'}
-                    value={form.instRate}
-                    onChange={(e) => setForm((f) => ({ ...f, instRate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tutarı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasTaksitli || form.instType !== 'Tutar'}
-                    value={form.instAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, instAmount: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-slate-200 rounded-lg p-3">
-              <h4 className="text-xs font-semibold text-slate-700 mb-2">Erteleme</h4>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Değer Tipi</label>
-                  <select
-                    className="form-select"
-                    disabled={form.girisAidatiYok || !hasErteleme}
-                    value={form.deferType}
-                    onChange={(e) => setForm((f) => ({ ...f, deferType: e.target.value, deferRate: '', deferAmount: '' }))}
-                  >
-                    <option value="">Seçiniz</option>
-                    <option value="Oran">Oran</option>
-                    <option value="Tutar">Tutar</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Oranı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasErteleme || form.deferType !== 'Oran'}
-                    value={form.deferRate}
-                    onChange={(e) => setForm((f) => ({ ...f, deferRate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Erteleme Tutarı</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    disabled={form.girisAidatiYok || !hasErteleme || form.deferType !== 'Tutar'}
-                    value={form.deferAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, deferAmount: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              className="rounded"
-              checked={form.maxDeduction === 'Evet'}
-              disabled={form.girisAidatiYok}
-              onChange={(e) => setForm((f) => ({ ...f, maxDeduction: e.target.checked ? 'Evet' : 'Hayır' }))}
-            />
-            Max Kesinti (Yasal Limiti Otomatik Kontrol Et)
-          </label>
-
-          {hasErtelenmis && !form.girisAidatiYok && (
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-slate-700">Çıkışta Alınacak GA Tanımları (Kademe)</h4>
-                <OutlineButton
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      exitGaRules: [...f.exitGaRules, { id: Date.now(), sureTipi: 'Yıl', altLimit: '', ustLimit: '', oran: '' }],
-                    }))
-                  }
-                >
-                  + Ekle
-                </OutlineButton>
-              </div>
-              <div className="overflow-auto">
-                <table className="w-full grid-table text-sm">
-                  <thead>
-                    <tr>
-                      <th>Süre Tipi</th>
-                      <th>Alt Limit</th>
-                      <th>Üst Limit</th>
-                      <th>Oran (%)</th>
-                      <th className="w-20 text-center">İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.exitGaRules.map((rule) => (
-                      <tr key={rule.id}>
-                        <td>
-                          <select
-                            className="form-select"
-                            value={rule.sureTipi}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, sureTipi: e.target.value } : r)),
-                              }))
-                            }
-                          >
-                            {EXIT_RULE_DURATION_OPTIONS.map((o) => (
-                              <option key={o} value={o}>
-                                {o}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <input
-                            className="form-input"
-                            value={rule.altLimit}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, altLimit: e.target.value } : r)),
-                              }))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="form-input"
-                            value={rule.ustLimit}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, ustLimit: e.target.value } : r)),
-                              }))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="form-input"
-                            value={rule.oran}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                exitGaRules: f.exitGaRules.map((r) => (r.id === rule.id ? { ...r, oran: e.target.value } : r)),
-                              }))
-                            }
-                          />
-                        </td>
-                        <td className="text-center">
-                          <button
-                            type="button"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() =>
-                              setForm((f) => ({
-                                ...f,
-                                exitGaRules: f.exitGaRules.length > 1 ? f.exitGaRules.filter((r) => r.id !== rule.id) : f.exitGaRules,
-                              }))
-                            }
-                          >
-                            🗑
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
 
       <Modal
         open={bindOpen}

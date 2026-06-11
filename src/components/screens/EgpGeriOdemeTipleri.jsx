@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, Link as LinkIcon } from 'lucide-react'
+import { Plus, Search, Link as LinkIcon, ArrowLeft, Trash2, Save } from 'lucide-react'
 import { egpGeriOdeme as seedRows } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import Modal from '../ui/Modal'
@@ -43,6 +43,30 @@ function emptyForm() {
   }
 }
 
+function rowToForm(row) {
+  return {
+    kod: row.kod || '',
+    ad: row.ad || '',
+    versiyon: String(row.versiyon || '1'),
+    tip: row.tip || '',
+    sureAlt: row.sureAlt || '',
+    sureUst: row.sureUst || '',
+    tutarAlt: row.tutarAlt || '',
+    tutarUst: row.tutarUst || '',
+    oranUst: row.oranUst || '',
+    faiz: row.faiz || '',
+  }
+}
+
+function FieldLabel({ children, required }) {
+  return (
+    <span className="block text-xs font-semibold text-slate-600 mb-1">
+      {children}
+      {required && <span className="text-red-500"> *</span>}
+    </span>
+  )
+}
+
 export default function EgpGeriOdemeTipleri() {
   const [rows, setRows] = useState(() =>
     seedRows.map((r) => ({
@@ -50,11 +74,11 @@ export default function EgpGeriOdemeTipleri() {
       tip: normalizeTip(r.tip),
     })),
   )
+  const [viewMode, setViewMode] = useState('list')
   const [selected, setSelected] = useState([])
   const [menuId, setMenuId] = useState(null)
-  const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState(emptyForm())
+  const [form, setForm] = useState(emptyForm)
   const [bindOpen, setBindOpen] = useState(false)
   const [bindSearch, setBindSearch] = useState('')
   const [bindSelectedPlans, setBindSelectedPlans] = useState([])
@@ -72,28 +96,36 @@ export default function EgpGeriOdemeTipleri() {
   const isSureBazli = form.tip === 'Süre Bazlı Ödeme'
   const isMevduatOrKira = form.tip === 'Mevduat' || form.tip === 'Kira Geliri'
 
+  const sureAltEnabled = isSureBazli || isMevduatOrKira
+  const sureUstEnabled = isSureBazli
+  const tutarAltEnabled = isTutarBazli
+  const tutarUstEnabled = isTutarBazli
+  const faizEnabled = isMevduatOrKira
+
   const openCreate = () => {
     setEditingId(null)
     setForm(emptyForm())
-    setFormOpen(true)
+    setViewMode('form')
   }
 
   const openEdit = (row) => {
     setEditingId(row.id)
-    setForm({
-      kod: row.kod || '',
-      ad: row.ad || '',
-      versiyon: String(row.versiyon || '1'),
-      tip: row.tip || '',
-      sureAlt: row.sureAlt || '',
-      sureUst: row.sureUst || '',
-      tutarAlt: row.tutarAlt || '',
-      tutarUst: row.tutarUst || '',
-      oranUst: row.oranUst || '',
-      faiz: row.faiz || '',
-    })
-    setFormOpen(true)
+    setForm(rowToForm(row))
+    setViewMode('form')
     setMenuId(null)
+  }
+
+  const handleTipChange = (tip) => {
+    setForm((f) => ({
+      ...f,
+      tip,
+      sureAlt: '',
+      sureUst: '',
+      tutarAlt: '',
+      tutarUst: '',
+      oranUst: f.oranUst,
+      faiz: '',
+    }))
   }
 
   const save = () => {
@@ -107,21 +139,155 @@ export default function EgpGeriOdemeTipleri() {
     } else {
       setRows((prev) => [...prev, { id: Date.now(), ...payload }])
     }
-    setFormOpen(false)
+    setViewMode('list')
+  }
+
+  if (viewMode === 'form') {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className="text-slate-500 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100"
+            aria-label="Geri"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-lg font-bold text-slate-800">
+            {editingId ? `Geri Ödeme Tipleri Güncelle (${form.kod})` : 'Geri Ödeme Tipleri Ekle'}
+          </h2>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <FieldLabel required>Geri Ödeme Kodu</FieldLabel>
+              <input
+                className="form-input"
+                value={form.kod}
+                disabled={Boolean(editingId)}
+                onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel required>Geri Ödeme Adı</FieldLabel>
+              <input
+                className="form-input"
+                value={form.ad}
+                onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Versiyon</FieldLabel>
+              <input
+                className="form-input bg-slate-100 text-slate-600 cursor-not-allowed"
+                disabled
+                readOnly
+                value={form.versiyon || '1'}
+              />
+            </div>
+            <div>
+              <FieldLabel required>Geri Ödeme Tipi</FieldLabel>
+              <select
+                className="form-select"
+                value={form.tip}
+                onChange={(e) => handleTipChange(e.target.value)}
+              >
+                <option value="">Seçiniz</option>
+                {GERI_ODEME_TIPLERI.map((t) => <option key={t} value={t}>{t}</option>)}
+                {!GERI_ODEME_TIPLERI.includes(form.tip) && form.tip ? <option value={form.tip}>{form.tip}</option> : null}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Geri Ödeme Süresi(Yıl) Alt Limiti</FieldLabel>
+              <input
+                className={`form-input ${!sureAltEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                disabled={!sureAltEnabled}
+                placeholder={sureAltEnabled ? '' : 'Sadece Süre/Kira/Mevduat için'}
+                value={form.sureAlt}
+                onChange={(e) => setForm((f) => ({ ...f, sureAlt: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Geri Ödeme Süresi(Yıl) Üst Limiti</FieldLabel>
+              <input
+                className={`form-input ${!sureUstEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                disabled={!sureUstEnabled}
+                placeholder={sureUstEnabled ? '' : 'Sadece Süre Bazlı için'}
+                value={form.sureUst}
+                onChange={(e) => setForm((f) => ({ ...f, sureUst: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Alt Limit Geri Ödeme Tutarı</FieldLabel>
+              <input
+                className={`form-input ${!tutarAltEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                disabled={!tutarAltEnabled}
+                placeholder={tutarAltEnabled ? '' : 'Sadece Tutar Bazlı için'}
+                value={form.tutarAlt}
+                onChange={(e) => setForm((f) => ({ ...f, tutarAlt: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Üst Limit Geri Ödeme Tutarı</FieldLabel>
+              <input
+                className={`form-input ${!tutarUstEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                disabled={!tutarUstEnabled}
+                placeholder={tutarUstEnabled ? '' : 'Sadece Tutar Bazlı için'}
+                value={form.tutarUst}
+                onChange={(e) => setForm((f) => ({ ...f, tutarUst: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Geri Ödeme Oranı Üst Limiti</FieldLabel>
+              <input
+                className="form-input"
+                value={form.oranUst}
+                onChange={(e) => setForm((f) => ({ ...f, oranUst: e.target.value }))}
+              />
+            </div>
+            <div>
+              <FieldLabel>Faiz Oran</FieldLabel>
+              <input
+                className={`form-input ${!faizEnabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                disabled={!faizEnabled}
+                placeholder={faizEnabled ? '' : 'Sadece Mevduat/Kira için aktif'}
+                value={form.faiz}
+                onChange={(e) => setForm((f) => ({ ...f, faiz: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <OutlineButton onClick={() => setViewMode('list')}>İptal</OutlineButton>
+          <OutlineButton
+            className="border-red-200 text-red-600 hover:bg-red-50"
+            onClick={() => setForm(emptyForm())}
+          >
+            <Trash2 className="w-4 h-4" /> Temizle
+          </OutlineButton>
+          <PrimaryButton onClick={save}>
+            <Save className="w-4 h-4" /> Kaydet
+          </PrimaryButton>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
         title="Geri Ödeme Tipleri"
-        right={
+        right={(
           <>
             <OutlineButton disabled={selected.length === 0} onClick={() => { setBindOpen(true); setBindSearch(''); setBindSelectedPlans([]) }}>
               <LinkIcon className="w-4 h-4" /> Planlara Bağla
             </OutlineButton>
             <PrimaryButton onClick={openCreate}><Plus className="w-4 h-4" /> Yeni Ekle</PrimaryButton>
           </>
-        }
+        )}
       />
 
       <div className="flex-1 overflow-auto">
@@ -164,66 +330,6 @@ export default function EgpGeriOdemeTipleri() {
           </tbody>
         </table>
       </div>
-
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title="Geri Ödeme Tipi Ekle"
-        size="lg"
-        footer={<><OutlineButton onClick={() => setFormOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={save}>Kaydet</PrimaryButton></>}
-      >
-        <div className="space-y-4">
-          <div className="rounded-lg border border-slate-200 p-3">
-            <h3 className="text-sm font-semibold text-slate-800 mb-2">Ana Tanımlar</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <label><span className="block text-xs text-slate-600 mb-1">Geri Ödeme Kodu</span><input className="form-input" value={form.kod} onChange={(e) => setForm((f) => ({ ...f, kod: e.target.value }))} /></label>
-              <label><span className="block text-xs text-slate-600 mb-1">Geri Ödeme Adı</span><input className="form-input" value={form.ad} onChange={(e) => setForm((f) => ({ ...f, ad: e.target.value }))} /></label>
-              <label><span className="block text-xs text-slate-600 mb-1">Versiyon</span><input className="form-input bg-slate-100" disabled value={form.versiyon || '1'} /></label>
-              <label>
-                <span className="block text-xs text-slate-600 mb-1">Geri Ödeme Tipi*</span>
-                <select className="form-select" value={form.tip} onChange={(e) => setForm((f) => ({ ...f, tip: e.target.value, sureAlt: '', sureUst: '', tutarAlt: '', tutarUst: '', oranUst: '', faiz: '' }))}>
-                  <option value="">Seçiniz</option>
-                  {GERI_ODEME_TIPLERI.map((t) => <option key={t} value={t}>{t}</option>)}
-                  {!GERI_ODEME_TIPLERI.includes(form.tip) && form.tip ? <option value={form.tip}>{form.tip}</option> : null}
-                </select>
-              </label>
-            </div>
-          </div>
-
-          {isTutarBazli && (
-            <div className="rounded-lg border border-slate-200 p-3">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Tutar Bazlı - Geri Ödeme Bilgileri</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <label><span className="block text-xs text-slate-600 mb-1">Alt Limit (Tutar)</span><input className="form-input" value={form.tutarAlt} onChange={(e) => setForm((f) => ({ ...f, tutarAlt: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Üst Limit (Tutar)</span><input className="form-input" value={form.tutarUst} onChange={(e) => setForm((f) => ({ ...f, tutarUst: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Üst Limit (Oran)</span><input className="form-input" value={form.oranUst} onChange={(e) => setForm((f) => ({ ...f, oranUst: e.target.value }))} /></label>
-              </div>
-            </div>
-          )}
-
-          {isSureBazli && (
-            <div className="rounded-lg border border-slate-200 p-3">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Süre Bazlı - Geri Ödeme Bilgileri</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <label><span className="block text-xs text-slate-600 mb-1">Alt Limit (Yıl)</span><input className="form-input" value={form.sureAlt} onChange={(e) => setForm((f) => ({ ...f, sureAlt: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Üst Limit (Yıl)</span><input className="form-input" value={form.sureUst} onChange={(e) => setForm((f) => ({ ...f, sureUst: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Üst Limit (Oran)</span><input className="form-input" value={form.oranUst} onChange={(e) => setForm((f) => ({ ...f, oranUst: e.target.value }))} /></label>
-              </div>
-            </div>
-          )}
-
-          {isMevduatOrKira && (
-            <div className="rounded-lg border border-slate-200 p-3">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">{form.tip} - Geri Ödeme Bilgileri</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <label><span className="block text-xs text-slate-600 mb-1">Alt Limit (Yıl)</span><input className="form-input" value={form.sureAlt} onChange={(e) => setForm((f) => ({ ...f, sureAlt: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Üst Limit (Oran)</span><input className="form-input" value={form.oranUst} onChange={(e) => setForm((f) => ({ ...f, oranUst: e.target.value }))} /></label>
-                <label><span className="block text-xs text-slate-600 mb-1">Faiz Oranı</span><input className="form-input" value={form.faiz} onChange={(e) => setForm((f) => ({ ...f, faiz: e.target.value }))} /></label>
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
 
       <Modal
         open={bindOpen}

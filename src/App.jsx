@@ -18,7 +18,9 @@ const PLAN_LOOKUP_IDS = new Set([
   'odemeAraclari', 'degisiklikTipleri', 'gecerliSozlesmeCinsi', 'basvuruTipleri', 'tarifePlanDurum',
   'kurTipleri', 'vakifUyeKurum', 'odemeDonemiTurleri', 'girisAidatiTurleri', 'tarifeOzguBelgeTipleri',
   'altBranslar', 'yuvarlamaTipleri', 'ygkYilTipi', 'ygkLimitTutarTipi', 'ygkKademeTipi',
-  'ygkYillikKademeDonemi', 'ygkYillikOdemeDonemi', 'araVermeTip', 'egpBireyTipi', 'egpGeriOdemeTipleri',
+  'ygkYillikKademeDonemi', 'ygkYillikOdemeDonemi', 'araVermeTip',
+  'ygkBes30BirikimTipi', 'ygkBes30KesintiDonemi', 'ygkBes30KesintiZamani', 'ygkBes30YgkKesintiTipi',
+  'egpBireyTipi', 'egpGeriOdemeTipleri',
   'soruTipleri', 'cevapTipleri', 'soruBankasi', 'soruKumeleri',
 ])
 
@@ -81,6 +83,10 @@ const menu = [
       { id: 'ygkYillikKademeDonemi', label: 'YGK Yillik Kademe Donemi' },
       { id: 'ygkYillikOdemeDonemi', label: 'YGK Yillik Odeme Donemi' },
       { id: 'araVermeTip', label: 'Ara Verme Tip' },
+      { id: 'ygkBes30BirikimTipi', label: 'YGK BES3.0 Birikim Tipi' },
+      { id: 'ygkBes30KesintiDonemi', label: 'YGK BES3.0 Kesinti Dönemi' },
+      { id: 'ygkBes30KesintiZamani', label: 'YGK BES3.0 Kesinti Zamanı' },
+      { id: 'ygkBes30YgkKesintiTipi', label: 'YGK BES3.0 YGK Kesinti Tipi' },
       { id: 'egpBireyTipi', label: 'EGP Birey Tipi' },
       { id: 'egpGeriOdemeTipleri', label: 'EGP Geri Odeme Tipleri' },
     ],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MoreVertical, Eye, Pencil, Copy, GitBranch, Trash2, History, Link as LinkIcon, FileText } from 'lucide-react'
+import { MoreVertical, Eye, Pencil, Copy, GitBranch, Trash2, History, Link as LinkIcon, FileText, Download } from 'lucide-react'
 
 const ICONS = {
   view: Eye,
@@ -11,6 +11,7 @@ const ICONS = {
   link: LinkIcon,
   delete: Trash2,
   details: FileText,
+  download: Download,
 }
 
 const DEFAULT_ACTIONS = [
