@@ -4054,6 +4054,18 @@ const GRUP_GECERLI_SOZLESME_TURU_SECENEKLERI = [
   { kod: 'GBB', label: 'GBB' },
 ]
 
+/** BES plan özellik flag görünürlüğü — sözleşme tipine göre (Ferdi / Grup / OKS / EGP) */
+function planOzellikVisibility(sozlesmeTipi) {
+  const tip = (sozlesmeTipi || 'Ferdi').toUpperCase()
+  return {
+    vatandaslik: tip === 'FERDI',
+    aktarimaOzel: true,
+    mesafeliSatis: true,
+    befas: tip !== 'EGP',
+    vakifAktarim: tip !== 'OKS',
+  }
+}
+
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
   const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
@@ -4098,6 +4110,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
   })
 
   const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
+  const ozellikFlags = planOzellikVisibility(form.sozlesmeTipi)
 
   const headerSubtitle = `${plan?.id || '-'} • ${branchLabelFromUrun(urun)} • ${toHeaderIsoDate(plan?.tarih)}`
 
@@ -4221,10 +4234,24 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               <div className="md:col-span-4">
                 <span className="block text-xs font-medium text-slate-600 mb-2">Özellikler</span>
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
-                    Aktarım Özel Planı
-                  </label>
+                  {ozellikFlags.aktarimaOzel ? (
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
+                      Aktarım Özel Planı
+                    </label>
+                  ) : null}
+                  {ozellikFlags.mesafeliSatis ? (
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
+                      Mesafeli Satış
+                    </label>
+                  ) : null}
+                  {ozellikFlags.befas ? (
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
+                      BEFAS
+                    </label>
+                  ) : null}
                 </div>
               </div>
 
@@ -4427,23 +4454,25 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
             <div className="md:col-span-4">
               <div className="text-xs font-medium text-slate-600 mb-2">Özellikler</div>
               <div className="flex flex-wrap gap-4 text-xs text-slate-700">
-                {!isGrupProduct ? (
+                {ozellikFlags.vatandaslik ? (
                   <label className="inline-flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.vatandaslikPlani} onChange={(e) => setValue('vatandaslikPlani', e.target.checked)} className="rounded border-slate-300" />
                     Vatandaşlık Planı
                   </label>
                 ) : null}
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
-                  Aktarım Özel Planı
-                </label>
-                {!isGrupProduct ? (
+                {ozellikFlags.aktarimaOzel ? (
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.aktarimaOzelPlan} onChange={(e) => setValue('aktarimaOzelPlan', e.target.checked)} className="rounded border-slate-300" />
+                    Aktarım Özel Planı
+                  </label>
+                ) : null}
+                {ozellikFlags.mesafeliSatis ? (
                   <label className="inline-flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.masrafliSatis} onChange={(e) => setValue('masrafliSatis', e.target.checked)} className="rounded border-slate-300" />
                     Mesafeli Satış
                   </label>
                 ) : null}
-                {!isGrupProduct ? (
+                {ozellikFlags.befas ? (
                   <label className="inline-flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.betas} onChange={(e) => setValue('betas', e.target.checked)} className="rounded border-slate-300" />
                     BEFAS
@@ -4452,31 +4481,33 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
               </div>
             </div>
 
-            <div className="md:col-span-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
-                <input
-                  type="checkbox"
-                  checked={form.vakifAktarim}
-                  onChange={(e) => {
-                    const c = e.target.checked
-                    setForm((prev) => ({ ...prev, vakifAktarim: c, uyeKurumKod: c ? prev.uyeKurumKod : '' }))
-                  }}
-                  className="rounded border-slate-300"
-                />
-                Vakıf Aktarım
-              </label>
-              {form.vakifAktarim ? (
-                <label className="block flex-1 min-w-[220px] max-w-xl">
-                  <span className="block text-xs font-medium text-slate-600 mb-1">Üye Kurum</span>
-                  <select className="form-select" value={form.uyeKurumKod} onChange={(e) => setValue('uyeKurumKod', e.target.value)}>
-                    <option value="">Seçiniz</option>
-                    {vakifUyeKurum.map((v) => (
-                      <option key={v.kod} value={v.kod}>{v.aciklama}</option>
-                    ))}
-                  </select>
+            {ozellikFlags.vakifAktarim ? (
+              <div className="md:col-span-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={form.vakifAktarim}
+                    onChange={(e) => {
+                      const c = e.target.checked
+                      setForm((prev) => ({ ...prev, vakifAktarim: c, uyeKurumKod: c ? prev.uyeKurumKod : '' }))
+                    }}
+                    className="rounded border-slate-300"
+                  />
+                  Vakıf Aktarım
                 </label>
-              ) : null}
-            </div>
+                {form.vakifAktarim ? (
+                  <label className="block flex-1 min-w-[220px] max-w-xl">
+                    <span className="block text-xs font-medium text-slate-600 mb-1">Üye Kurum</span>
+                    <select className="form-select" value={form.uyeKurumKod} onChange={(e) => setValue('uyeKurumKod', e.target.value)}>
+                      <option value="">Seçiniz</option>
+                      {vakifUyeKurum.map((v) => (
+                        <option key={v.kod} value={v.kod}>{v.aciklama}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <OksMultiSelectDropdown

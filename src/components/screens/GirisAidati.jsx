@@ -488,9 +488,12 @@ export default function GirisAidati() {
     setForm((f) => {
       const exists = f.gaTypes.includes(type)
       const nextTypes = exists ? f.gaTypes.filter((x) => x !== type) : [...f.gaTypes, type]
+      const taksitliOff = type === 'Taksitli' && exists
       return {
         ...f,
         gaTypes: nextTypes,
+        installmentType: taksitliOff ? '' : f.installmentType,
+        installmentCount: taksitliOff ? '' : f.installmentCount,
         exitGaCalcType: nextTypes.includes('Çıkışa Ertelenmiş') ? f.exitGaCalcType || EXIT_GA_CALC_OPTIONS[0] : f.exitGaCalcType,
       }
     })
@@ -705,12 +708,13 @@ export default function GirisAidati() {
               <input className="form-input bg-slate-50 font-semibold text-slate-800" disabled readOnly value={formatTotalTr(currentTotal)} />
             </div>
 
-            {hasPesin && !form.girisAidatiYok && (
+            {!form.girisAidatiYok && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Tipi</label>
                   <select
-                    className="form-select"
+                    className={`form-select ${!hasTaksitli ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                    disabled={!hasTaksitli}
                     value={form.installmentType}
                     onChange={(e) => setForm((f) => ({ ...f, installmentType: e.target.value, installmentCount: '' }))}
                   >
@@ -723,8 +727,8 @@ export default function GirisAidati() {
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Taksit Adedi</label>
                   <select
-                    className="form-select"
-                    disabled={!form.installmentType}
+                    className={`form-select ${!hasTaksitli || !form.installmentType ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                    disabled={!hasTaksitli || !form.installmentType}
                     value={form.installmentCount}
                     onChange={(e) => setForm((f) => ({ ...f, installmentCount: e.target.value }))}
                   >
