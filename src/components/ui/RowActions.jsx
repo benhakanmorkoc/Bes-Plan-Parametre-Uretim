@@ -100,8 +100,19 @@ export default function RowActions({ actions = DEFAULT_ACTIONS, onAction, row })
             return (
               <button
                 key={a.key}
-                onClick={() => handle(a.key)}
-                className={`w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-50 ${a.danger ? 'text-red-600 hover:bg-red-50' : 'text-slate-700'}`}
+                type="button"
+                disabled={a.disabled}
+                onClick={() => {
+                  if (a.disabled) return
+                  handle(a.key)
+                }}
+                className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${
+                  a.disabled
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : a.danger
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-slate-700 hover:bg-slate-50'
+                }`}
               >
                 <Icon className="w-3.5 h-3.5" /> {a.label}
               </button>

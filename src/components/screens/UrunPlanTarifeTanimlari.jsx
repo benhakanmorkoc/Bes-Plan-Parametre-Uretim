@@ -25,12 +25,39 @@ import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/T
 import RowActions from '../ui/RowActions'
 import Modal from '../ui/Modal'
 
+function isPlanSatisKapali(plan) {
+  return plan?.satisKapali === true
+}
+
+function isPlanEditDisabled(plan) {
+  if (isPlanSatisKapali(plan)) return true
+  return plan?.durum !== 'Taslak' && plan?.durum !== 'Yururlukte'
+}
+
+function planStatusLabel(plan) {
+  if (isPlanSatisKapali(plan)) return 'Satışa Kapalı'
+  return formatPlanDurum(plan?.durum)
+}
+
+function buildPlanVersion(plan, existingPlans) {
+  const base = plan.id.split('-V')[0]
+  const versionNo = existingPlans.filter((p) => p.id.startsWith(base)).length + 1
+  return normalizePlan({
+    ...plan,
+    id: `${base}-V${versionNo}`,
+    ad: `${plan.ad} v${versionNo}`,
+    tarih: normalizeDate(),
+    durum: 'Taslak',
+    satisKapali: false,
+  })
+}
+
 function planRowActions(plan) {
   const isTaslak = plan?.durum === 'Taslak'
   const isYururlukte = plan?.durum === 'Yururlukte'
   const actions = [
     { key: 'view', label: 'İncele', icon: 'view' },
-    { key: 'edit', label: 'Düzenle', icon: 'edit' },
+    { key: 'edit', label: 'Düzenle', icon: 'edit', disabled: isPlanEditDisabled(plan) },
     { key: 'history', label: 'Versiyonlar', icon: 'history' },
     { key: 'copy', label: 'Kopyala', icon: 'copy' },
     { key: 'export', label: 'Dışarı Aktar', icon: 'download' },
@@ -51,7 +78,7 @@ function planCardMenuItems(plan) {
   const isYururlukte = plan?.durum === 'Yururlukte'
   const items = [
     { key: 'view', label: 'İncele', Icon: Eye },
-    { key: 'edit', label: 'Düzenle', Icon: Pencil },
+    { key: 'edit', label: 'Düzenle', Icon: Pencil, disabled: isPlanEditDisabled(plan) },
     { key: 'history', label: 'Versiyonlar', Icon: History, accent: true },
     { key: 'copy', label: 'Kopyala', Icon: Copy },
     { key: 'export', label: 'Dışarı Aktar', Icon: Download },
@@ -1244,10 +1271,18 @@ function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenI
                 <button
                   key={item.key}
                   type="button"
-                  className={`w-full px-3 py-2 text-left hover:bg-slate-50 inline-flex items-center gap-2 ${
-                    item.danger ? 'text-red-600 hover:bg-red-50' : item.accent ? 'text-violet-700' : 'text-slate-700'
+                  disabled={item.disabled}
+                  className={`w-full px-3 py-2 text-left inline-flex items-center gap-2 ${
+                    item.disabled
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : item.danger
+                        ? 'text-red-600 hover:bg-red-50'
+                        : item.accent
+                          ? 'text-violet-700 hover:bg-slate-50'
+                          : 'text-slate-700 hover:bg-slate-50'
                   }`}
                   onClick={() => {
+                    if (item.disabled) return
                     onPlanAction(item.key, plan)
                     setMenuOpenId(null)
                   }}
@@ -1262,7 +1297,7 @@ function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenI
       </div>
 
       <div className="px-4 pb-3">
-        <StatusBadge value={plan.durum}>{formatPlanDurum(plan.durum)}</StatusBadge>
+        <StatusBadge value={isPlanSatisKapali(plan) ? 'SatisaKapali' : plan.durum}>{planStatusLabel(plan)}</StatusBadge>
         <h3 className="text-lg font-bold text-slate-800 mt-2 leading-snug">{plan.ad}</h3>
       </div>
 
@@ -1307,6 +1342,7 @@ function PlanList({
   onPlanAction,
   onStartNewPlanFlow,
   onPlanDetail,
+  onPlanEdit,
 }) {
   const [planView, setPlanView] = useState('grid')
   const [search, setSearch] = useState('')
@@ -1334,7 +1370,8 @@ function PlanList({
 
   const handlePlanAction = (key, row) => {
     if (key === 'edit') {
-      openEdit(row)
+      if (isPlanEditDisabled(row)) return
+      onPlanEdit?.(row)
       return
     }
     if (key === 'view') {
@@ -1438,7 +1475,7 @@ function PlanList({
                   <tr key={p.id}>
                     <td className="font-semibold text-violet-700">{p.id}</td>
                     <td>{p.ad}</td>
-                    <td><StatusBadge value={p.durum}>{formatPlanDurum(p.durum)}</StatusBadge></td>
+                    <td><StatusBadge value={isPlanSatisKapali(p) ? 'SatisaKapali' : p.durum}>{planStatusLabel(p)}</StatusBadge></td>
                     <td>{p.tarih}</td>
                     <td className="text-right">
                       <RowActions
@@ -6463,6 +6500,7 @@ export default function UrunPlanTarifeTanimlari() {
   const [planForm, setPlanForm] = useState({ planAdi: '', planKodu: '', baslangicTarihi: normalizeDate(), katilimEsasli: false, hedefKitle: '' })
   const [planSetupContext, setPlanSetupContext] = useState(null)
   const [planSetupView, setPlanSetupView] = useState('board')
+  const [versionConfirmPlan, setVersionConfirmPlan] = useState(null)
   const [planBelgeleriByPlanKey, setPlanBelgeleriByPlanKey] = useState({})
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
   const [menuOpenId, setMenuOpenId] = useState(null)
@@ -6474,11 +6512,46 @@ export default function UrunPlanTarifeTanimlari() {
     setMenuOpenId(null)
   }
 
-  const openPlanDetail = (plan) => {
-    if (!selected) return
-    setPlanSetupContext({ urun: selected, plan, returnToPlans: true, activeOnly: planListActiveOnly })
+  const openPlanSetupBoard = (plan, urun, { editMode = false } = {}) => {
+    setPlanSetupContext({
+      urun,
+      plan,
+      returnToPlans: true,
+      activeOnly: planListActiveOnly,
+      editMode,
+    })
     setPlanSetupView('board')
     setSelected(null)
+  }
+
+  const openPlanDetail = (plan) => {
+    if (!selected) return
+    openPlanSetupBoard(plan, selected, { editMode: false })
+  }
+
+  const openPlanEdit = (plan) => {
+    if (!selected || isPlanEditDisabled(plan)) return
+    if (plan.durum === 'Taslak') {
+      openPlanSetupBoard(plan, selected, { editMode: true })
+      return
+    }
+    if (plan.durum === 'Yururlukte' && !isPlanSatisKapali(plan)) {
+      setVersionConfirmPlan(plan)
+    }
+  }
+
+  const confirmPlanVersionAndEdit = () => {
+    if (!selected || !versionConfirmPlan) return
+    const versionedPlan = buildPlanVersion(versionConfirmPlan, getPlans(selected.id))
+    setPlansByProduct((prev) => {
+      const next = [...(prev[selected.id] || []), versionedPlan]
+      const nextMap = { ...prev, [selected.id]: next }
+      setProducts((prodPrev) => recalcCounts(selected.id, prodPrev, nextMap))
+      return nextMap
+    })
+    const urun = selected
+    setVersionConfirmPlan(null)
+    openPlanSetupBoard(versionedPlan, urun, { editMode: true })
   }
 
   const filtered = useMemo(() => {
@@ -6874,19 +6947,39 @@ export default function UrunPlanTarifeTanimlari() {
 
   if (selected) {
     return (
-      <PlanList
-        urun={selected}
-        planlar={getPlans(selected.id)}
-        activeOnly={planListActiveOnly}
-        onBack={() => {
-          setSelected(null)
-          setPlanListActiveOnly(false)
-        }}
-        onSavePlan={handleSavePlan}
-        onPlanAction={handlePlanAction}
-        onStartNewPlanFlow={startExistingProductPlanFlow}
-        onPlanDetail={openPlanDetail}
-      />
+      <>
+        <PlanList
+          urun={selected}
+          planlar={getPlans(selected.id)}
+          activeOnly={planListActiveOnly}
+          onBack={() => {
+            setSelected(null)
+            setPlanListActiveOnly(false)
+            setVersionConfirmPlan(null)
+          }}
+          onSavePlan={handleSavePlan}
+          onPlanAction={handlePlanAction}
+          onStartNewPlanFlow={startExistingProductPlanFlow}
+          onPlanDetail={openPlanDetail}
+          onPlanEdit={openPlanEdit}
+        />
+        <Modal
+          open={!!versionConfirmPlan}
+          onClose={() => setVersionConfirmPlan(null)}
+          title="Yeni Versiyon Oluştur"
+          size="md"
+          footer={(
+            <>
+              <OutlineButton type="button" onClick={() => setVersionConfirmPlan(null)}>Hayır</OutlineButton>
+              <PrimaryButton type="button" onClick={confirmPlanVersionAndEdit}>Evet</PrimaryButton>
+            </>
+          )}
+        >
+          <p className="text-sm text-slate-700 leading-relaxed">
+            Yeni versiyon oluşturulduktan sonra güncelleme yapılabilir. Yeni versiyon oluşturmak ister misiniz?
+          </p>
+        </Modal>
+      </>
     )
   }
 
