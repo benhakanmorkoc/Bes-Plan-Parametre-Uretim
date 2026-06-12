@@ -746,9 +746,23 @@ function formatPlanDurum(durum) {
   return durum || '—'
 }
 
+function sozlesmeTipiUpper(sozlesmeTipi) {
+  return (sozlesmeTipi || '').toUpperCase()
+}
+
+/** Emeklilik Gelir Planı akışı (EGP + Otomatik Katılım EGP) */
+function isEgpLikeSozlesmeTipi(sozlesmeTipi) {
+  const tip = sozlesmeTipiUpper(sozlesmeTipi)
+  return tip === 'EGP' || tip === 'OKS-EGP'
+}
+
+function isOksOnlySozlesmeTipi(sozlesmeTipi) {
+  return sozlesmeTipiUpper(sozlesmeTipi) === 'OKS'
+}
+
 function planKategoriKodu(urun) {
-  const tip = (urun?.sozlesmeTipi || '').toUpperCase()
-  if (tip === 'EGP' || tip === 'OKS-EGP') return 'EGP.AP'
+  const tip = sozlesmeTipiUpper(urun?.sozlesmeTipi)
+  if (isEgpLikeSozlesmeTipi(tip)) return 'EGP.AP'
   if (tip === 'OKS') return 'OKS.AP'
   if (tip === 'GRUP') return 'BES.GP'
   return 'BES.AP'
@@ -1465,9 +1479,9 @@ function PlanList({
 }
 
 function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
-  const tip = (urun?.sozlesmeTipi || '').toUpperCase()
-  const isEgp = tip === 'EGP'
-  const visibleCards = tip === 'OKS'
+  const tip = sozlesmeTipiUpper(urun?.sozlesmeTipi)
+  const isEgp = isEgpLikeSozlesmeTipi(tip)
+  const visibleCards = isOksOnlySozlesmeTipi(tip)
     ? PLAN_SETUP_CARDS.filter((card) => card.id !== 'katki' && card.id !== 'kesinti')
     : PLAN_SETUP_CARDS
 
@@ -4056,27 +4070,27 @@ const GRUP_GECERLI_SOZLESME_TURU_SECENEKLERI = [
 
 /** BES plan özellik flag görünürlüğü — sözleşme tipine göre (Ferdi / Grup / OKS / EGP) */
 function planOzellikVisibility(sozlesmeTipi) {
-  const tip = (sozlesmeTipi || 'Ferdi').toUpperCase()
+  const tip = sozlesmeTipiUpper(sozlesmeTipi || 'Ferdi')
   return {
     vatandaslik: tip === 'FERDI',
     aktarimaOzel: true,
     mesafeliSatis: true,
-    befas: tip !== 'EGP',
-    vakifAktarim: tip !== 'OKS',
+    befas: !isEgpLikeSozlesmeTipi(tip),
+    vakifAktarim: !isOksOnlySozlesmeTipi(tip),
   }
 }
 
 function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
-  /** Otomatik Katılım ürünü (sözleşme tipi OKS) — EGP / OKS-EGP ayrı ürün türleridir */
-  const isOksProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
-  const isGrupProduct = (urun?.sozlesmeTipi || '').toUpperCase() === 'GRUP'
+  /** Otomatik Katılım (yalnızca OKS) — OKS-EGP Emeklilik Gelir Planı akışını kullanır */
+  const isOksProduct = isOksOnlySozlesmeTipi(urun?.sozlesmeTipi)
+  const isGrupProduct = sozlesmeTipiUpper(urun?.sozlesmeTipi) === 'GRUP'
   const [form, setForm] = useState(() => {
-    const oks = (urun?.sozlesmeTipi || '').toUpperCase() === 'OKS'
+    const oks = isOksOnlySozlesmeTipi(urun?.sozlesmeTipi)
     return {
       sozlesmeTipi: urun?.sozlesmeTipi || 'Ferdi',
       versiyonNo: '0',
       planKodu: plan?.id || '',
-      kategoriKodu: oks ? '' : 'BES-AP',
+      kategoriKodu: oks ? '' : planKategoriKodu(urun),
       planAdi: plan?.ad || '',
       planKisaAdi: '',
       baslangicTarihi: toInputDateValue(plan?.tarih),
@@ -6661,7 +6675,7 @@ export default function UrunPlanTarifeTanimlari() {
     const tip = (selectedExistingProduct.sozlesmeTipi || '').toUpperCase()
     if (isBireysel && (tip === 'FERDI' || tip === 'GRUP' || tip === 'OKS' || tip === 'EGP' || tip === 'OKS-EGP')) {
       setPlanSetupContext({ urun: selectedExistingProduct, plan: payload })
-      setPlanSetupView(tip === 'OKS' ? 'genel' : 'board')
+      setPlanSetupView(isOksOnlySozlesmeTipi(tip) ? 'genel' : 'board')
     }
     closeCreateWizard()
   }

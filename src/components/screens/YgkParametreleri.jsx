@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Link as LinkIcon, ArrowLeft, Trash2, Edit2 } from 'lucide-react'
+import { Plus, Search, Link as LinkIcon, ArrowLeft, Trash2, Edit2, BookOpen } from 'lucide-react'
 import { ygk as seedYgk, katkiPayiHesaplama } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
 import Modal from '../ui/Modal'
@@ -214,6 +214,106 @@ function limitAltUstLabels(limitTutarTipi) {
   return { alt: 'Tutar Alt Limit', ust: 'Tutar Üst Limit' }
 }
 
+function YgkEkranAnlatimiContent() {
+  return (
+    <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
+      <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-blue-900">
+        <p className="font-semibold text-blue-950">Bireysel Emeklilik Sistemi (BES)</p>
+        <p className="mt-1 text-blue-800">
+          Bu ekran, sözleşmelerden yapılacak <strong>Yönetim Gider Kesintisi (YGK)</strong> oran veya tutarlarını;
+          sözleşme yılı, katılımcının birikimi, ödeme aracı ve banka gibi dinamik kriterlere göre yapılandırmanızı sağlar.
+          Tahsilat esnasında sistem, bu ekrandaki kuralları yukarıdan aşağıya tarayarak eşleşen satırdaki kesintiyi uygular.
+        </p>
+      </div>
+
+      <section>
+        <h4 className="text-base font-bold text-slate-900 mb-2">1. Ana Ekran Parametreleri (Üst Bölüm)</h4>
+        <p className="text-slate-600 mb-3">
+          Bu bölüm, kuralların genel çalışma mimarisini ve alt tablodaki limitlerin hangi kurallara göre işletileceğini belirler.
+        </p>
+        <ul className="space-y-2.5 list-none pl-0">
+          <li><strong>Döviz:</strong> Alt tabloda yer alan &quot;Tutar Alt/Üst Limit&quot; alanlarının hangi para birimi cinsinden değerlendirileceğini belirler (Örn: Türk Lirası seçildiyse, limitler TL olarak okunur).</li>
+          <li><strong>Borç Tipi:</strong> Kesintinin hangi tahsilat türüne uygulanacağını seçer (Örn: <em>Katkı Payı Tahsilatı</em>, bu kuralın sadece düzenli veya ek katkı payı ödemelerinde tetikleneceğini gösterir).</li>
+          <li><strong>Yıl Tipi:</strong> Katılımcının sözleşme yılının neye göre hesaplanacağını belirler (Örn: <em>Tahsilat Tarihi</em> seçildiğinde, paranın şirkete ulaştığı andaki sözleşme yılı baz alınır).</li>
+          <li>
+            <strong>Kademe Tipi:</strong> Limitlerin hesaplama metodunu belirler:
+            <ul className="mt-1.5 ml-4 space-y-1 list-disc text-slate-600">
+              <li><strong>Kademe (Slab):</strong> Koşul sağlandığında, tanımlanan oran <strong>tahsilat tutarının tamamına</strong> uygulanır.</li>
+              <li><strong>Kümül Kademe (Cumulative):</strong> Tutar parçalanarak kesinti hesaplanır (Örn: 0-5000 arası %2, üstü %1 ise; 6000 TL&apos;lik bir durumda ilk 5000 TL&apos;ye %2, kalan 1000 TL&apos;ye %1 uygulanır).</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Limit Tutar Tipi:</strong> Kesinti oranını belirlemek için sistemin hangi veriyi kontrol edeceğini seçer.
+            <ul className="mt-1.5 ml-4 space-y-1 list-disc text-slate-600">
+              <li><strong>Katılımcı Birikim Tutarı:</strong> Sistem, kesinti oranını belirlemek için gelen tahsilata değil, <strong>katılımcının içerideki toplam birikmiş parasına</strong> bakar.</li>
+            </ul>
+          </li>
+          <li><strong>Limit Tutar Güncelleme Türü:</strong> Tanımlanan limitlerin (Örn: 5000 TL sınırının) enflasyon, TÜFE veya asgari ücrete göre otomatik güncellenip güncellenmeyeceğini belirler.</li>
+          <li><strong>Yuvarlama:</strong> Hesaplanan kesinti tutarında kuruş küsuratı oluşması durumunda yukarı/aşağı yuvarlama kuralını belirler.</li>
+          <li><strong>Yıl Bazında Sıfırla:</strong> Seçildiğinde, kademe kontrollerini her sözleşme yılı başında sıfırdan başlatır.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h4 className="text-base font-bold text-slate-900 mb-2">2. Yıllık Parametreler ve Kademeler (Alt Tablo)</h4>
+        <p className="text-slate-600 mb-3">
+          Bu bölüm, yukarıdaki ana kriterlere uyan bir tahsilat geldiğinde uygulanacak <strong>özel mikro kuralları (kombinasyonları)</strong> tanımladığınız alandır.
+          <strong> Yıllık Parametreleri Yönet</strong> ile yeni satırlar oluşturabilirsiniz.
+        </p>
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-xs min-w-[640px]">
+            <thead className="bg-slate-100 text-slate-700">
+              <tr>
+                <th className="text-left font-semibold px-3 py-2.5 w-[22%]">Alan Adı</th>
+                <th className="text-left font-semibold px-3 py-2.5">Ne İşe Yarar? / Nasıl Girilmeli?</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {[
+                ['Yıl Alt/Üst Limit', 'Sözleşmenin hangi yaş/yıl aralığında bu kurala tabi olacağını belirler (Örn: 1 - 5 yazılırsa, ilk 5 yıl bu satır çalışır. Mevzuat gereği 5. yıldan sonra YGK yapılamadığı için burası kritik önemdedir).'],
+                ['Tutar Alt / Üst Limit', 'Üst dizede seçilen Limit Tutar Tipi\'ne ait alt ve üst sınırları belirler (Örn: Birikimi 0 - 5000 TL arası olanlar).'],
+                ['Döviz (Satır)', 'Gelen tahsilatın endeksli olduğu para birimini filtreler. - (Tümü) seçilirse, tahsilat hangi döviz türünde olursa olsun (TL\'ye çevrilerek) bu limite dahil edilir. Dövize endeksli planlar için özel filtreleme sağlar.'],
+                ['Kademe Dönemi', 'Birikim veya tahsilat kontrolünün hangi periyotta yapılacağını belirler (Aylık / Yıllık).'],
+                ['Ödeme Dönemi', 'Sözleşmenin ödeme periyodunu filtreler (Örn: Sadece Aylık ödemeli sözleşmelerde bu oran geçerli olsun).'],
+                ['Ödeme Aracı', 'Tahsilatın geldiği kaynağı filtreler (Kredi Kartı, Havale/EFT, Otomatik Ödeme Talimatı).'],
+                ['Banka', 'Belirli bankaların kartlarına veya hesaplarına avantaj/dezavantaj tanımlamak için kullanılır. (Örn: Anlaşmalı bankanız olan Garanti seçilirse, o bankanın kartıyla ödeyenlere özel kesinti uygulanır).'],
+                ['Oran (%) / Tutar', 'Tüm şartlar sağlandığında tahsilattan düşülecek kesinti yüzdesini veya sabit tutarı ifade eder (Örn: %2).'],
+              ].map(([alan, aciklama]) => (
+                <tr key={alan} className="hover:bg-slate-50/80">
+                  <td className="px-3 py-2.5 font-semibold text-slate-800 align-top">{alan}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{aciklama}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h4 className="text-base font-bold text-slate-900 mb-3">3. Sistem Operatörleri İçin Örnek İşleyiş Senaryoları</h4>
+        <p className="text-slate-600 mb-4">Ekrana veri girişi yaparken sistemin tahsilat anında nasıl davranacağını anlamak için aşağıdaki senaryoları inceleyebilirsiniz:</p>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+            <p className="font-semibold text-emerald-900 mb-2">Senaryo A: Tam Eşleşme (Kuralın Çalışması)</p>
+            <p className="text-emerald-800 mb-1"><strong>Sistemdeki Durum:</strong> Katılımcı sözleşmesinin 3. yılında, içeride toplam 4.000 TL birikimi var ve o ayki borcunu sisteme tanımlı olan Garanti Kredi Kartı ile ödedi.</p>
+            <p className="text-emerald-800"><strong>Sistemin Davranışı:</strong> Sistem yukarıdaki satırı okur; Yıl (3), Birikim (4000), Ödeme Aracı (Kredi) ve Banka (G...) kriterlerinin tamamı uyduğu için bu satırı tetikler. Gelen katkı payından %2 kesinti yapar.</p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3">
+            <p className="font-semibold text-amber-900 mb-2">Senaryo B: Limit Aşımı (Kuralın Atlanması)</p>
+            <p className="text-amber-800 mb-1"><strong>Sistemdeki Durum:</strong> Katılımcı sözleşmesinin 2. yılında, yine aynı kredi kartıyla ödeme yaptı. Ancak içerideki toplam birikimi 12.000 TL&apos;ye ulaşmış durumda.</p>
+            <p className="text-amber-800"><strong>Sistemin Davranışı:</strong> Sistem bu satıra bakar ancak Tutar Üst Limit = 5000 olduğu için bu satırı pas geçer. Bu satırın altında tanımlanmış olan bir sonraki (Örn: 5001 - 50.000 TL arası için tanımlanmış) kural satırını aramaya başlar.</p>
+          </div>
+          <div className="rounded-lg border border-sky-200 bg-sky-50/60 px-4 py-3">
+            <p className="font-semibold text-sky-900 mb-2">Senaryo C: Farklı Ödeme Kanalı (Kuralın Atlanması)</p>
+            <p className="text-sky-800 mb-1"><strong>Sistemdeki Durum:</strong> Katılımcı 1. yılında, birikimi 2000 TL (Yıl ve tutar limitlerine uyuyor). Ancak ödemeyi kredi kartıyla değil Banka Havalesi ile yaptı.</p>
+            <p className="text-sky-800"><strong>Sistemin Davranışı:</strong> Sistem satırdaki Ödeme Aracı = Kredi filtresine takılır. Bu satırdaki %2&apos;lik avantajlı oranı uygulamaz. Havale için tanımlanmış olan (muhtemelen daha yüksek oranlı) diğer genel satırı aramaya geçer.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function YgkParametreleri() {
   const [rows, setRows] = useState(() => seedYgk.map(normalizeSeedRow))
   const [viewMode, setViewMode] = useState('list')
@@ -228,6 +328,7 @@ export default function YgkParametreleri() {
   const [yillikFormOpen, setYillikFormOpen] = useState(false)
   const [yillikDraft, setYillikDraft] = useState(emptyYillikRow)
   const [yillikEditId, setYillikEditId] = useState(null)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const isKisiSayisi = form.limitTutarTipi === 'Kişi Sayısı'
   const isKuralLimit = form.limitTutarTipi === 'Kural'
@@ -370,18 +471,23 @@ export default function YgkParametreleri() {
   if (viewMode === 'form') {
     return (
       <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className="text-slate-500 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100"
-            aria-label="Geri"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h2 className="text-lg font-bold text-slate-800">
-            {formMode === 'create' ? 'YGK Parametreleri Ekle' : `YGK Parametreleri Güncelle (${form.kod})`}
-          </h2>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className="text-slate-500 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100 shrink-0"
+              aria-label="Geri"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-bold text-slate-800 truncate">
+              {formMode === 'create' ? 'YGK Parametreleri Ekle' : `YGK Parametreleri Güncelle (${form.kod})`}
+            </h2>
+          </div>
+          <OutlineButton type="button" onClick={() => setHelpOpen(true)} className="shrink-0">
+            <BookOpen className="w-4 h-4" /> Ekran Anlatımı
+          </OutlineButton>
         </div>
 
         <div className="flex-1 overflow-auto p-6">
@@ -752,6 +858,17 @@ export default function YgkParametreleri() {
           </OutlineButton>
           <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
         </div>
+
+        <Modal
+          open={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          size="xl"
+          title="YGK Tanımlama Ekranı Kullanıcı Kılavuzu"
+          description="Yönetim Gider Kesintisi (YGK) parametreleri ve kural tanımları"
+          footer={<PrimaryButton onClick={() => setHelpOpen(false)}>Kapat</PrimaryButton>}
+        >
+          <YgkEkranAnlatimiContent />
+        </Modal>
       </div>
     )
   }
