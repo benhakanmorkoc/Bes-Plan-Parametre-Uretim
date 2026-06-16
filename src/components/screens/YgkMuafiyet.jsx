@@ -30,7 +30,7 @@ const LIST_COLUMNS = [
 
   { key: 'versiyon', label: 'Versiyon' },
 
-  { key: 'yil', label: 'Geçerli Olduğu Yıl' },
+  { key: 'yilAraligi', label: 'Geçerli Olduğu Yıl Aralığı', computed: 'yilAraligi' },
 
   { key: 'toplamKp', label: 'Toplam Ödenmiş KP' },
 
@@ -78,6 +78,14 @@ function displayOranPercent(oran) {
 
 }
 
+function displayYilAraligi(row) {
+  const alt = row?.yilAlt || ''
+  const ust = row?.yilUst || ''
+  if (alt && ust) return `${alt} - ${ust}`
+  if (row?.yil && row.yil !== '0') return row.yil
+  return '—'
+}
+
 
 
 function emptyForm() {
@@ -94,7 +102,8 @@ function emptyForm() {
 
     doviz: 'TL',
 
-    gecerliYil: '',
+    gecerliYilAlt: '',
+    gecerliYilUst: '',
 
     toplamOdenmisKp: '',
 
@@ -122,7 +131,8 @@ function rowToForm(row) {
 
     doviz: row.doviz === 'TRL' ? 'TL' : row.doviz || 'TL',
 
-    gecerliYil: muafiyetTanimiYok ? '' : (row.yil || ''),
+    gecerliYilAlt: muafiyetTanimiYok ? '' : (row.yilAlt || row.yil || ''),
+    gecerliYilUst: muafiyetTanimiYok ? '' : (row.yilUst || row.yil || ''),
 
     toplamOdenmisKp: muafiyetTanimiYok ? '' : (row.toplamKp || ''),
 
@@ -137,6 +147,7 @@ function rowToForm(row) {
 function renderListCell(row, col) {
 
   if (col.computed === 'oran') return displayOranPercent(row.oran)
+  if (col.computed === 'yilAraligi') return displayYilAraligi(row)
 
   const val = row[col.key]
 
@@ -252,7 +263,7 @@ export default function YgkMuafiyet() {
 
           <p><strong>Versiyon:</strong> {row.versiyon}</p>
 
-          <p><strong>Geçerli Olduğu Yıl:</strong> {row.yil || '—'}</p>
+          <p><strong>Geçerli Olduğu Yıl Aralığı:</strong> {displayYilAraligi(row)}</p>
 
           <p><strong>Toplam Ödenmiş KP:</strong> {row.toplamKp || '—'}</p>
 
@@ -434,9 +445,9 @@ export default function YgkMuafiyet() {
 
     if (hasRules) {
 
-      if (!String(form.gecerliYil ?? '').trim()) {
+      if (!String(form.gecerliYilAlt ?? '').trim() || !String(form.gecerliYilUst ?? '').trim()) {
 
-        alert('Geçerli Olduğu Yıl zorunludur.')
+        alert('Geçerli Olduğu Yıl Aralığı (Alt/Üst) zorunludur.')
 
         return false
 
@@ -490,7 +501,9 @@ export default function YgkMuafiyet() {
 
       doviz: form.doviz === 'TL' ? 'TRL' : form.doviz,
 
-      yil: hasRules ? String(form.gecerliYil) : '0',
+      yil: hasRules ? `${String(form.gecerliYilAlt)}-${String(form.gecerliYilUst)}` : '0',
+      yilAlt: hasRules ? String(form.gecerliYilAlt) : '',
+      yilUst: hasRules ? String(form.gecerliYilUst) : '',
 
       toplamKp: hasRules ? form.toplamOdenmisKp : '0',
 
@@ -692,11 +705,11 @@ export default function YgkMuafiyet() {
 
                 <h3 className="text-sm font-semibold text-slate-800">Sadakat İndirimi (Ödenmiş KP&apos;ye Göre)</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                   <div>
 
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Geçerli Olduğu Yıl</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Geçerli Olduğu Yıl Aralığı (Alt Değer)</label>
 
                     <input
 
@@ -706,9 +719,29 @@ export default function YgkMuafiyet() {
 
                       className="form-input"
 
-                      value={form.gecerliYil}
+                      value={form.gecerliYilAlt}
 
-                      onChange={(e) => setForm((f) => ({ ...f, gecerliYil: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, gecerliYilAlt: e.target.value }))}
+
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Geçerli Olduğu Yıl Aralığı (Üst Değer)</label>
+
+                    <input
+
+                      type="number"
+
+                      min="0"
+
+                      className="form-input"
+
+                      value={form.gecerliYilUst}
+
+                      onChange={(e) => setForm((f) => ({ ...f, gecerliYilUst: e.target.value }))}
 
                     />
 
