@@ -4741,7 +4741,7 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
     karmaNo: 'EMK-FNK-756',
     aciklama: '',
     devletKatkisi: '',
-    katilimEsasli: '',
+    katilimEsasli: isPlanKatilimEsasli ? 'Evet' : '',
     baslangic: '',
     standart: '',
   })
@@ -4998,7 +4998,7 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
             karmaNo: karmaForm.karmaNo.trim(),
             aciklama: karmaForm.aciklama.trim(),
             mpRefKod: '—',
-            katilimEsasli: karmaForm.katilimEsasli || 'Hayır',
+            katilimEsasli: isPlanKatilimEsasli ? 'Evet' : (karmaForm.katilimEsasli || 'Hayır'),
             standart: karmaForm.standart || 'Hayır',
             devletKatkisi: karmaForm.devletKatkisi || 'Hayır',
             baslangic: karmaForm.baslangic || 'Hayır',
@@ -5012,7 +5012,7 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
           <div />
           <label className="block md:col-span-2"><span className="block text-sm text-slate-700 mb-1">Fon Karma Açıklaması</span><input className="form-input" placeholder="Açıklama giriniz" value={karmaForm.aciklama} onChange={(e) => setKarmaForm((p) => ({ ...p, aciklama: e.target.value }))} /></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Devlet Katkısı</span><select className="form-select" value={karmaForm.devletKatkisi} onChange={(e) => setKarmaForm((p) => ({ ...p, devletKatkisi: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><select className="form-select" value={karmaForm.katilimEsasli} onChange={(e) => setKarmaForm((p) => ({ ...p, katilimEsasli: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><select className={`form-select ${isPlanKatilimEsasli ? 'bg-slate-50 text-slate-600 cursor-not-allowed' : ''}`} value={isPlanKatilimEsasli ? 'Evet' : karmaForm.katilimEsasli} disabled={isPlanKatilimEsasli} onChange={(e) => setKarmaForm((p) => ({ ...p, katilimEsasli: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Başlangıç</span><select className="form-select" value={karmaForm.baslangic} onChange={(e) => setKarmaForm((p) => ({ ...p, baslangic: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select><span className="text-xs text-slate-400 mt-1 block">OKS planları için özel parametre; bu ekranda düzenlenemez.</span></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Standart</span><select className="form-select" value={karmaForm.standart} onChange={(e) => setKarmaForm((p) => ({ ...p, standart: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
         </div>
