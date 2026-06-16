@@ -1,6 +1,6 @@
 // --- URUN / PLAN ---
 export const urunPlanTarifeKartlari = [
-  { id: 'EMK-001', ad: 'BES - Ferdi', tipler: 'Bireysel  ·  Bireysel Emeklilik', sozlesmeTipi: 'Ferdi', toplam: 4, aktif: 3, kapali: 1, tarih: '12.01.2024', tip: 'plan' },
+  { id: 'EMK-001', ad: 'BES - Ferdi', tipler: 'Bireysel  ·  Bireysel Emeklilik', sozlesmeTipi: 'Ferdi', toplam: 5, aktif: 3, kapali: 1, tarih: '12.01.2024', tip: 'plan' },
   { id: 'EGP-002', ad: 'Emeklilik Gelir Plani', tipler: 'Bireysel  ·  Bireysel Emeklilik', sozlesmeTipi: 'EGP', toplam: 2, aktif: 2, kapali: 0, tarih: '01.12.2023', tip: 'plan' },
   { id: 'GBE-001', ad: 'BES - Grup', tipler: 'Grup  ·  Bireysel Emeklilik', sozlesmeTipi: 'Grup', toplam: 3, aktif: 3, kapali: 0, tarih: '08.01.2024', tip: 'plan' },
   { id: 'OKS-003', ad: 'Otomatik Katilim', tipler: 'Kurumsal  ·  Bireysel Emeklilik', sozlesmeTipi: 'OKS', toplam: 5, aktif: 4, kapali: 1, tarih: '05.01.2024', tip: 'plan' },
@@ -9,7 +9,8 @@ export const urunPlanTarifeKartlari = [
 
 export const urunPlanlari = {
   'EMK-001': [
-    { id: 'EMK-001-P1', ad: 'BES - Ferdi - Plan 1', durum: 'Yururlukte', oran: 100, tarih: '15.01.2024' },
+    { id: 'EMK-001-P1', ad: 'BES - Ferdi - Plan 1', durum: 'Yururlukte', oran: 100, tarih: '15.01.2024', versiyonBaslangic: '15.01.2024' },
+    { id: 'EMK-001-P1-V2', ad: 'BES - Ferdi - Plan 1 v2', durum: 'Taslak', oran: 45, tarih: '20.01.2024', versiyonBaslangic: '20.01.2024' },
     { id: 'EMK-001-P2', ad: 'BES - Ferdi - Plan 2', durum: 'Taslak', oran: 65, tarih: '15.01.2024' },
     { id: 'EMK-001-P3', ad: 'BES - Ferdi - Plan 3', durum: 'Taslak', oran: 65, tarih: '15.01.2024' },
     { id: 'EMK-001-P4', ad: 'BES - Ferdi - Plan 4', durum: 'Taslak', oran: 30, tarih: '15.01.2024' },

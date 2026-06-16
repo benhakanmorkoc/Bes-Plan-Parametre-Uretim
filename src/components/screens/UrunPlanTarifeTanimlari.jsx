@@ -34,14 +34,54 @@ function isPlanEditDisabled(plan) {
   return plan?.durum !== 'Taslak' && plan?.durum !== 'Yururlukte'
 }
 
+function isPlanDeleteDisabled(plan) {
+  if (plan?.durum !== 'Taslak') return true
+  if (isPlanSatisKapali(plan)) return true
+  if (plan?.durum === 'YururluktenKaldirildi') return true
+  return false
+}
+
+function planBaseId(id) {
+  const s = String(id || '')
+  const match = s.match(/^(.*)-V\d+$/)
+  return match ? match[1] : s
+}
+
+function planVersionNo(id) {
+  const match = String(id || '').match(/-V(\d+)$/)
+  return match ? Number(match[1]) : 1
+}
+
+function getPlanVersionFamily(plans, planId) {
+  const base = planBaseId(planId)
+  return (plans || [])
+    .filter((p) => planBaseId(p.id) === base)
+    .sort((a, b) => planVersionNo(a.id) - planVersionNo(b.id))
+}
+
+function buildPlanVersionRowMeta(family) {
+  return family.map((plan, idx) => {
+    const next = family[idx + 1]
+    const bitis = plan.versiyonBitis
+      || (next ? (next.versiyonBaslangic || next.tarih) : (plan.durum === 'Yururlukte' && !isPlanSatisKapali(plan) ? '—' : ''))
+    return {
+      plan,
+      planKodu: planBaseId(plan.id),
+      versiyon: planVersionNo(plan.id),
+      baslangic: plan.versiyonBaslangic || plan.tarih || '—',
+      bitis: bitis || '—',
+    }
+  })
+}
+
 function planStatusLabel(plan) {
   if (isPlanSatisKapali(plan)) return 'Satışa Kapalı'
   return formatPlanDurum(plan?.durum)
 }
 
 function buildPlanVersion(plan, existingPlans) {
-  const base = plan.id.split('-V')[0]
-  const versionNo = existingPlans.filter((p) => p.id.startsWith(base)).length + 1
+  const base = planBaseId(plan.id)
+  const versionNo = getPlanVersionFamily(existingPlans, plan.id).length + 1
   return normalizePlan({
     ...plan,
     id: `${base}-V${versionNo}`,
@@ -69,7 +109,7 @@ function planRowActions(plan) {
     actions.push({ key: 'satisaKapa', label: 'Satışa Kapa', icon: 'link' })
     actions.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', icon: 'copy' })
   }
-  actions.push({ key: 'delete', label: 'Sil', icon: 'delete', danger: true })
+  actions.push({ key: 'delete', label: 'Sil', icon: 'delete', danger: true, disabled: isPlanDeleteDisabled(plan) })
   return actions
 }
 
@@ -90,7 +130,7 @@ function planCardMenuItems(plan) {
     items.push({ key: 'satisaKapa', label: 'Satışa Kapa', Icon: Ban })
     items.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', Icon: CircleOff })
   }
-  items.push({ key: 'delete', label: 'Sil', Icon: Trash2, danger: true })
+  items.push({ key: 'delete', label: 'Sil', Icon: Trash2, danger: true, disabled: isPlanDeleteDisabled(plan) })
   return items
 }
 
@@ -465,6 +505,11 @@ const INITIAL_KARMA_FON_DETAY = [
   { fonKodu: 'AEA', fonAciklama: 'Agito Hisse Senedi Emeklilik Fonu', fonTipi: 'Z', katilimEsasli: false, minOran: 0, maxOran: 100, oran: 20 },
 ]
 
+const FON_SECENEKLERI = [
+  { kod: 'FON-006', fonAdi: 'Agito Yabancı Sermaye Fonu', fonTipi: 'Y', katilimEsasli: 'Hayır', devletKatkisi: 'Hayır' },
+  { kod: 'FON-007', fonAdi: 'Agito Katılım Karma Fonu', fonTipi: 'K', katilimEsasli: 'Evet', devletKatkisi: 'Hayır' },
+]
+
 const KP_TEMPLATE_ROW_ACTIONS = [
   { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
   { key: 'history', label: 'Versiyonlar', icon: 'history' },
@@ -770,6 +815,7 @@ function branchLabelFromUrun(urun) {
 function formatPlanDurum(durum) {
   if (durum === 'Yururlukte') return 'Yürürlükte'
   if (durum === 'Taslak') return 'Taslak'
+  if (durum === 'YururluktenKaldirildi') return 'Yürürlükten Kaldırıldı'
   return durum || '—'
 }
 
@@ -1515,7 +1561,70 @@ function PlanList({
   )
 }
 
-function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
+function PlanVersionsScreen({ urun, sourcePlan, versions, onBack, onInspect }) {
+  const rows = useMemo(() => buildPlanVersionRowMeta(versions), [versions])
+  const planKodu = planBaseId(sourcePlan?.id)
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+            aria-label="Plan listesine dön"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-800 truncate">Plan Versiyonları</h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="inline-flex px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px] font-bold tracking-wide">VERSİYON LİSTESİ</span>
+              <span className="text-xs text-slate-500">{urun?.ad} · {planKodu}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-6">
+        <div className="overflow-auto border border-slate-200 rounded-lg">
+          <table className="w-full grid-table text-sm">
+            <thead>
+              <tr>
+                <th>Plan Kodu</th>
+                <th>Versiyon</th>
+                <th>Versiyon Başlangıç Tarihi</th>
+                <th>Versiyon Bitiş Tarihi</th>
+                <th className="w-28 text-right">İşlem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.plan.id}>
+                  <td className="font-semibold text-violet-700">{row.planKodu}</td>
+                  <td className="tabular-nums">{row.versiyon}</td>
+                  <td>{row.baslangic}</td>
+                  <td>{row.bitis}</td>
+                  <td className="text-right">
+                    <OutlineButton type="button" className="h-8 px-3 text-xs" onClick={() => onInspect?.(row.plan)}>
+                      <Eye className="w-3.5 h-3.5" /> İncele
+                    </OutlineButton>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={5} className="text-center text-slate-500 py-8">Versiyon kaydı bulunamadı</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard, editMode = true }) {
   const tip = sozlesmeTipiUpper(urun?.sozlesmeTipi)
   const isEgp = isEgpLikeSozlesmeTipi(tip)
   const visibleCards = isOksOnlySozlesmeTipi(tip)
@@ -1545,7 +1654,11 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
-                <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold shrink-0">Taslak</span>
+                {editMode ? (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-semibold shrink-0">Taslak</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[11px] font-semibold shrink-0">İncele</span>
+                )}
               </div>
               <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
             </div>
@@ -1582,16 +1695,18 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
                         <h4 className="text-sm font-semibold text-slate-800">{card.title}</h4>
                         <p className="text-[11px] text-slate-400 mt-0.5">Son Güncelleme Tarihi: {card.update}</p>
                       </div>
-                      <button
-                        type="button"
-                        className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onOpenCard?.(card.id)
-                        }}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                      {editMode ? (
+                        <button
+                          type="button"
+                          className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-violet-600 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenCard?.(card.id)
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      ) : null}
                     </div>
 
                     {card.progress ? (
@@ -1640,7 +1755,11 @@ function PlanConfigurationBoard({ plan, urun, onBack, onOpenCard }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold text-slate-900">{plan?.ad || `${urun?.ad || 'Plan'} - Yeni Plan`}</h2>
-              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">TASLAK</span>
+              {editMode ? (
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">TASLAK</span>
+              ) : (
+                <span className="px-2 py-0.5 rounded bg-sky-100 text-sky-700 text-[10px] font-semibold">İNCELE</span>
+              )}
             </div>
             <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
           </div>
@@ -4597,6 +4716,7 @@ function PlanGenelBilgilerScreen({ plan, urun, onBack }) {
 }
 
 function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
+  const isPlanKatilimEsasli = Boolean(plan?.katilimEsasli)
   const [tab, setTab] = useState('fonlar')
   const [rows, setRows] = useState(INITIAL_FON_ROWS)
   const [karmaRows, setKarmaRows] = useState(INITIAL_KARMA_ROWS)
@@ -4625,6 +4745,43 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
     baslangic: '',
     standart: '',
   })
+
+  // Plandaki fon listesi değiştiğinde, karma detay satırlarını plana bağlı tüm fonlarla senkronize et
+  useEffect(() => {
+    setKarmaDetailRows((prev) => {
+      const byCode = new Map(prev.map((r) => [r.fonKodu, r]))
+      return rows.map((r) => {
+        const existing = byCode.get(r.fonKodu)
+        if (existing) return existing
+        return {
+          fonKodu: r.fonKodu,
+          fonAciklama: r.fonAdi,
+          fonTipi: r.fonTipi,
+          katilimEsasli: r.katilimEsasli === 'Evet',
+          minOran: 0,
+          maxOran: 100,
+          oran: 0,
+        }
+      })
+    })
+  }, [rows])
+
+  const applyFonFromSelection = (fonKodu) => {
+    const selected = FON_SECENEKLERI.find((f) => f.kod === fonKodu)
+    if (!selected) {
+      setFonForm((p) => ({ ...p, fonKodu, fonTipi: '', fonAdi: '', devletKatkisi: '', katilimEsasli: '' }))
+      return
+    }
+    const katilimEsasli = isPlanKatilimEsasli ? 'Evet' : selected.katilimEsasli
+    setFonForm((p) => ({
+      ...p,
+      fonKodu,
+      fonTipi: selected.fonTipi,
+      fonAdi: selected.fonAdi,
+      devletKatkisi: selected.devletKatkisi,
+      katilimEsasli,
+    }))
+  }
 
   const filteredRows = rows.filter((r) => {
     if (!search) return true
@@ -4792,12 +4949,7 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
                       <td>{row.fonKodu}</td>
                       <td>{row.fonAciklama}</td>
                       <td>{row.fonTipi}</td>
-                      <td>
-                        <label className="inline-flex items-center gap-2">
-                          <input type="checkbox" checked={row.katilimEsasli} onChange={(e) => setKarmaDetailRows((prev) => prev.map((x) => x.fonKodu === row.fonKodu ? { ...x, katilimEsasli: e.target.checked } : x))} />
-                          {row.katilimEsasli ? 'Evet' : 'Hayır'}
-                        </label>
-                      </td>
+                  <td>{row.katilimEsasli ? 'Evet' : 'Hayır'}</td>
                       <td>{row.minOran}</td>
                       <td>{row.maxOran}</td>
                       <td className="text-violet-700 font-semibold">%{row.oran}</td>
@@ -4822,11 +4974,11 @@ function FonlarVeFonKarmalariScreen({ plan, urun, onBack }) {
         footer={<><OutlineButton onClick={() => setModalOpen(false)}>İptal</OutlineButton><PrimaryButton onClick={saveFon}>Kaydet</PrimaryButton></>}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Kodu</span><select className="form-select" value={fonForm.fonKodu} onChange={(e) => setFonForm((p) => ({ ...p, fonKodu: e.target.value }))}><option value="">Seçiniz</option><option value="FON-006">FON-006</option><option value="FON-007">FON-007</option></select></label>
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Tipi</span><input className="form-input" value={fonForm.fonTipi} onChange={(e) => setFonForm((p) => ({ ...p, fonTipi: e.target.value }))} /></label>
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Adı</span><input className="form-input" value={fonForm.fonAdi} onChange={(e) => setFonForm((p) => ({ ...p, fonAdi: e.target.value }))} /></label>
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><input className="form-input" value={fonForm.katilimEsasli} onChange={(e) => setFonForm((p) => ({ ...p, katilimEsasli: e.target.value }))} /></label>
-          <label className="block"><span className="block text-sm text-slate-700 mb-1">Devlet Katkısı</span><input className="form-input" value={fonForm.devletKatkisi} onChange={(e) => setFonForm((p) => ({ ...p, devletKatkisi: e.target.value }))} /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Kodu</span><select className="form-select" value={fonForm.fonKodu} onChange={(e) => applyFonFromSelection(e.target.value)}><option value="">Seçiniz</option>{FON_SECENEKLERI.map((f) => <option key={f.kod} value={f.kod}>{f.kod}</option>)}</select></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Tipi</span><input className="form-input bg-slate-50 text-slate-600" value={fonForm.fonTipi} disabled readOnly /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Fon Adı</span><input className="form-input bg-slate-50 text-slate-600" value={fonForm.fonAdi} disabled readOnly /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Katılım Esaslı</span><input className="form-input bg-slate-50 text-slate-600" value={fonForm.katilimEsasli} disabled readOnly /></label>
+          <label className="block"><span className="block text-sm text-slate-700 mb-1">Devlet Katkısı</span><input className="form-input bg-slate-50 text-slate-600" value={fonForm.devletKatkisi} disabled readOnly /></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Standart</span><select className="form-select" value={fonForm.standart} onChange={(e) => setFonForm((p) => ({ ...p, standart: e.target.value }))}><option value="">Seçiniz</option><option value="Evet">Evet</option><option value="Hayır">Hayır</option></select></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Min. Oran (0-1)</span><input className="form-input" value={fonForm.minOran} onChange={(e) => setFonForm((p) => ({ ...p, minOran: e.target.value }))} /></label>
           <label className="block"><span className="block text-sm text-slate-700 mb-1">Max. Oran (0-1)</span><input className="form-input" value={fonForm.maxOran} onChange={(e) => setFonForm((p) => ({ ...p, maxOran: e.target.value }))} /></label>
@@ -6501,6 +6653,7 @@ export default function UrunPlanTarifeTanimlari() {
   const [planSetupContext, setPlanSetupContext] = useState(null)
   const [planSetupView, setPlanSetupView] = useState('board')
   const [versionConfirmPlan, setVersionConfirmPlan] = useState(null)
+  const [planVersionsContext, setPlanVersionsContext] = useState(null)
   const [planBelgeleriByPlanKey, setPlanBelgeleriByPlanKey] = useState({})
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
   const [menuOpenId, setMenuOpenId] = useState(null)
@@ -6512,16 +6665,42 @@ export default function UrunPlanTarifeTanimlari() {
     setMenuOpenId(null)
   }
 
-  const openPlanSetupBoard = (plan, urun, { editMode = false } = {}) => {
+  const openPlanSetupBoard = (plan, urun, {
+    editMode = false,
+    returnToPlans = true,
+    returnToVersions = false,
+    versionsSourcePlan = null,
+    activeOnly = planListActiveOnly,
+  } = {}) => {
     setPlanSetupContext({
       urun,
       plan,
-      returnToPlans: true,
-      activeOnly: planListActiveOnly,
+      returnToPlans,
+      returnToVersions,
+      versionsSourcePlan,
+      activeOnly,
       editMode,
     })
     setPlanSetupView('board')
     setSelected(null)
+    setPlanVersionsContext(null)
+  }
+
+  const openPlanVersions = (plan) => {
+    if (!selected) return
+    setPlanVersionsContext({
+      urun: selected,
+      sourcePlan: plan,
+      activeOnly: planListActiveOnly,
+    })
+    setSelected(null)
+  }
+
+  const closePlanVersions = () => {
+    if (!planVersionsContext) return
+    setSelected(planVersionsContext.urun)
+    setPlanListActiveOnly(planVersionsContext.activeOnly ?? false)
+    setPlanVersionsContext(null)
   }
 
   const openPlanDetail = (plan) => {
@@ -6846,21 +7025,12 @@ export default function UrunPlanTarifeTanimlari() {
       return
     }
     if (key === 'version') {
-      const base = row.id.split('-V')[0]
-      const versionNo = getPlans(selected.id).filter((p) => p.id.startsWith(base)).length + 1
-      handleSavePlan(normalizePlan({ ...row, id: `${base}-V${versionNo}`, ad: `${row.ad} v${versionNo}`, tarih: normalizeDate(), durum: 'Taslak' }), null)
+      const versionedPlan = buildPlanVersion(row, getPlans(selected.id))
+      handleSavePlan(versionedPlan, null)
       return
     }
     if (key === 'history') {
-      const base = row.id.split('-V')[0]
-      const versions = getPlans(selected.id).filter((p) => p.id.startsWith(base))
-      showVersions(`${row.id} - Versiyonlar`, versions, (r) => ({
-        'Plan No': r.id,
-        'Plan Adi': r.ad,
-        Durum: formatPlanDurum(r.durum),
-        'Tamamlanma %': r.oran,
-        Tarih: r.tarih,
-      }))
+      openPlanVersions(row)
       return
     }
     if (key === 'export') {
@@ -6888,16 +7058,34 @@ export default function UrunPlanTarifeTanimlari() {
     if (key === 'yururluktenKaldir') {
       if (row.durum !== 'Yururlukte') return
       if (!window.confirm(`${row.ad} yürürlükten kaldırılsın mı?`)) return
-      updatePlanRow(row.id, { durum: 'Taslak', satisKapali: false })
+      updatePlanRow(row.id, { durum: 'YururluktenKaldirildi', satisKapali: false })
       return
     }
     if (key === 'delete') {
-      if (!window.confirm('Plan silinsin mi?')) return
+      if (isPlanDeleteDisabled(row)) return
+      if (!window.confirm('Güncel taslak versiyon silinecektir, onaylıyor musunuz')) return
+      const urunId = selected.id
+      const family = getPlanVersionFamily(getPlans(urunId), row.id)
       setPlansByProduct((prev) => {
-        const existing = prev[selected.id] || []
-        const next = existing.filter((p) => p.id !== row.id)
-        const nextMap = { ...prev, [selected.id]: next }
-        setProducts((prodPrev) => recalcCounts(selected.id, prodPrev, nextMap))
+        let existing = [...(prev[urunId] || [])]
+        existing = existing.filter((p) => p.id !== row.id)
+        if (family.length > 1) {
+          const remaining = family.filter((p) => p.id !== row.id)
+          const previous = [...remaining].sort((a, b) => planVersionNo(b.id) - planVersionNo(a.id))[0]
+          if (previous) {
+            existing = existing.map((p) => {
+              if (p.id !== previous.id) return p
+              return normalizePlan({
+                ...p,
+                durum: 'Yururlukte',
+                satisKapali: false,
+                versiyonBitis: '',
+              })
+            })
+          }
+        }
+        const nextMap = { ...prev, [urunId]: existing }
+        setProducts((prodPrev) => recalcCounts(urunId, prodPrev, nextMap))
         return nextMap
       })
     }
@@ -6983,6 +7171,27 @@ export default function UrunPlanTarifeTanimlari() {
     )
   }
 
+  if (planVersionsContext) {
+    const versionFamily = getPlanVersionFamily(getPlans(planVersionsContext.urun.id), planVersionsContext.sourcePlan.id)
+    return (
+      <PlanVersionsScreen
+        urun={planVersionsContext.urun}
+        sourcePlan={planVersionsContext.sourcePlan}
+        versions={versionFamily}
+        onBack={closePlanVersions}
+        onInspect={(plan) => {
+          openPlanSetupBoard(plan, planVersionsContext.urun, {
+            editMode: false,
+            returnToPlans: false,
+            returnToVersions: true,
+            versionsSourcePlan: planVersionsContext.sourcePlan,
+            activeOnly: planVersionsContext.activeOnly,
+          })
+        }}
+      />
+    )
+  }
+
   if (planSetupContext) {
     if (planSetupView === 'genel') {
       return <PlanGenelBilgilerScreen plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => setPlanSetupView('board')} />
@@ -7020,7 +7229,21 @@ export default function UrunPlanTarifeTanimlari() {
         />
       )
     }
-    return <PlanConfigurationBoard plan={planSetupContext.plan} urun={planSetupContext.urun} onBack={() => {
+    return <PlanConfigurationBoard
+      plan={planSetupContext.plan}
+      urun={planSetupContext.urun}
+      editMode={planSetupContext.editMode !== false}
+      onBack={() => {
+      if (planSetupContext.returnToVersions) {
+        setPlanVersionsContext({
+          urun: planSetupContext.urun,
+          sourcePlan: planSetupContext.versionsSourcePlan || planSetupContext.plan,
+          activeOnly: planSetupContext.activeOnly,
+        })
+        setPlanSetupContext(null)
+        setPlanSetupView('board')
+        return
+      }
       if (planSetupContext.returnToPlans) {
         setSelected(planSetupContext.urun)
         setPlanListActiveOnly(planSetupContext.activeOnly ?? false)
