@@ -410,13 +410,25 @@ export const odemeAraclariDetaylari = {
 }
 
 export const degisiklikTipleri = [
-  { id: 201, brans: 'BES', zeyilKodu: '93', zeyilAdi: 'Emeklilik', yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
-  { id: 202, brans: 'BES', zeyilKodu: '95', zeyilAdi: 'Sistemden Cikis', yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
-  { id: 204, brans: 'BES', zeyilKodu: '90', zeyilAdi: 'Sozlesmeden Cayma', yilLimit: '3', primDegistirir: 'Evet', uwVarMi: 'Hayir' },
-  { id: 206, brans: 'BES', zeyilKodu: '99', zeyilAdi: 'Plan Degisikligi', yilLimit: '4', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
-  { id: 207, brans: 'BES', zeyilKodu: '91', zeyilAdi: 'Fon Dagilimi Degisikligi', yilLimit: '12', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
-  { id: 208, brans: 'BES', zeyilKodu: 'KTK', zeyilAdi: 'Kanuni Temsilci Kaldirma Degisikligi', yilLimit: '3', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 201, brans: 'BES', zeyilKodu: '93', zeyilAdi: 'Emeklilik', versiyon: 1, yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 202, brans: 'BES', zeyilKodu: '95', zeyilAdi: 'Sistemden Cikis', versiyon: 1, yilLimit: '2', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 204, brans: 'BES', zeyilKodu: '90', zeyilAdi: 'Sozlesmeden Cayma', versiyon: 1, yilLimit: '3', primDegistirir: 'Evet', uwVarMi: 'Hayir' },
+  { id: 206, brans: 'BES', zeyilKodu: '99', zeyilAdi: 'Plan Degisikligi', versiyon: 1, yilLimit: '4', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 207, brans: 'BES', zeyilKodu: '91', zeyilAdi: 'Fon Dagilimi Degisikligi', versiyon: 1, yilLimit: '12', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
+  { id: 208, brans: 'BES', zeyilKodu: 'KTK', zeyilAdi: 'Kanuni Temsilci Kaldirma Degisikligi', versiyon: 1, yilLimit: '3', primDegistirir: 'Hayir', uwVarMi: 'Hayir' },
 ]
+
+/** Prototip: değişiklik tipine bağlı planlar ve plandaki yıllık adet override değerleri */
+export const degisiklikTipiBagliPlanlar = {
+  206: [
+    { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 4 },
+  ],
+  207: [
+    { planNo: '001', planAd: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 6 },
+    { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 12 },
+    { planNo: '005-1', planAd: 'ASLAN BIREYSEL EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', yillikAdet: 8 },
+  ],
+}
 
 export const degisiklikTipleriDetaylari = {
   '93': [

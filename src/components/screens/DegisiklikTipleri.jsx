@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Link2, List, MoreVertical, Pencil, Plus, Search, Trash2, ChevronDown, HelpCircle } from 'lucide-react'
+import { ArrowLeft, Eye, Link2, List, Plus, Search } from 'lucide-react'
 import Modal from '../ui/Modal'
+import RowActions from '../ui/RowActions'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
-import { degisiklikTipleri as seedRows } from '../../data/mockData'
+import { degisiklikTipleri as seedRows, degisiklikTipiBagliPlanlar as seedBagliPlanlar } from '../../data/mockData'
 
 const AVAILABLE_PLANS = [
   { no: '003', ad: 'ESNEK PLAN', versiyon: '1', durum: 'Taslak', baslangic: '01.01.2025' },
@@ -29,11 +30,67 @@ const AVAILABLE_GONDERI = [
 ]
 
 const BRANS_OPTIONS = [
-  { kod: 'BES', label: 'BES' },
+  { kod: 'BES', label: 'Bireysel Emeklilik' },
   { kod: 'Hayat', label: 'Hayat' },
   { kod: 'Elementer', label: 'Elementer' },
   { kod: 'Sağlık', label: 'Sağlık' },
 ]
+
+const SOZLESME_TIPI_BY_BRANS = {
+  BES: [
+    { kod: 'Ferdi', label: 'Ferdi' },
+    { kod: 'Grup', label: 'Grup' },
+    { kod: 'OKS', label: 'OKS' },
+    { kod: 'EGP', label: 'EGP' },
+  ],
+  Hayat: [
+    { kod: 'Risk', label: 'Risk' },
+    { kod: 'Birikimli', label: 'Birikimli' },
+    { kod: 'İrat', label: 'İrat' },
+  ],
+}
+
+const ROW_ACTIONS = [
+  { key: 'edit', label: 'Güncelle', icon: 'edit' },
+  { key: 'history', label: 'Versiyonlar', icon: 'history' },
+  { divider: true },
+  { key: 'link', label: 'Bağlı Planlar', icon: 'link' },
+  { key: 'details', label: 'Bağlı Gönderiler', icon: 'details' },
+  { key: 'delete', label: 'Sil', icon: 'delete', danger: true },
+]
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function formatTrDate(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y}`
+}
+
+function sozlesmeTipiOptionsForBranslar(bransKodlari) {
+  const seen = new Set()
+  const out = []
+  for (const kod of bransKodlari || []) {
+    for (const opt of SOZLESME_TIPI_BY_BRANS[kod] || []) {
+      if (!seen.has(opt.kod)) {
+        seen.add(opt.kod)
+        out.push(opt)
+      }
+    }
+  }
+  return out
+}
+
+function sozlesmeTipiDisplay(kodlar, options) {
+  if (!kodlar?.length) return 'Seçiniz'
+  return kodlar.map((k) => options.find((o) => o.kod === k)?.label || k).join(', ')
+}
+
+function defaultSozlesmeTipiKodlari(bransKodlari) {
+  return sozlesmeTipiOptionsForBranslar(bransKodlari).map((o) => o.kod)
+}
 
 function bransLabel(kod) {
   return BRANS_OPTIONS.find((o) => o.kod === kod)?.label || kod
@@ -51,9 +108,32 @@ function normalizeDegisiklikRow(row) {
       : []
   return {
     ...row,
+    versiyon: row.versiyon ?? 1,
     bransKodlari,
     brans: bransDisplay(bransKodlari) || row.brans || '',
+    sozlesmeTipiKodlari: row.sozlesmeTipiKodlari?.length
+      ? [...row.sozlesmeTipiKodlari]
+      : defaultSozlesmeTipiKodlari(bransKodlari),
   }
+}
+
+function buildInitialVersionHistory(rows) {
+  const map = {}
+  for (const row of rows) {
+    const key = row.zeyilKodu
+    if (!map[key]) {
+      map[key] = [{
+        id: row.id,
+        versiyon: row.versiyon ?? 1,
+        yilLimit: row.yilLimit,
+        baslangic: '2025-01-01',
+        bitis: null,
+        aktif: true,
+        rowSnapshot: normalizeDegisiklikRow(row),
+      }]
+    }
+  }
+  return map
 }
 
 function emptyForm() {
@@ -61,8 +141,10 @@ function emptyForm() {
     id: null,
     brans: '',
     bransKodlari: [],
+    sozlesmeTipiKodlari: [],
     zeyilKodu: '',
     zeyilAdi: '',
+    versiyon: 1,
     yilLimit: '',
     primDegistirir: 'Hayir',
     uwVarMi: 'Hayir',
@@ -94,10 +176,9 @@ function BransMultiSelect({ label, required, selectedKodlar, onChange }) {
 
   return (
     <div className="relative" ref={wrapRef}>
-      <span className="block text-sm font-semibold text-slate-700 mb-2 inline-flex items-center gap-1">
+      <span className="block text-sm font-semibold text-slate-700 mb-2">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
-        <HelpCircle className="w-3.5 h-3.5 text-blue-500" aria-hidden />
       </span>
       <button
         type="button"
@@ -107,7 +188,6 @@ function BransMultiSelect({ label, required, selectedKodlar, onChange }) {
         aria-haspopup="listbox"
       >
         <span className={`truncate ${selectedKodlar.length === 0 ? 'text-slate-400' : 'text-slate-800'}`}>{summary}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div
@@ -134,15 +214,173 @@ function BransMultiSelect({ label, required, selectedKodlar, onChange }) {
   )
 }
 
+function SozlesmeTipiMultiSelect({ label, required, options, selectedKodlar, onChange, disabled }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const summary = disabled
+    ? 'Önce branş seçiniz'
+    : options.length === 0
+      ? 'Bu branş için sözleşme tipi yok'
+      : sozlesmeTipiDisplay(selectedKodlar, options)
+
+  const toggle = (kod) => {
+    const next = selectedKodlar.includes(kod)
+      ? selectedKodlar.filter((k) => k !== kod)
+      : [...selectedKodlar, kod]
+    onChange([...new Set(next)])
+  }
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <span className="block text-sm font-semibold text-slate-700 mb-2">
+        {label}
+        {required ? <span className="text-red-500"> *</span> : null}
+      </span>
+      <button
+        type="button"
+        disabled={disabled || options.length === 0}
+        onClick={() => !disabled && options.length > 0 && setOpen((o) => !o)}
+        className={`w-full min-h-11 px-3 py-2 border border-slate-300 rounded-md text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 ${
+          disabled || options.length === 0
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            : 'bg-white hover:border-slate-400 text-slate-800'
+        }`}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span className={`truncate ${!selectedKodlar.length ? 'text-slate-400' : ''}`}>{summary}</span>
+      </button>
+      {open && !disabled && options.length > 0 && (
+        <div
+          className="absolute z-40 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-[0_8px_24px_rgba(15,23,42,0.12)] max-h-56 overflow-y-auto py-1"
+          role="listbox"
+        >
+          {options.map((opt) => (
+            <label
+              key={opt.kod}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer select-none"
+            >
+              <input
+                type="checkbox"
+                className="rounded border-slate-300 w-4 h-4 text-violet-600 focus:ring-violet-500"
+                checked={selectedKodlar.includes(opt.kod)}
+                onChange={() => toggle(opt.kod)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DegisiklikVersionsScreen({ sourceRow, versions, onBack, onInspect }) {
+  const sorted = useMemo(
+    () => [...versions].sort((a, b) => b.versiyon - a.versiyon),
+    [versions],
+  )
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+          aria-label="Listeye dön"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-800 truncate">Değişiklik Tipi Versiyonları</h2>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="inline-flex px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px] font-bold tracking-wide">VERSİYON LİSTESİ</span>
+            <span className="text-xs text-slate-500">{sourceRow?.zeyilKodu} · {sourceRow?.zeyilAdi}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-6">
+        <div className="overflow-auto border border-slate-200 rounded-lg">
+          <table className="w-full grid-table text-sm">
+            <thead>
+              <tr>
+                <th>Zeyil Kodu</th>
+                <th>Versiyon</th>
+                <th>Yılda Kaç Kez</th>
+                <th>Versiyon Başlangıç</th>
+                <th>Versiyon Bitiş</th>
+                <th>Durum</th>
+                <th className="w-28 text-right">İşlem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((v) => (
+                <tr key={`${v.zeyilKodu}-${v.versiyon}`}>
+                  <td className="font-semibold text-violet-700">{sourceRow?.zeyilKodu}</td>
+                  <td className="tabular-nums">{v.versiyon}</td>
+                  <td className="tabular-nums">{v.yilLimit}</td>
+                  <td>{formatTrDate(v.baslangic)}</td>
+                  <td>{v.bitis ? formatTrDate(v.bitis) : '—'}</td>
+                  <td>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${v.aktif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                      {v.aktif ? 'Güncel' : 'Arşiv'}
+                    </span>
+                  </td>
+                  <td className="text-right">
+                    <OutlineButton type="button" className="h-8 px-3 text-xs" onClick={() => onInspect?.(v)}>
+                      <Eye className="w-3.5 h-3.5" /> İncele
+                    </OutlineButton>
+                  </td>
+                </tr>
+              ))}
+              {sorted.length === 0 && (
+                <tr><td colSpan={7} className="text-center text-slate-500 py-8">Versiyon kaydı bulunamadı</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DegisiklikTipleri() {
-  const [rows, setRows] = useState(() => seedRows.map((x) => normalizeDegisiklikRow(x)))
+  const initialRows = useMemo(() => seedRows.map((x) => normalizeDegisiklikRow(x)), [])
+  const [rows, setRows] = useState(initialRows)
+  const [versionHistoryByZeyilKodu, setVersionHistoryByZeyilKodu] = useState(() => buildInitialVersionHistory(initialRows))
+  const [boundPlansByTanimId, setBoundPlansByTanimId] = useState(() => {
+    const copy = {}
+    for (const [k, v] of Object.entries(seedBagliPlanlar)) {
+      copy[Number(k)] = v.map((p) => ({ ...p }))
+    }
+    return copy
+  })
+
   const [view, setView] = useState('list')
   const [editingId, setEditingId] = useState(null)
-  const [menuId, setMenuId] = useState(null)
+  const [editMode, setEditMode] = useState('create')
+  const [originalRow, setOriginalRow] = useState(null)
   const [form, setForm] = useState(emptyForm())
   const [filterKod, setFilterKod] = useState('')
   const [filterAd, setFilterAd] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
+
+  const [versionConfirmRow, setVersionConfirmRow] = useState(null)
+  const [differentPlansModal, setDifferentPlansModal] = useState({ open: false, plans: [], pendingPayload: null })
+  const [versionsContext, setVersionsContext] = useState(null)
+  const [inspectVersion, setInspectVersion] = useState(null)
+
   const [planBindOpen, setPlanBindOpen] = useState(false)
   const [gonderiBindOpen, setGonderiBindOpen] = useState(false)
   const [leftPlans, setLeftPlans] = useState(() => AVAILABLE_PLANS.filter((p) => !INITIAL_SELECTED_PLANS.some((s) => s.no === p.no)))
@@ -172,6 +410,24 @@ export default function DegisiklikTipleri() {
       return s && k && a && se
     })
   }, [leftGonderi, gonderiFilter])
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const k = !filterKod.trim() || r.zeyilKodu.toLowerCase().includes(filterKod.toLowerCase())
+      const a = !filterAd.trim() || r.zeyilAdi.toLowerCase().includes(filterAd.toLowerCase())
+      return k && a
+    })
+  }, [rows, filterKod, filterAd])
+
+  const isPlanBound = (row) => (boundPlansByTanimId[row.id] || []).length > 0
+
+  const getPlansWithDifferentAdet = (tanimId, masterYilLimit) => {
+    const master = Number(String(masterYilLimit).trim())
+    return (boundPlansByTanimId[tanimId] || []).filter((p) => {
+      const planAdet = Number(p.yillikAdet)
+      return !Number.isNaN(master) && !Number.isNaN(planAdet) && planAdet !== master
+    })
+  }
 
   const movePlanOneRight = () => {
     const selectedRows = leftPlans.filter((p) => leftPlanSelected.includes(p.no))
@@ -227,43 +483,167 @@ export default function DegisiklikTipleri() {
     setRightGonderiSelected([])
   }
 
-  const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      const k = !filterKod.trim() || r.zeyilKodu.toLowerCase().includes(filterKod.toLowerCase())
-      const a = !filterAd.trim() || r.zeyilAdi.toLowerCase().includes(filterAd.toLowerCase())
-      return k && a
-    })
-  }, [rows, filterKod, filterAd])
-
   const openCreate = () => {
     setEditingId(null)
+    setEditMode('create')
+    setOriginalRow(null)
     setForm(emptyForm())
     setView('create')
   }
 
-  const openEdit = (row) => {
-    setEditingId(row.id)
+  const openEditForm = (row, mode, source) => {
     const normalized = normalizeDegisiklikRow(row)
+    const sozlesmeOpts = sozlesmeTipiOptionsForBranslar(normalized.bransKodlari)
+    setEditingId(normalized.id)
+    setEditMode(mode)
+    setOriginalRow(source || normalized)
     setForm({
       ...normalized,
       bransKodlari: [...(normalized.bransKodlari || [])],
+      sozlesmeTipiKodlari: normalized.sozlesmeTipiKodlari?.length
+        ? [...normalized.sozlesmeTipiKodlari]
+        : sozlesmeOpts.map((o) => o.kod),
+      versiyon: mode === 'version' ? (normalized.versiyon ?? 1) + 1 : (normalized.versiyon ?? 1),
     })
     setView('create')
-    setMenuId(null)
+  }
+
+  const openGuncelleme = (row) => {
+    if (isPlanBound(row)) {
+      setVersionConfirmRow(row)
+      return
+    }
+    openEditForm(row, 'edit')
+  }
+
+  const confirmVersionAndEdit = () => {
+    if (!versionConfirmRow) return
+    openEditForm(versionConfirmRow, 'version', versionConfirmRow)
+    setVersionConfirmRow(null)
+  }
+
+  const applyDirectUpdate = (payload) => {
+    setRows((prev) => prev.map((r) => (r.id === payload.id ? payload : r)))
+    setVersionHistoryByZeyilKodu((prev) => {
+      const list = [...(prev[payload.zeyilKodu] || [])]
+      const idx = list.findIndex((v) => v.versiyon === payload.versiyon)
+      const entry = {
+        id: payload.id,
+        versiyon: payload.versiyon,
+        yilLimit: payload.yilLimit,
+        baslangic: list[idx]?.baslangic || todayIso(),
+        bitis: null,
+        aktif: true,
+        rowSnapshot: payload,
+      }
+      if (idx >= 0) list[idx] = entry
+      else list.push(entry)
+      return { ...prev, [payload.zeyilKodu]: list }
+    })
+  }
+
+  const applyNewVersion = (payload, prevRow) => {
+    const now = todayIso()
+    const newId = Date.now()
+    const newRow = normalizeDegisiklikRow({ ...payload, id: newId, versiyon: payload.versiyon })
+
+    setRows((prev) => prev.map((r) => (r.id === prevRow.id ? newRow : r)))
+
+    setVersionHistoryByZeyilKodu((prev) => {
+      const list = [...(prev[newRow.zeyilKodu] || [])]
+      const updated = list.map((v) => (
+        v.versiyon === prevRow.versiyon
+          ? { ...v, bitis: now, aktif: false }
+          : v
+      ))
+      updated.push({
+        id: newId,
+        versiyon: newRow.versiyon,
+        yilLimit: newRow.yilLimit,
+        baslangic: now,
+        bitis: null,
+        aktif: true,
+        rowSnapshot: newRow,
+      })
+      return { ...prev, [newRow.zeyilKodu]: updated }
+    })
+
+    setBoundPlansByTanimId((prev) => {
+      const plans = prev[prevRow.id]
+      if (!plans) return prev
+      const next = { ...prev }
+      delete next[prevRow.id]
+      next[newId] = plans.map((p) => ({ ...p }))
+      return next
+    })
+  }
+
+  const finalizeSave = (payload) => {
+    if (editMode === 'version' && originalRow) {
+      applyNewVersion(payload, originalRow)
+    } else if (editingId) {
+      applyDirectUpdate(payload)
+    } else {
+      const newRow = normalizeDegisiklikRow({ ...payload, id: payload.id || Date.now(), versiyon: 1 })
+      setRows((prev) => [...prev, newRow])
+      setVersionHistoryByZeyilKodu((prev) => ({
+        ...prev,
+        [newRow.zeyilKodu]: [{
+          id: newRow.id,
+          versiyon: 1,
+          yilLimit: newRow.yilLimit,
+          baslangic: todayIso(),
+          bitis: null,
+          aktif: true,
+          rowSnapshot: newRow,
+        }],
+      }))
+    }
+    setView('list')
+    setEditingId(null)
+    setEditMode('create')
+    setOriginalRow(null)
+    setForm(emptyForm())
   }
 
   const saveForm = () => {
     if (!form.bransKodlari?.length) return alert('Branş Kodu zorunludur.')
+    const sozlesmeOpts = sozlesmeTipiOptionsForBranslar(form.bransKodlari)
+    if (sozlesmeOpts.length && !form.sozlesmeTipiKodlari?.length) {
+      return alert('Sözleşme Tipi zorunludur.')
+    }
     if (!String(form.zeyilKodu).trim()) return alert('Zeyil Kodu zorunludur.')
     if (!String(form.zeyilAdi).trim()) return alert('Zeyil Adı zorunludur.')
     if (!String(form.yilLimit).trim()) return alert('Yılda Kaç Kez Yapılabilir zorunludur.')
+
     const bransKodlari = [...form.bransKodlari]
-    const payload = normalizeDegisiklikRow({ ...form, bransKodlari, id: form.id || Date.now() })
-    const existsByCode = rows.some((r) => r.zeyilKodu === payload.zeyilKodu && r.id !== payload.id)
+    const sozlesmeTipiKodlari = [...(form.sozlesmeTipiKodlari || [])]
+    const payload = normalizeDegisiklikRow({
+      ...form,
+      bransKodlari,
+      sozlesmeTipiKodlari,
+      id: editMode === 'version' ? Date.now() : (form.id || Date.now()),
+      versiyon: editMode === 'version' ? (originalRow?.versiyon ?? 1) + 1 : (form.versiyon ?? 1),
+    })
+
+    const existsByCode = rows.some((r) => r.zeyilKodu === payload.zeyilKodu && r.id !== editingId && editMode !== 'version')
     if (existsByCode) return alert('Bu zeyil kodu mevcut.')
-    if (editingId) setRows((prev) => prev.map((r) => (r.id === editingId ? payload : r)))
-    else setRows((prev) => [...prev, payload])
-    setView('list')
+
+    if (editMode === 'version' && originalRow) {
+      const differentPlans = getPlansWithDifferentAdet(originalRow.id, originalRow.yilLimit)
+      if (differentPlans.length > 0) {
+        setDifferentPlansModal({ open: true, plans: differentPlans, pendingPayload: payload })
+        return
+      }
+    }
+
+    finalizeSave(payload)
+  }
+
+  const confirmDifferentPlansAndSave = () => {
+    if (!differentPlansModal.pendingPayload) return
+    finalizeSave(differentPlansModal.pendingPayload)
+    setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })
   }
 
   const toggleRow = (id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -271,10 +651,67 @@ export default function DegisiklikTipleri() {
   const removeRow = (row) => {
     if (!window.confirm('Kayıt silinsin mi?')) return
     setRows((prev) => prev.filter((x) => x.id !== row.id))
-    setMenuId(null)
+  }
+
+  const handleRowAction = (key, row) => {
+    if (key === 'edit') openGuncelleme(row)
+    else if (key === 'history') setVersionsContext(row)
+    else if (key === 'link') setPlanBindOpen(true)
+    else if (key === 'details') setGonderiBindOpen(true)
+    else if (key === 'delete') removeRow(row)
+  }
+
+  if (inspectVersion) {
+    const snap = inspectVersion.rowSnapshot || inspectVersion
+    const sozlesmeOpts = sozlesmeTipiOptionsForBranslar(snap.bransKodlari)
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+          <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setInspectVersion(null)}>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Versiyon İncele (v{inspectVersion.versiyon})</h2>
+            <p className="text-sm text-slate-500 mt-1">{snap.zeyilKodu} · {snap.zeyilAdi}</p>
+          </div>
+        </div>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div><span className="text-slate-500">Branş:</span> <span className="font-medium">{bransDisplay(snap.bransKodlari)}</span></div>
+          <div><span className="text-slate-500">Sözleşme Tipi:</span> <span className="font-medium">{sozlesmeTipiDisplay(snap.sozlesmeTipiKodlari, sozlesmeOpts)}</span></div>
+          <div><span className="text-slate-500">Yılda Kaç Kez:</span> <span className="font-medium">{snap.yilLimit}</span></div>
+          <div><span className="text-slate-500">Versiyon:</span> <span className="font-medium">{inspectVersion.versiyon}</span></div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+          <OutlineButton onClick={() => setInspectVersion(null)}>Kapat</OutlineButton>
+        </div>
+      </div>
+    )
+  }
+
+  if (versionsContext) {
+    const versions = versionHistoryByZeyilKodu[versionsContext.zeyilKodu] || []
+    return (
+      <DegisiklikVersionsScreen
+        sourceRow={versionsContext}
+        versions={versions}
+        onBack={() => setVersionsContext(null)}
+        onInspect={(v) => setInspectVersion(v)}
+      />
+    )
   }
 
   if (view === 'create') {
+    const sozlesmeTipiOptions = sozlesmeTipiOptionsForBranslar(form.bransKodlari)
+    const bransSecili = (form.bransKodlari || []).length > 0
+    const isVersionUpdate = editMode === 'version'
+    const isReadonlyCode = isVersionUpdate || !!editingId
+
+    const title = isVersionUpdate
+      ? `Yeni Versiyon Oluştur (v${form.versiyon})`
+      : editingId
+        ? 'Değişiklik (Zeyl) Tipi Güncelle'
+        : 'Yeni Zeyil Tipi Ekle'
+
     return (
       <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
@@ -282,25 +719,62 @@ export default function DegisiklikTipleri() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-3xl font-bold text-slate-800">{editingId ? 'Değişiklik (Zeyl) Tipi Güncelle' : 'Yeni Zeyil Tipi Ekle'}</h2>
-            <p className="text-sm text-slate-500 mt-1">Sistem için değişiklik(zeyl) tipleri tanımlayın</p>
+            <h2 className="text-3xl font-bold text-slate-800">{title}</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              {isVersionUpdate
+                ? 'Planlara bağlı kayıt için yeni versiyon üzerinde güncelleme yapılıyor'
+                : 'Sistem için değişiklik(zeyl) tipleri tanımlayın'}
+            </p>
           </div>
         </div>
+
+        {isVersionUpdate && (
+          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+            Bu değişiklik tipi planlara bağlıdır. Kayıt mevcut versiyon <strong>v{originalRow?.versiyon ?? 1}</strong> üzerinden
+            {' '}<strong>v{form.versiyon}</strong> olarak oluşturulacaktır.
+          </div>
+        )}
+
         <div className="p-6 flex-1">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <BransMultiSelect
               label="Branş Kodu"
               required
               selectedKodlar={form.bransKodlari || []}
-              onChange={(bransKodlari) => setForm((f) => ({
-                ...f,
-                bransKodlari,
-                brans: bransDisplay(bransKodlari),
-              }))}
+              onChange={(bransKodlari) => {
+                const opts = sozlesmeTipiOptionsForBranslar(bransKodlari)
+                setForm((f) => ({
+                  ...f,
+                  bransKodlari,
+                  brans: bransDisplay(bransKodlari),
+                  sozlesmeTipiKodlari: opts.map((o) => o.kod),
+                }))
+              }}
+            />
+            <SozlesmeTipiMultiSelect
+              label="Sözleşme Tipi"
+              required={sozlesmeTipiOptions.length > 0}
+              options={sozlesmeTipiOptions}
+              selectedKodlar={form.sozlesmeTipiKodlari || []}
+              disabled={!bransSecili}
+              onChange={(sozlesmeTipiKodlari) => setForm((f) => ({ ...f, sozlesmeTipiKodlari }))}
             />
             <label>
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Versiyon</span>
+              <input
+                className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm bg-slate-100 text-slate-600"
+                value={form.versiyon ?? 1}
+                readOnly
+              />
+            </label>
+            <label>
               <span className="block text-sm font-semibold text-slate-700 mb-2">Zeyil Kodu *</span>
-              <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.zeyilKodu} onChange={(e) => setForm((f) => ({ ...f, zeyilKodu: e.target.value }))} />
+              <input
+                className={`w-full h-11 border border-slate-300 rounded-md px-3 text-sm ${isReadonlyCode ? 'bg-slate-100 text-slate-600' : ''}`}
+                value={form.zeyilKodu}
+                readOnly={isReadonlyCode}
+                onChange={(e) => setForm((f) => ({ ...f, zeyilKodu: e.target.value }))}
+              />
             </label>
             <label>
               <span className="block text-sm font-semibold text-slate-700 mb-2">Zeyil Adı *</span>
@@ -314,7 +788,7 @@ export default function DegisiklikTipleri() {
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
           <OutlineButton onClick={() => setView('list')}>İptal</OutlineButton>
-          <OutlineButton onClick={() => setForm(emptyForm())}>Temizle</OutlineButton>
+          {!isVersionUpdate && <OutlineButton onClick={() => setForm(emptyForm())}>Temizle</OutlineButton>}
           <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
         </div>
       </div>
@@ -355,7 +829,7 @@ export default function DegisiklikTipleri() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full grid-table text-sm min-w-[1200px]">
+        <table className="w-full grid-table text-sm min-w-[1280px]">
           <thead>
             <tr>
               <th></th>
@@ -363,6 +837,7 @@ export default function DegisiklikTipleri() {
               <th>Branş</th>
               <th>Zeyil Kodu</th>
               <th>Zeyil Adı</th>
+              <th>Versiyon</th>
               <th>Yılda Kaç Kez Yapılabilir?</th>
               <th>Prim Değiştiriyor mu?</th>
               <th>UW var mı?</th>
@@ -383,23 +858,12 @@ export default function DegisiklikTipleri() {
                 </td>
                 <td className="font-semibold">{r.zeyilKodu}</td>
                 <td>{r.zeyilAdi}</td>
+                <td className="tabular-nums">{r.versiyon ?? 1}</td>
                 <td>{r.yilLimit}</td>
                 <td>{r.primDegistirir === 'Evet' ? 'Evet' : 'Hayır'}</td>
                 <td>{r.uwVarMi === 'Evet' ? 'Evet' : 'Hayır'}</td>
                 <td className="text-right">
-                  <div className="relative inline-block">
-                    <button type="button" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded" onClick={() => setMenuId((p) => (p === r.id ? null : r.id))}>
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                    {menuId === r.id && (
-                      <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-md shadow-md z-20">
-                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5 text-blue-600" /> Güncelle</button>
-                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 inline-flex items-center gap-2" onClick={() => removeRow(r)}><Trash2 className="w-3.5 h-3.5" /> Sil</button>
-                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => { setPlanBindOpen(true); setMenuId(null) }}><Link2 className="w-3.5 h-3.5 text-amber-600" /> Bağlı Planlar</button>
-                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 inline-flex items-center gap-2" onClick={() => { setGonderiBindOpen(true); setMenuId(null) }}><List className="w-3.5 h-3.5 text-violet-600" /> Bağlı Gönderiler</button>
-                      </div>
-                    )}
-                  </div>
+                  <RowActions actions={ROW_ACTIONS} row={r} onAction={handleRowAction} />
                 </td>
               </tr>
             ))}
@@ -411,6 +875,74 @@ export default function DegisiklikTipleri() {
         <div className="flex items-center gap-2"><span>Sayfa başına</span><select className="h-8 border border-slate-300 rounded-md px-2"><option>10</option></select></div>
         <span>Toplam {rows.length} kayıt</span>
       </div>
+
+      <Modal
+        open={!!versionConfirmRow}
+        onClose={() => setVersionConfirmRow(null)}
+        title="Yeni Versiyon Oluştur"
+        size="md"
+        footer={(
+          <>
+            <OutlineButton type="button" onClick={() => setVersionConfirmRow(null)}>Hayır</OutlineButton>
+            <PrimaryButton type="button" onClick={confirmVersionAndEdit}>Evet</PrimaryButton>
+          </>
+        )}
+      >
+        <p className="text-sm text-slate-700 leading-relaxed">
+          Değişiklik tipi planlara bağlıdır. Yeni versiyon oluşturmak istiyor musunuz?
+        </p>
+        {versionConfirmRow && (
+          <p className="text-xs text-slate-500 mt-3">
+            Bağlı plan sayısı: {(boundPlansByTanimId[versionConfirmRow.id] || []).length}
+          </p>
+        )}
+      </Modal>
+
+      <Modal
+        open={differentPlansModal.open}
+        onClose={() => setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })}
+        title="Farklı Yıllık Adet Tanımlı Planlar"
+        size="lg"
+        footer={(
+          <>
+            <OutlineButton type="button" onClick={() => setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })}>İptal</OutlineButton>
+            <PrimaryButton type="button" onClick={confirmDifferentPlansAndSave}>Onayla ve Kaydet</PrimaryButton>
+          </>
+        )}
+      >
+        <p className="text-sm text-slate-700 leading-relaxed mb-4">
+          Farklı yıllık adet tanımı yapılmış planlar mevcuttur. Bu planlardaki değerler otomatik güncellenmeyecek;
+          kullanıcı plan ekranından manuel düzenleyebilir.
+        </p>
+        <div className="overflow-auto border border-slate-200 rounded-lg max-h-64">
+          <table className="w-full grid-table text-sm">
+            <thead>
+              <tr>
+                <th>Plan No</th>
+                <th>Plan Adı</th>
+                <th>Versiyon</th>
+                <th>Plan Durumu</th>
+                <th>Plandaki Yıllık Adet</th>
+                <th>Master (Eski)</th>
+                <th>Master (Yeni)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {differentPlansModal.plans.map((p) => (
+                <tr key={p.planNo}>
+                  <td className="font-medium">{p.planNo}</td>
+                  <td>{p.planAd}</td>
+                  <td>{p.versiyon}</td>
+                  <td>{p.durum}</td>
+                  <td className="tabular-nums font-semibold text-amber-700">{p.yillikAdet}</td>
+                  <td className="tabular-nums">{originalRow?.yilLimit}</td>
+                  <td className="tabular-nums">{differentPlansModal.pendingPayload?.yilLimit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
 
       <Modal
         open={planBindOpen}
@@ -467,15 +999,6 @@ export default function DegisiklikTipleri() {
           </div>
           <div className="border border-slate-200 rounded-md p-2">
             <div className="text-center text-sm font-semibold text-emerald-700 mb-2">Seçilmiş Planlar</div>
-            <div className="flex items-end gap-2 mb-2">
-              <div className="flex-1">
-                <div className="text-xs text-slate-600 mb-1">Kod :</div>
-                <select className="w-full h-9 border border-slate-300 rounded px-2 text-sm">
-                  <option value="">Seçiniz...</option>
-                </select>
-              </div>
-              <PrimaryButton onClick={() => {}}>Ara</PrimaryButton>
-            </div>
             <div className="max-h-[330px] overflow-auto border border-slate-200 rounded">
               <table className="w-full grid-table text-sm">
                 <thead>
