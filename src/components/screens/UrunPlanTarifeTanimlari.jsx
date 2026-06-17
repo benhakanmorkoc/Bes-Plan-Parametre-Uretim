@@ -905,8 +905,55 @@ const PLAN_ENDEKS_FORM_DEFAULT = () => ({
   hesapKodu: '',
   artisTipi: '',
   artisDonemi: '',
-  ekstraOran: '0.00',
+  ekstraOran: '0,00',
 })
+
+function normalizeHesapAdiKey(s) {
+  return String(s || '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .trim()
+}
+
+function findKatkiHesapByKodu(hesapKodu) {
+  return katkiPayiHesaplama.find((h) => String(h.hesapKodu) === String(hesapKodu))
+}
+
+function isSabitOranArtisliHesap(hesap) {
+  if (!hesap) return false
+  const key = normalizeHesapAdiKey(hesap.hesapAdi)
+  return hesap.hesapMetod === 'Sabit Oran' || key.includes('sabit oran artis')
+}
+
+function isSabitTutarArtisliHesap(hesap) {
+  if (!hesap) return false
+  const key = normalizeHesapAdiKey(hesap.hesapAdi)
+  if (key.includes('artissiz')) return false
+  return key.includes('sabit tutar artis')
+}
+
+function formatEndeksArtisDeger(val) {
+  if (val == null || val === '' || val === '-') return '0,00'
+  const n = Number(String(val).replace(',', '.'))
+  if (Number.isNaN(n)) return '0,00'
+  return String(n).replace('.', ',')
+}
+
+function endeksArtisFieldMeta(hesapKodu) {
+  const hesap = findKatkiHesapByKodu(hesapKodu)
+  if (isSabitOranArtisliHesap(hesap)) {
+    return { label: 'Artış Oranı', editable: true, defaultDeger: hesap?.hesapDeger }
+  }
+  if (isSabitTutarArtisliHesap(hesap)) {
+    return { label: 'Artış Tutarı', editable: true, defaultDeger: hesap?.hesapDeger }
+  }
+  return { label: 'Ekstra artış oranı', editable: false, defaultDeger: null }
+}
 
 const EK_FAYDA_PLAN_ROW_ACTIONS = [
   { key: 'edit', label: 'Güncelle', icon: 'edit' },
@@ -2086,13 +2133,16 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
     if (!endeksForm.artisTipi) return alert('Artış tipi seçiniz.')
     if (!String(endeksForm.artisDonemi).trim()) return alert('Artış dönemi seçiniz.')
     const rawOran = String(endeksForm.ekstraOran).trim().replace(',', '.')
-    if (rawOran === '' || Number.isNaN(Number(rawOran))) return alert('Ekstra artış oranı geçerli bir sayı olmalıdır.')
+    const artisMeta = endeksArtisFieldMeta(endeksForm.hesapKodu)
+    if (artisMeta.editable && (rawOran === '' || Number.isNaN(Number(rawOran)))) {
+      return alert(`${artisMeta.label} geçerli bir sayı olmalıdır.`)
+    }
     const payload = {
       id: endeksEditingId || `pl-end-${Date.now()}`,
       hesapKodu: endeksForm.hesapKodu,
       artisTipi: endeksForm.artisTipi,
       artisDonemi: endeksForm.artisDonemi,
-      ekstraOranUst: Number(rawOran),
+      ekstraOranUst: artisMeta.editable ? Number(rawOran) : 0,
     }
     if (endeksEditingId) {
       setEndeksRows((prev) => prev.map((r) => (r.id === endeksEditingId ? payload : r)))
@@ -3169,7 +3219,15 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
             <select
               className="form-select"
               value={endeksForm.hesapKodu}
-              onChange={(e) => setEndeksForm((f) => ({ ...f, hesapKodu: e.target.value }))}
+              onChange={(e) => {
+                const hesapKodu = e.target.value
+                const meta = endeksArtisFieldMeta(hesapKodu)
+                setEndeksForm((f) => ({
+                  ...f,
+                  hesapKodu,
+                  ekstraOran: meta.editable ? formatEndeksArtisDeger(meta.defaultDeger) : '0,00',
+                }))
+              }}
             >
               <option value="">Seçiniz...</option>
               {katkiPayiHesaplama.map((h) => (
@@ -3211,15 +3269,23 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
             </select>
           </label>
           <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Ekstra artış oranı</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="form-input"
-              placeholder="0.00"
-              value={endeksForm.ekstraOran}
-              onChange={(e) => setEndeksForm((f) => ({ ...f, ekstraOran: e.target.value }))}
-            />
+            {(() => {
+              const artisMeta = endeksArtisFieldMeta(endeksForm.hesapKodu)
+              return (
+                <>
+                  <span className="block text-xs font-medium text-slate-600 mb-1">{artisMeta.label}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className={`form-input ${!artisMeta.editable ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                    placeholder="0,00"
+                    value={endeksForm.ekstraOran}
+                    disabled={!artisMeta.editable}
+                    onChange={(e) => setEndeksForm((f) => ({ ...f, ekstraOran: e.target.value }))}
+                  />
+                </>
+              )
+            })()}
           </label>
         </div>
       </Modal>

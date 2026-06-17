@@ -55,6 +55,7 @@ export const katkiPayiHesaplama = [
   { id: 2, hesapKodu: '2', hesapAdi: 'TUFE', hesapMetod: 'Endeks', hesapKaynak: 'Tablo', tablo: 'DIE TUFE Endeksleri', hesapDeger: '-', doviz: 'TRL', dovizCinsi: 'Efektif Satis' },
   { id: 3, hesapKodu: '6', hesapAdi: 'Sabit Oran Artisli', hesapMetod: 'Sabit Oran', hesapKaynak: 'Sabit', tablo: '-', hesapDeger: '0.2', doviz: '-', dovizCinsi: '-' },
   { id: 4, hesapKodu: '7', hesapAdi: 'Artissiz', hesapMetod: 'Sabit Tutar', hesapKaynak: 'Sabit', tablo: '-', hesapDeger: '0', doviz: '-', dovizCinsi: '-' },
+  { id: 6, hesapKodu: '8', hesapAdi: 'Sabit Tutar Artisli', hesapMetod: 'Sabit Tutar', hesapKaynak: 'Sabit', tablo: '-', hesapDeger: '150', doviz: 'TRL', dovizCinsi: '-' },
   { id: 5, hesapKodu: '11', hesapAdi: '(YI-UFE+TUFE)/2', hesapMetod: 'Endeks', hesapKaynak: 'Tablo', tablo: '(YI-UFE+TUFE)/2', hesapDeger: '-', doviz: '-', dovizCinsi: '-' },
 ]
 
@@ -73,6 +74,9 @@ export const katkiPayiHesaplamaDetaylari = {
   ],
   '7': [
     { id: 1, parametre: 'Sabit Tutar', deger: '0', aciklama: 'Artissiz tanim' },
+  ],
+  '8': [
+    { id: 1, parametre: 'Sabit Tutar', deger: '150', aciklama: 'Yillik sabit tutar artisi' },
   ],
   '11': [
     { id: 1, parametre: 'Formul', deger: '(YI-UFE+TUFE)/2', aciklama: 'Karma endeks hesabi' },
