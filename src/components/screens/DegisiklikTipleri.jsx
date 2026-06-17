@@ -353,7 +353,7 @@ function DegisiklikVersionsScreen({ sourceRow, versions, onBack, onInspect }) {
           <table className="w-full grid-table text-sm">
             <thead>
               <tr>
-                <th>Zeyil Kodu</th>
+                <th>Değişiklik Kodu</th>
                 <th>Versiyon</th>
                 <th>Yılda Kaç Kez</th>
                 <th>Oluşturulma Tarihi</th>
@@ -670,8 +670,8 @@ export default function DegisiklikTipleri() {
     if (sozlesmeOpts.length && !form.sozlesmeTipiKodlari?.length) {
       return alert('Sözleşme Tipi zorunludur.')
     }
-    if (!String(form.zeyilKodu).trim()) return alert('Zeyil Kodu zorunludur.')
-    if (!String(form.zeyilAdi).trim()) return alert('Zeyil Adı zorunludur.')
+    if (!String(form.zeyilKodu).trim()) return alert('Değişiklik Kodu zorunludur.')
+    if (!String(form.zeyilAdi).trim()) return alert('Değişiklik Adı zorunludur.')
     if (!String(form.yilLimit).trim()) return alert('Yılda Kaç Kez Yapılabilir zorunludur.')
 
     const bransKodlari = [...form.bransKodlari]
@@ -685,7 +685,7 @@ export default function DegisiklikTipleri() {
     })
 
     const existsByCode = rows.some((r) => r.zeyilKodu === payload.zeyilKodu && r.id !== editingId && editMode !== 'version')
-    if (existsByCode) return alert('Bu zeyil kodu mevcut.')
+    if (existsByCode) return alert('Bu değişiklik kodu mevcut.')
 
     finalizeSave(payload)
   }
@@ -804,8 +804,8 @@ export default function DegisiklikTipleri() {
     const title = isVersionUpdate
       ? `Yeni Versiyon Oluştur (v${form.versiyon})`
       : editingId
-        ? 'Değişiklik (Zeyl) Tipi Güncelle'
-        : 'Yeni Zeyil Tipi Ekle'
+        ? 'Değişiklik Tipi Güncelle'
+        : 'Yeni Değişiklik Tipi Ekle'
 
     return (
       <>
@@ -819,7 +819,7 @@ export default function DegisiklikTipleri() {
             <p className="text-sm text-slate-500 mt-1">
               {isVersionUpdate
                 ? 'Planlara bağlı kayıt için yeni versiyon üzerinde güncelleme yapılıyor'
-                : 'Sistem için değişiklik(zeyl) tipleri tanımlayın'}
+                : 'Sistem için değişiklik tipleri tanımlayın'}
             </p>
           </div>
         </div>
@@ -864,7 +864,7 @@ export default function DegisiklikTipleri() {
               />
             </label>
             <label>
-              <span className="block text-sm font-semibold text-slate-700 mb-2">Zeyil Kodu *</span>
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Değişiklik Kodu *</span>
               <input
                 className={`w-full h-11 border border-slate-300 rounded-md px-3 text-sm ${isReadonlyCode ? 'bg-slate-100 text-slate-600' : ''}`}
                 value={form.zeyilKodu}
@@ -873,7 +873,7 @@ export default function DegisiklikTipleri() {
               />
             </label>
             <label>
-              <span className="block text-sm font-semibold text-slate-700 mb-2">Zeyil Adı *</span>
+              <span className="block text-sm font-semibold text-slate-700 mb-2">Değişiklik Adı *</span>
               <input className="w-full h-11 border border-slate-300 rounded-md px-3 text-sm" value={form.zeyilAdi} onChange={(e) => setForm((f) => ({ ...f, zeyilAdi: e.target.value }))} />
             </label>
             <label>
@@ -897,7 +897,7 @@ export default function DegisiklikTipleri() {
     <>
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
-        title="Değişiklik(Zeyl) Tipleri"
+        title="Değişiklik Tipleri"
         right={
           <div className="flex items-center gap-2">
             <OutlineButton onClick={() => setPlanBindOpen(true)}><Link2 className="w-4 h-4" /> Planlara Bağla</OutlineButton>
@@ -910,17 +910,17 @@ export default function DegisiklikTipleri() {
       <div className="px-6 py-4 border-b border-slate-100">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
           <div>
-            <span className="block text-xs text-slate-600 mb-1">Zeyil Kodu</span>
+            <span className="block text-xs text-slate-600 mb-1">Değişiklik Kodu</span>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Kod ara..." value={filterKod} onChange={(e) => setFilterKod(e.target.value)} />
             </div>
           </div>
           <div>
-            <span className="block text-xs text-slate-600 mb-1">Zeyil Adı</span>
+            <span className="block text-xs text-slate-600 mb-1">Değişiklik Adı</span>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Zeyil adı ara..." value={filterAd} onChange={(e) => setFilterAd(e.target.value)} />
+              <input className="w-full h-9 border border-slate-300 rounded-md pl-9 pr-3 text-sm" placeholder="Değişiklik adı ara..." value={filterAd} onChange={(e) => setFilterAd(e.target.value)} />
             </div>
           </div>
           <div className="flex items-end"><OutlineButton onClick={() => { setFilterKod(''); setFilterAd('') }}>Temizle</OutlineButton></div>
@@ -934,8 +934,8 @@ export default function DegisiklikTipleri() {
               <th></th>
               <th>Branş Kodu</th>
               <th>Sözleşme(Ürün) Tipi</th>
-              <th>Zeyil Kodu</th>
-              <th>Zeyil Adı</th>
+              <th>Değişiklik Kodu</th>
+              <th>Değişiklik Adı</th>
               <th>Versiyon</th>
               <th>Yılda Kaç Kez Yapılabilir?</th>
               <th>Prim Değiştiriyor mu?</th>

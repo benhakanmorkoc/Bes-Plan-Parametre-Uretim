@@ -2919,8 +2919,8 @@ function DigerTanimlarScreen({ plan, urun, onBack }) {
                   <th className="text-left font-semibold px-2 py-2 w-12">Seç</th>
                   <th className="text-left font-semibold px-2 py-2">Branş Kodu</th>
                   <th className="text-left font-semibold px-2 py-2">Branş</th>
-                  <th className="text-left font-semibold px-2 py-2">Zeyil Kodu</th>
-                  <th className="text-left font-semibold px-2 py-2 min-w-[180px]">Zeyil Adı</th>
+                  <th className="text-left font-semibold px-2 py-2">Değişiklik Kodu</th>
+                  <th className="text-left font-semibold px-2 py-2 min-w-[180px]">Değişiklik Adı</th>
                   <th className="text-right font-semibold px-2 py-2 whitespace-nowrap">Yılda Kaç Kez Yapılabilir?</th>
                 </tr>
               </thead>

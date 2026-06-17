@@ -89,8 +89,8 @@ const REGISTRY = {
     data: data.degisiklikTipleri,
     columns: [
       { key: 'brans', label: 'Brans' },
-      { key: 'zeyilKodu', label: 'Zeyil Kodu' },
-      { key: 'zeyilAdi', label: 'Zeyil Adi' },
+      { key: 'zeyilKodu', label: 'Değişiklik Kodu' },
+      { key: 'zeyilAdi', label: 'Değişiklik Adı' },
       { key: 'yilLimit', label: 'Yil Limit' },
       { key: 'primDegistirir', label: 'Prim Degistirir' },
       { key: 'uwVarMi', label: 'UW Var mi' },

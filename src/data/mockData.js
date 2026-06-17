@@ -420,6 +420,10 @@ export const degisiklikTipleri = [
 
 /** Prototip: değişiklik tipine bağlı planlar ve plandaki yıllık adet override değerleri */
 export const degisiklikTipiBagliPlanlar = {
+  201: [
+    { planNo: '001', planAd: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 1 },
+    { planNo: '003', planAd: 'ESNEK PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 5 },
+  ],
   206: [
     { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 4 },
   ],
@@ -430,8 +434,12 @@ export const degisiklikTipiBagliPlanlar = {
   ],
 }
 
-/** Zeyil kodu ile bağlı plan araması (versiyon güncellemesi sonrası id değişse de çalışır) */
+/** Değişiklik kodu ile bağlı plan araması (versiyon güncellemesi sonrası id değişse de çalışır) */
 export const degisiklikTipiBagliPlanlarByZeyil = {
+  '93': [
+    { planNo: '001', planAd: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 1 },
+    { planNo: '003', planAd: 'ESNEK PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 5 },
+  ],
   '91': [
     { planNo: '001', planAd: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 6 },
     { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 12 },
@@ -444,7 +452,7 @@ export const degisiklikTipiBagliPlanlarByZeyil = {
 
 export const degisiklikTipleriDetaylari = {
   '93': [
-    { id: 1, parametre: 'Onay Seviyesi', deger: 'Standart', not: 'Temel emeklilik zeyli' },
+    { id: 1, parametre: 'Onay Seviyesi', deger: 'Standart', not: 'Temel emeklilik değişikliği' },
     { id: 2, parametre: 'Tahsilat Etkisi', deger: 'Yok', not: 'Prim etkisi bulunmaz' },
   ],
   '95': [
