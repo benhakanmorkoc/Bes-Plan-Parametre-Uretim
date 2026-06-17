@@ -430,6 +430,18 @@ export const degisiklikTipiBagliPlanlar = {
   ],
 }
 
+/** Zeyil kodu ile bağlı plan araması (versiyon güncellemesi sonrası id değişse de çalışır) */
+export const degisiklikTipiBagliPlanlarByZeyil = {
+  '91': [
+    { planNo: '001', planAd: 'LIMITLI PLAN', versiyon: '1', durum: 'Taslak', yillikAdet: 6 },
+    { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 12 },
+    { planNo: '005-1', planAd: 'ASLAN BIREYSEL EMEKLILIK PLANI', versiyon: '1', durum: 'Taslak', yillikAdet: 8 },
+  ],
+  '99': [
+    { planNo: '002', planAd: 'STANDART PLAN', versiyon: '2', durum: 'Yürürlükte', yillikAdet: 4 },
+  ],
+}
+
 export const degisiklikTipleriDetaylari = {
   '93': [
     { id: 1, parametre: 'Onay Seviyesi', deger: 'Standart', not: 'Temel emeklilik zeyli' },

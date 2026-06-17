@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Eye, Link2, List, Plus, Search } from 'lucide-react'
+import { ArrowLeft, Eye, Link2, Plus, Search } from 'lucide-react'
 import Modal from '../ui/Modal'
 import RowActions from '../ui/RowActions'
 import { ScreenHeader, PrimaryButton, OutlineButton } from '../ui/Toolbar'
-import { degisiklikTipleri as seedRows, degisiklikTipiBagliPlanlar as seedBagliPlanlar } from '../../data/mockData'
+import {
+  degisiklikTipleri as seedRows,
+  degisiklikTipiBagliPlanlar as seedBagliPlanlar,
+  degisiklikTipiBagliPlanlarByZeyil as seedBagliPlanlarByZeyil,
+} from '../../data/mockData'
 
 const AVAILABLE_PLANS = [
   { no: '003', ad: 'ESNEK PLAN', versiyon: '1', durum: 'Taslak', baslangic: '01.01.2025' },
@@ -48,6 +52,24 @@ const SOZLESME_TIPI_BY_BRANS = {
     { kod: 'Birikimli', label: 'Birikimli' },
     { kod: 'İrat', label: 'İrat' },
   ],
+}
+
+/** P-Emeklilik, L-Hayat, H-Sağlık, GE-Elementer */
+const BRANS_KISA_KOD = {
+  BES: 'P',
+  Hayat: 'L',
+  'Sağlık': 'H',
+  Elementer: 'GE',
+}
+
+const SOZLESME_KISA_KOD = {
+  Ferdi: 'F',
+  Grup: 'G',
+  OKS: 'OKS',
+  EGP: 'EGP',
+  Risk: 'RSK',
+  Birikimli: 'BRK',
+  İrat: 'IRT',
 }
 
 const ROW_ACTIONS = [
@@ -100,12 +122,29 @@ function bransDisplay(kodlar) {
   return (kodlar || []).map(bransLabel).join(', ')
 }
 
+function resolveBransKodlari(row) {
+  if (row.bransKodlari?.length) return [...row.bransKodlari]
+  if (!row.brans) return []
+  const parts = String(row.brans).split(',').map((s) => s.trim()).filter(Boolean)
+  return parts.map((p) => BRANS_OPTIONS.find((o) => o.kod === p || o.label === p)?.kod || p)
+}
+
+function bransKisaDisplay(kodlar) {
+  const codes = (kodlar || []).map((k) => BRANS_KISA_KOD[k] || k)
+  return codes.length ? codes.join(', ') : '—'
+}
+
+function sozlesmeKisaDisplay(kodlar) {
+  const codes = (kodlar || []).map((k) => SOZLESME_KISA_KOD[k] || k)
+  return codes.length ? codes.join(', ') : '—'
+}
+
+function planLabel(planNo) {
+  return `Plan-${planNo}`
+}
+
 function normalizeDegisiklikRow(row) {
-  const bransKodlari = row.bransKodlari?.length
-    ? [...row.bransKodlari]
-    : row.brans
-      ? String(row.brans).split(',').map((s) => s.trim()).filter(Boolean)
-      : []
+  const bransKodlari = resolveBransKodlari(row)
   return {
     ...row,
     versiyon: row.versiyon ?? 1,
@@ -126,8 +165,7 @@ function buildInitialVersionHistory(rows) {
         id: row.id,
         versiyon: row.versiyon ?? 1,
         yilLimit: row.yilLimit,
-        baslangic: '2025-01-01',
-        bitis: null,
+        olusturulmaTarihi: '2025-01-01',
         aktif: true,
         rowSnapshot: normalizeDegisiklikRow(row),
       }]
@@ -318,8 +356,7 @@ function DegisiklikVersionsScreen({ sourceRow, versions, onBack, onInspect }) {
                 <th>Zeyil Kodu</th>
                 <th>Versiyon</th>
                 <th>Yılda Kaç Kez</th>
-                <th>Versiyon Başlangıç</th>
-                <th>Versiyon Bitiş</th>
+                <th>Oluşturulma Tarihi</th>
                 <th>Durum</th>
                 <th className="w-28 text-right">İşlem</th>
               </tr>
@@ -330,8 +367,7 @@ function DegisiklikVersionsScreen({ sourceRow, versions, onBack, onInspect }) {
                   <td className="font-semibold text-violet-700">{sourceRow?.zeyilKodu}</td>
                   <td className="tabular-nums">{v.versiyon}</td>
                   <td className="tabular-nums">{v.yilLimit}</td>
-                  <td>{formatTrDate(v.baslangic)}</td>
-                  <td>{v.bitis ? formatTrDate(v.bitis) : '—'}</td>
+                  <td>{formatTrDate(v.olusturulmaTarihi || v.baslangic)}</td>
                   <td>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${v.aktif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                       {v.aktif ? 'Güncel' : 'Arşiv'}
@@ -345,7 +381,7 @@ function DegisiklikVersionsScreen({ sourceRow, versions, onBack, onInspect }) {
                 </tr>
               ))}
               {sorted.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-slate-500 py-8">Versiyon kaydı bulunamadı</td></tr>
+                <tr><td colSpan={6} className="text-center text-slate-500 py-8">Versiyon kaydı bulunamadı</td></tr>
               )}
             </tbody>
           </table>
@@ -366,6 +402,13 @@ export default function DegisiklikTipleri() {
     }
     return copy
   })
+  const [boundPlansByZeyilKodu] = useState(() => {
+    const copy = {}
+    for (const [k, v] of Object.entries(seedBagliPlanlarByZeyil)) {
+      copy[k] = v.map((p) => ({ ...p }))
+    }
+    return copy
+  })
 
   const [view, setView] = useState('list')
   const [editingId, setEditingId] = useState(null)
@@ -377,7 +420,7 @@ export default function DegisiklikTipleri() {
   const [selectedIds, setSelectedIds] = useState([])
 
   const [versionConfirmRow, setVersionConfirmRow] = useState(null)
-  const [differentPlansModal, setDifferentPlansModal] = useState({ open: false, plans: [], pendingPayload: null })
+  const [differentPlansConfirm, setDifferentPlansConfirm] = useState(null)
   const [versionsContext, setVersionsContext] = useState(null)
   const [inspectVersion, setInspectVersion] = useState(null)
 
@@ -419,11 +462,17 @@ export default function DegisiklikTipleri() {
     })
   }, [rows, filterKod, filterAd])
 
-  const isPlanBound = (row) => (boundPlansByTanimId[row.id] || []).length > 0
+  const getBoundPlansForRow = (row) => {
+    const byId = boundPlansByTanimId[row.id] || []
+    if (byId.length) return byId
+    return boundPlansByZeyilKodu[row.zeyilKodu] || []
+  }
 
-  const getPlansWithDifferentAdet = (tanimId, masterYilLimit) => {
-    const master = Number(String(masterYilLimit).trim())
-    return (boundPlansByTanimId[tanimId] || []).filter((p) => {
+  const isPlanBound = (row) => getBoundPlansForRow(row).length > 0
+
+  const getPlansWithDifferentAdet = (row) => {
+    const master = Number(String(row.yilLimit).trim())
+    return getBoundPlansForRow(row).filter((p) => {
       const planAdet = Number(p.yillikAdet)
       return !Number.isNaN(master) && !Number.isNaN(planAdet) && planAdet !== master
     })
@@ -518,8 +567,20 @@ export default function DegisiklikTipleri() {
 
   const confirmVersionAndEdit = () => {
     if (!versionConfirmRow) return
-    openEditForm(versionConfirmRow, 'version', versionConfirmRow)
+    const row = versionConfirmRow
     setVersionConfirmRow(null)
+    const differentPlans = getPlansWithDifferentAdet(row)
+    if (differentPlans.length > 0) {
+      setDifferentPlansConfirm({ row, plans: differentPlans })
+      return
+    }
+    openEditForm(row, 'version', row)
+  }
+
+  const confirmDifferentPlansAndOpenForm = () => {
+    if (!differentPlansConfirm?.row) return
+    openEditForm(differentPlansConfirm.row, 'version', differentPlansConfirm.row)
+    setDifferentPlansConfirm(null)
   }
 
   const applyDirectUpdate = (payload) => {
@@ -531,8 +592,7 @@ export default function DegisiklikTipleri() {
         id: payload.id,
         versiyon: payload.versiyon,
         yilLimit: payload.yilLimit,
-        baslangic: list[idx]?.baslangic || todayIso(),
-        bitis: null,
+        olusturulmaTarihi: list[idx]?.olusturulmaTarihi || list[idx]?.baslangic || todayIso(),
         aktif: true,
         rowSnapshot: payload,
       }
@@ -553,15 +613,14 @@ export default function DegisiklikTipleri() {
       const list = [...(prev[newRow.zeyilKodu] || [])]
       const updated = list.map((v) => (
         v.versiyon === prevRow.versiyon
-          ? { ...v, bitis: now, aktif: false }
+          ? { ...v, aktif: false }
           : v
       ))
       updated.push({
         id: newId,
         versiyon: newRow.versiyon,
         yilLimit: newRow.yilLimit,
-        baslangic: now,
-        bitis: null,
+        olusturulmaTarihi: now,
         aktif: true,
         rowSnapshot: newRow,
       })
@@ -592,8 +651,7 @@ export default function DegisiklikTipleri() {
           id: newRow.id,
           versiyon: 1,
           yilLimit: newRow.yilLimit,
-          baslangic: todayIso(),
-          bitis: null,
+          olusturulmaTarihi: todayIso(),
           aktif: true,
           rowSnapshot: newRow,
         }],
@@ -629,21 +687,7 @@ export default function DegisiklikTipleri() {
     const existsByCode = rows.some((r) => r.zeyilKodu === payload.zeyilKodu && r.id !== editingId && editMode !== 'version')
     if (existsByCode) return alert('Bu zeyil kodu mevcut.')
 
-    if (editMode === 'version' && originalRow) {
-      const differentPlans = getPlansWithDifferentAdet(originalRow.id, originalRow.yilLimit)
-      if (differentPlans.length > 0) {
-        setDifferentPlansModal({ open: true, plans: differentPlans, pendingPayload: payload })
-        return
-      }
-    }
-
     finalizeSave(payload)
-  }
-
-  const confirmDifferentPlansAndSave = () => {
-    if (!differentPlansModal.pendingPayload) return
-    finalizeSave(differentPlansModal.pendingPayload)
-    setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })
   }
 
   const toggleRow = (id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -661,10 +705,56 @@ export default function DegisiklikTipleri() {
     else if (key === 'delete') removeRow(row)
   }
 
+  const confirmModals = (
+    <>
+      <Modal
+        open={!!versionConfirmRow}
+        onClose={() => setVersionConfirmRow(null)}
+        title="Yeni Versiyon Oluştur"
+        size="md"
+        footer={(
+          <>
+            <OutlineButton type="button" onClick={() => setVersionConfirmRow(null)}>Hayır</OutlineButton>
+            <PrimaryButton type="button" onClick={confirmVersionAndEdit}>Evet</PrimaryButton>
+          </>
+        )}
+      >
+        <p className="text-sm text-slate-700 leading-relaxed">
+          Değişiklik tipi planlara bağlıdır. Yeni versiyon oluşturmak istiyor musunuz?
+        </p>
+      </Modal>
+
+      <Modal
+        open={!!differentPlansConfirm}
+        onClose={() => setDifferentPlansConfirm(null)}
+        title="Farklı Yıllık Adet Tanımlı Planlar"
+        size="md"
+        footer={(
+          <>
+            <OutlineButton type="button" onClick={() => setDifferentPlansConfirm(null)}>Hayır</OutlineButton>
+            <PrimaryButton type="button" onClick={confirmDifferentPlansAndOpenForm}>Evet</PrimaryButton>
+          </>
+        )}
+      >
+        <p className="text-sm text-slate-700 leading-relaxed">
+          Farklı yıllık adet tanımı yapılmış planlar mevcuttur,
+          {' '}
+          <span className="font-semibold">
+            {(differentPlansConfirm?.plans || []).map((p) => planLabel(p.planNo)).join(', ')}
+          </span>
+          , yeni versiyon oluşturulsun mu?
+        </p>
+        <p className="text-xs text-slate-500 mt-3">
+          Bu planlardaki yıllık adet değerleri otomatik güncellenmez.
+        </p>
+      </Modal>
+    </>
+  )
+
   if (inspectVersion) {
     const snap = inspectVersion.rowSnapshot || inspectVersion
-    const sozlesmeOpts = sozlesmeTipiOptionsForBranslar(snap.bransKodlari)
     return (
+      <>
       <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
           <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setInspectVersion(null)}>
@@ -676,8 +766,8 @@ export default function DegisiklikTipleri() {
           </div>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div><span className="text-slate-500">Branş:</span> <span className="font-medium">{bransDisplay(snap.bransKodlari)}</span></div>
-          <div><span className="text-slate-500">Sözleşme Tipi:</span> <span className="font-medium">{sozlesmeTipiDisplay(snap.sozlesmeTipiKodlari, sozlesmeOpts)}</span></div>
+          <div><span className="text-slate-500">Branş Kodu:</span> <span className="font-medium">{bransKisaDisplay(snap.bransKodlari)}</span></div>
+          <div><span className="text-slate-500">Sözleşme Tipi:</span> <span className="font-medium">{sozlesmeKisaDisplay(snap.sozlesmeTipiKodlari)}</span></div>
           <div><span className="text-slate-500">Yılda Kaç Kez:</span> <span className="font-medium">{snap.yilLimit}</span></div>
           <div><span className="text-slate-500">Versiyon:</span> <span className="font-medium">{inspectVersion.versiyon}</span></div>
         </div>
@@ -685,18 +775,23 @@ export default function DegisiklikTipleri() {
           <OutlineButton onClick={() => setInspectVersion(null)}>Kapat</OutlineButton>
         </div>
       </div>
+      {confirmModals}
+      </>
     )
   }
 
   if (versionsContext) {
     const versions = versionHistoryByZeyilKodu[versionsContext.zeyilKodu] || []
     return (
+      <>
       <DegisiklikVersionsScreen
         sourceRow={versionsContext}
         versions={versions}
         onBack={() => setVersionsContext(null)}
         onInspect={(v) => setInspectVersion(v)}
       />
+      {confirmModals}
+      </>
     )
   }
 
@@ -713,6 +808,7 @@ export default function DegisiklikTipleri() {
         : 'Yeni Zeyil Tipi Ekle'
 
     return (
+      <>
       <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
           <button type="button" className="text-slate-500 hover:text-slate-700" onClick={() => setView('list')}>
@@ -792,10 +888,13 @@ export default function DegisiklikTipleri() {
           <PrimaryButton onClick={saveForm}>Kaydet</PrimaryButton>
         </div>
       </div>
+      {confirmModals}
+      </>
     )
   }
 
   return (
+    <>
     <div className="bg-white rounded-xl border border-slate-200 flex flex-col h-full overflow-hidden">
       <ScreenHeader
         title="Değişiklik(Zeyl) Tipleri"
@@ -829,12 +928,12 @@ export default function DegisiklikTipleri() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full grid-table text-sm min-w-[1280px]">
+        <table className="w-full grid-table text-sm min-w-[1200px]">
           <thead>
             <tr>
               <th></th>
               <th>Branş Kodu</th>
-              <th>Branş</th>
+              <th>Sözleşme(Ürün) Tipi</th>
               <th>Zeyil Kodu</th>
               <th>Zeyil Adı</th>
               <th>Versiyon</th>
@@ -848,14 +947,8 @@ export default function DegisiklikTipleri() {
             {filteredRows.map((r) => (
               <tr key={r.id}>
                 <td><input type="checkbox" checked={selectedIds.includes(r.id)} onChange={() => toggleRow(r.id)} /></td>
-                <td className="font-semibold">{r.brans || bransDisplay(r.bransKodlari)}</td>
-                <td>
-                  <div className="flex flex-wrap gap-1">
-                    {(r.bransKodlari?.length ? r.bransKodlari : [r.brans]).filter(Boolean).map((b) => (
-                      <span key={b} className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{bransLabel(b)}</span>
-                    ))}
-                  </div>
-                </td>
+                <td className="font-semibold text-slate-800">{bransKisaDisplay(r.bransKodlari)}</td>
+                <td className="font-medium text-slate-700">{sozlesmeKisaDisplay(r.sozlesmeTipiKodlari)}</td>
                 <td className="font-semibold">{r.zeyilKodu}</td>
                 <td>{r.zeyilAdi}</td>
                 <td className="tabular-nums">{r.versiyon ?? 1}</td>
@@ -875,74 +968,6 @@ export default function DegisiklikTipleri() {
         <div className="flex items-center gap-2"><span>Sayfa başına</span><select className="h-8 border border-slate-300 rounded-md px-2"><option>10</option></select></div>
         <span>Toplam {rows.length} kayıt</span>
       </div>
-
-      <Modal
-        open={!!versionConfirmRow}
-        onClose={() => setVersionConfirmRow(null)}
-        title="Yeni Versiyon Oluştur"
-        size="md"
-        footer={(
-          <>
-            <OutlineButton type="button" onClick={() => setVersionConfirmRow(null)}>Hayır</OutlineButton>
-            <PrimaryButton type="button" onClick={confirmVersionAndEdit}>Evet</PrimaryButton>
-          </>
-        )}
-      >
-        <p className="text-sm text-slate-700 leading-relaxed">
-          Değişiklik tipi planlara bağlıdır. Yeni versiyon oluşturmak istiyor musunuz?
-        </p>
-        {versionConfirmRow && (
-          <p className="text-xs text-slate-500 mt-3">
-            Bağlı plan sayısı: {(boundPlansByTanimId[versionConfirmRow.id] || []).length}
-          </p>
-        )}
-      </Modal>
-
-      <Modal
-        open={differentPlansModal.open}
-        onClose={() => setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })}
-        title="Farklı Yıllık Adet Tanımlı Planlar"
-        size="lg"
-        footer={(
-          <>
-            <OutlineButton type="button" onClick={() => setDifferentPlansModal({ open: false, plans: [], pendingPayload: null })}>İptal</OutlineButton>
-            <PrimaryButton type="button" onClick={confirmDifferentPlansAndSave}>Onayla ve Kaydet</PrimaryButton>
-          </>
-        )}
-      >
-        <p className="text-sm text-slate-700 leading-relaxed mb-4">
-          Farklı yıllık adet tanımı yapılmış planlar mevcuttur. Bu planlardaki değerler otomatik güncellenmeyecek;
-          kullanıcı plan ekranından manuel düzenleyebilir.
-        </p>
-        <div className="overflow-auto border border-slate-200 rounded-lg max-h-64">
-          <table className="w-full grid-table text-sm">
-            <thead>
-              <tr>
-                <th>Plan No</th>
-                <th>Plan Adı</th>
-                <th>Versiyon</th>
-                <th>Plan Durumu</th>
-                <th>Plandaki Yıllık Adet</th>
-                <th>Master (Eski)</th>
-                <th>Master (Yeni)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {differentPlansModal.plans.map((p) => (
-                <tr key={p.planNo}>
-                  <td className="font-medium">{p.planNo}</td>
-                  <td>{p.planAd}</td>
-                  <td>{p.versiyon}</td>
-                  <td>{p.durum}</td>
-                  <td className="tabular-nums font-semibold text-amber-700">{p.yillikAdet}</td>
-                  <td className="tabular-nums">{originalRow?.yilLimit}</td>
-                  <td className="tabular-nums">{differentPlansModal.pendingPayload?.yilLimit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Modal>
 
       <Modal
         open={planBindOpen}
@@ -1102,5 +1127,7 @@ export default function DegisiklikTipleri() {
         </div>
       </Modal>
     </div>
+    {confirmModals}
+    </>
   )
 }
