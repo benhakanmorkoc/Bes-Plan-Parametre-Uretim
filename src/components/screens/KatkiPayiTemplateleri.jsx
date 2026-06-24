@@ -1,22 +1,8 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import {
-  Plus, Search, Link as LinkIcon, ChevronDown, ChevronUp, MoreVertical, Edit2, Trash2, GitBranch, ArrowLeft, X, AlertCircle, CheckCircle2,
+  Plus, Search, Link as LinkIcon, ChevronDown, ChevronUp, MoreVertical, Edit2, Trash2, List, ArrowLeft, X, AlertCircle, CheckCircle2,
 } from 'lucide-react'
-import { kptBaglantiMockPlans } from '../../data/mockData'
-import {
-  getKptTemplates,
-  setKptTemplates,
-  getKptImpact,
-  getBagliPlanlar,
-  isPlanBound,
-  addRevision,
-  setVersionHistory,
-  getVersionHistory,
-  subscribeKptStore,
-  latestByTemplateCode,
-  computeKptDiff,
-  KPT_IMPACT_SAMPLE_THRESHOLD,
-} from '../../data/kptSharedState'
+import { katkiPayiTemplateleriLegacy as seedKpt, kptBaglantiMockPlans } from '../../data/mockData'
 import { ScreenHeader, PrimaryButton, OutlineButton, StatusBadge } from '../ui/Toolbar'
 import Modal from '../ui/Modal'
 
@@ -48,6 +34,16 @@ function displayYuvarlama(yuvarlama, deger) {
   if (!yuvarlama || yuvarlama === 'Yok') return 'Yok'
   if (deger) return `${yuvarlama} (${deger})`
   return yuvarlama
+}
+
+function latestByTemplateCode(rows) {
+  const m = new Map()
+  rows.forEach((item) => {
+    const key = item.kpTemplateKodu || ''
+    const prev = m.get(key)
+    if (!prev || Number(item.versiyon || 0) > Number(prev.versiyon || 0)) m.set(key, item)
+  })
+  return Array.from(m.values())
 }
 
 function SortHeader({ label, col, sortCol, sortOrder, onSort }) {
@@ -123,12 +119,18 @@ function itemToForm(item) {
   }
 }
 
+/** Mock: sablon koduna gore bagli planlar (prototip) */
+function mockBagliPlanlar(kod) {
+  return [
+    { planNo: '001', planAdi: 'LİMİTLİ PLAN', durum: 'Taslak', versiyon: '1' },
+    { planNo: '003', planAdi: 'ESNEK PLAN', durum: 'Taslak', versiyon: '1' },
+  ].map((r) => ({ ...r, kpTemplateKodu: kod }))
+}
+
 export default function KatkiPayiTemplateleri() {
-  const [kptData, setKptData] = useState(() => getKptTemplates().map((r) => ({ ...r })))
+  const [kptData, setKptData] = useState(() => seedKpt.map((r) => ({ ...r })))
   const [viewMode, setViewMode] = useState('list')
   const [currentEditId, setCurrentEditId] = useState(null)
-  const [editMode, setEditMode] = useState('create')
-  const [originalRow, setOriginalRow] = useState(null)
   const [kptForm, setKptForm] = useState(emptyForm)
   const [odemeDropdownOpen, setOdemeDropdownOpen] = useState(false)
   const odemeDropdownRef = useRef(null)
@@ -154,6 +156,8 @@ export default function KatkiPayiTemplateleri() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [uiError, setUiError] = useState('')
   const [uiSuccess, setUiSuccess] = useState('')
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  const [versionRows, setVersionRows] = useState([])
   const [linkedOpen, setLinkedOpen] = useState(false)
   const [linkedRow, setLinkedRow] = useState(null)
   const [planModalOpen, setPlanModalOpen] = useState(false)
@@ -161,16 +165,6 @@ export default function KatkiPayiTemplateleri() {
   const [planSearch, setPlanSearch] = useState('')
   const [planRows, setPlanRows] = useState([])
   const [selectedPlanIds, setSelectedPlanIds] = useState([])
-  const [impactConfirm, setImpactConfirm] = useState(null)
-  const [versionConfirm, setVersionConfirm] = useState(null)
-  const [redirectToGuncelleme, setRedirectToGuncelleme] = useState(null)
-  const [reasonModal, setReasonModal] = useState(null)
-  const [reasonText, setReasonText] = useState('')
-  const [impactReportOpen, setImpactReportOpen] = useState(null)
-
-  useEffect(() => subscribeKptStore(() => {
-    setKptData(getKptTemplates().map((r) => ({ ...r })))
-  }), [])
 
   const filteredLatest = useMemo(() => {
     const latest = latestByTemplateCode(kptData)
@@ -213,67 +207,47 @@ export default function KatkiPayiTemplateleri() {
   const openAdd = () => {
     setKptForm(emptyForm())
     setCurrentEditId(null)
-    setEditMode('create')
-    setOriginalRow(null)
     setUiError('')
     setViewMode('form')
   }
 
-  const openEditForm = (row, mode) => {
-    setKptForm(itemToForm(row))
-    setCurrentEditId(row.id)
-    setEditMode(mode)
-    setOriginalRow(row)
+  const openEdit = (id) => {
+    const item = kptData.find((a) => a.id === id)
+    if (!item) return
+    setKptForm(itemToForm(item))
+    setCurrentEditId(id)
     setUiError('')
     setOdemeDropdownOpen(false)
     setViewMode('form')
   }
 
-  const openGuncelleme = (row) => {
-    openEditForm(row, 'direct')
-  }
-
-  const openVersiyonGuncelleme = (row) => {
-    const kod = row.kpTemplateKodu
-    if (!isPlanBound(kod)) {
-      setRedirectToGuncelleme(row)
+  const saveForm = () => {
+    setUiError('')
+    if (!kptForm.kpTemplateKodu?.trim() || !kptForm.adi?.trim() || !kptForm.katkiPayiTutari?.trim()) {
+      setUiError('KP Template Kodu, KP Template Adı ve Katkı Payı Tutarı alanları zorunludur.')
       return
     }
-    const impact = getKptImpact(kod)
-    if (impact.teklifCount > 0 || impact.sozlesmeCount > 0) {
-      setVersionConfirm(row)
+    if (!kptForm.odemePeriyodu || kptForm.odemePeriyodu.length === 0) {
+      setUiError('Ödeme Periyodu alanından en az bir seçim yapmalısınız.')
       return
     }
-    openEditForm(row, 'version')
-  }
-
-  const confirmVersionAndOpenForm = () => {
-    if (!versionConfirm) return
-    openEditForm(versionConfirm, 'version')
-    setVersionConfirm(null)
-  }
-
-  const confirmRedirectGuncelleme = () => {
-    if (!redirectToGuncelleme) return
-    openEditForm(redirectToGuncelleme, 'direct')
-    setRedirectToGuncelleme(null)
-  }
-
-  const buildPayloadFromForm = () => {
+    if (YUVARLAMA_AKTIF(kptForm.yuvarlama) && !String(kptForm.yuvarlamaDegeri || '').trim()) {
+      setUiError('Yuvarlama Tavana veya Tabana seçildiğinde Yuvarlama Değeri zorunludur.')
+      return
+    }
+    const codeExists = kptData.some(
+      (a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase() && a.id !== currentEditId,
+    )
+    if (codeExists && !currentEditId) {
+      setUiError('Eklenmek istenen KP Template Kodu sistemde mevcuttur. Güncelleme için satır menüsünü kullanın.')
+      return
+    }
     const odemePeriyodu = kptForm.odemePeriyodu
+    const versiyon = currentEditId
+      ? String(kptData.find((a) => a.id === currentEditId)?.versiyon || '1')
+      : String(Math.max(0, ...kptData.filter((a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase()).map((a) => Number(a.versiyon || 0))) + 1)
     const today = new Date().toLocaleDateString('tr-TR')
-    const prev = currentEditId ? kptData.find((a) => a.id === currentEditId) : null
-    let versiyon = '1'
-    if (editMode === 'version' && originalRow) {
-      versiyon = String(Number(originalRow.versiyon || 1) + 1)
-    } else if (currentEditId && prev) {
-      versiyon = String(prev.versiyon || '1')
-    } else if (!currentEditId) {
-      versiyon = String(
-        Math.max(0, ...kptData.filter((a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase()).map((a) => Number(a.versiyon || 0))) + 1,
-      )
-    }
-    return {
+    const payload = {
       kpTemplateKodu: kptForm.kpTemplateKodu.trim(),
       adi: kptForm.adi.trim(),
       versiyon,
@@ -291,152 +265,19 @@ export default function KatkiPayiTemplateleri() {
       kpDonemAy: kptForm.kpDonemAy,
       yuvarlama: kptForm.yuvarlama,
       yuvarlamaDegeri: kptForm.yuvarlamaDegeri,
-      aktif: true,
-      olusturan: prev?.olusturan || 'uaktas',
-      olusturulmaTarihi: editMode === 'version' ? today : (prev?.olusturulmaTarihi || today),
+      olusturan: currentEditId ? (kptData.find((a) => a.id === currentEditId)?.olusturan || 'uaktas') : 'uaktas',
+      olusturulmaTarihi: currentEditId ? ((kptData.find((a) => a.id === currentEditId)?.olusturulmaTarihi) || today) : today,
       guncelleyen: 'uaktas',
       guncellemeTarihi: today,
     }
-  }
-
-  const validateForm = () => {
-    if (!kptForm.kpTemplateKodu?.trim() || !kptForm.adi?.trim() || !kptForm.katkiPayiTutari?.trim()) {
-      setUiError('KP Template Kodu, KP Template Adı ve Katkı Payı Tutarı alanları zorunludur.')
-      return false
-    }
-    if (!kptForm.odemePeriyodu || kptForm.odemePeriyodu.length === 0) {
-      setUiError('Ödeme Periyodu alanından en az bir seçim yapmalısınız.')
-      return false
-    }
-    if (YUVARLAMA_AKTIF(kptForm.yuvarlama) && !String(kptForm.yuvarlamaDegeri || '').trim()) {
-      setUiError('Yuvarlama Tavana veya Tabana seçildiğinde Yuvarlama Değeri zorunludur.')
-      return false
-    }
-    const codeExists = kptData.some(
-      (a) => a.kpTemplateKodu.toLowerCase() === kptForm.kpTemplateKodu.trim().toLowerCase()
-        && a.id !== currentEditId
-        && editMode !== 'version',
-    )
-    if (codeExists && editMode === 'create') {
-      setUiError('Eklenmek istenen KP Template Kodu sistemde mevcuttur. Güncelleme için satır menüsünü kullanın.')
-      return false
-    }
-    return true
-  }
-
-  const finalizeSave = (payload, reason) => {
-    const kod = payload.kpTemplateKodu
-    const impact = getKptImpact(kod)
-
-    if (editMode === 'version' && originalRow) {
-      const newId = Date.now()
-      const archived = { ...originalRow, aktif: false, gecerlilik: 'Pasif' }
-      const newRow = { ...originalRow, ...payload, id: newId, revisionNo: 0, aktif: true }
-      const next = kptData.map((a) => (a.id === originalRow.id ? archived : a)).concat(newRow)
-      setKptData(next)
-      setKptTemplates(next)
-
-      const history = [...getVersionHistory(kod)]
-      const histIdx = history.findIndex((h) => String(h.versiyon) === String(originalRow.versiyon))
-      if (histIdx >= 0) history[histIdx] = { ...history[histIdx], aktif: false }
-      history.push({
-        id: newId,
-        versiyon: newRow.versiyon,
-        olusturulmaTarihi: newRow.olusturulmaTarihi,
-        aktif: true,
-        katkiPayiTutari: newRow.katkiPayiTutari,
-        adi: newRow.adi,
-      })
-      setVersionHistory(kod, history)
-      setUiSuccess(`Yeni versiyon oluşturuldu (v${newRow.versiyon}).`)
-    } else if (currentEditId && originalRow) {
-      const prevRevision = Number(originalRow.revisionNo || 0)
-      const nextRevision = prevRevision + 1
-      const updated = { ...originalRow, ...payload, revisionNo: nextRevision }
-      const next = kptData.map((a) => (a.id === currentEditId ? updated : a))
-      setKptData(next)
-      setKptTemplates(next)
-
-      addRevision(kod, {
-        revisionId: `rev-${kod}-${nextRevision}-${Date.now()}`,
-        templateId: updated.id,
-        templateKodu: kod,
-        revisionNo: nextRevision,
-        versionNo: String(updated.versiyon),
-        changeType: 'GUNCELLEME',
-        reason,
-        changedBy: 'uaktas',
-        changedAt: updated.guncellemeTarihi,
-        diff: computeKptDiff(originalRow, updated),
-        impact: { ...impact, impactReportId: impact.teklifCount + impact.sozlesmeCount > KPT_IMPACT_SAMPLE_THRESHOLD ? `RPT-${Date.now()}` : null },
-      })
-      setUiSuccess(`Güncelleme kaydedildi (rev. ${nextRevision}).`)
+    if (currentEditId) {
+      setKptData((prev) => prev.map((a) => (a.id === currentEditId ? { ...a, ...payload } : a)))
     } else {
-      const newRow = { id: Date.now(), ...payload, revisionNo: 0 }
-      const next = [...kptData, newRow]
-      setKptData(next)
-      setKptTemplates(next)
-      setVersionHistory(kod, [{
-        id: newRow.id,
-        versiyon: newRow.versiyon,
-        olusturulmaTarihi: newRow.olusturulmaTarihi,
-        aktif: true,
-        katkiPayiTutari: newRow.katkiPayiTutari,
-        adi: newRow.adi,
-      }])
-      setUiSuccess('Kayıt tamamlandı.')
+      setKptData((prev) => [...prev, { id: Date.now(), ...payload }])
     }
-
+    setUiSuccess('Kayıt tamamlandı.')
     setTimeout(() => setUiSuccess(''), 3500)
     setViewMode('list')
-    setCurrentEditId(null)
-    setEditMode('create')
-    setOriginalRow(null)
-    setReasonText('')
-    setReasonModal(null)
-  }
-
-  const saveForm = () => {
-    setUiError('')
-    if (!validateForm()) return
-
-    if (editMode === 'create') {
-      finalizeSave(buildPayloadFromForm(), 'Yeni kayıt')
-      return
-    }
-
-    const kod = kptForm.kpTemplateKodu.trim()
-    const impact = getKptImpact(kod)
-    const needsConfirm = editMode === 'direct' && (impact.teklifCount > 0 || impact.sozlesmeCount > 0)
-    const needsReason = editMode === 'direct' || editMode === 'version'
-
-    if (needsConfirm && !impactConfirm) {
-      setImpactConfirm({ kod, impact, payload: buildPayloadFromForm() })
-      return
-    }
-
-    if (needsReason) {
-      setReasonModal({ mode: editMode, payload: buildPayloadFromForm() })
-      return
-    }
-
-    finalizeSave(buildPayloadFromForm(), 'Güncelleme')
-  }
-
-  const confirmImpactAndContinue = () => {
-    if (!impactConfirm) return
-    setImpactConfirm(null)
-    setReasonModal({ mode: 'direct', payload: impactConfirm.payload })
-  }
-
-  const submitReasonAndSave = () => {
-    if (!reasonText.trim()) {
-      setUiError('Güncelleme gerekçesi zorunludur.')
-      return
-    }
-    if (!reasonModal?.payload) return
-    setUiError('')
-    finalizeSave(reasonModal.payload, reasonText.trim())
   }
 
   const deleteByTemplateKodu = (kod) => {
@@ -445,6 +286,15 @@ export default function KatkiPayiTemplateleri() {
       setSelectedIds((sids) => sids.filter((id) => !removed.has(id)))
       return prev.filter((item) => item.kpTemplateKodu !== kod)
     })
+  }
+
+  const openVersions = (row) => {
+    const rows = kptData
+      .filter((item) => item.kpTemplateKodu === row.kpTemplateKodu)
+      .sort((a, b) => Number(b.versiyon || 0) - Number(a.versiyon || 0))
+    setVersionRows(rows)
+    setVersionsOpen(true)
+    setMenuRowId(null)
   }
 
   const openLinked = (row) => {
@@ -575,13 +425,7 @@ export default function KatkiPayiTemplateleri() {
             <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>
               <ArrowLeft className="w-4 h-4" /> Listeye Dön
             </OutlineButton>
-            <h2 className="text-lg font-bold text-slate-800">
-              {editMode === 'version'
-                ? `Versiyon ile Güncelle (v${originalRow ? Number(originalRow.versiyon || 1) + 1 : '?'})`
-                : currentEditId
-                  ? 'KP Template Güncelle (Revizyon)'
-                  : 'Yeni KP Template Ekle'}
-            </h2>
+            <h2 className="text-lg font-bold text-slate-800">{currentEditId ? 'KP Template Güncelle' : 'Yeni KP Template Ekle'}</h2>
           </div>
         </div>
         <div className="flex-1 overflow-auto p-6">
@@ -593,17 +437,8 @@ export default function KatkiPayiTemplateleri() {
               <input type="text" className="form-input" value={kptForm.adi} onChange={(e) => setKptForm({ ...kptForm, adi: e.target.value })} />
             </FieldHint>
             <FieldHint label="Versiyon">
-              <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" disabled readOnly value={
-                editMode === 'version' && originalRow
-                  ? String(Number(originalRow.versiyon || 1) + 1)
-                  : (kptForm.versiyon || '1')
-              } />
+              <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" disabled readOnly value={kptForm.versiyon || '1'} />
             </FieldHint>
-            {currentEditId && editMode === 'direct' && (
-              <FieldHint label="Revizyon No">
-                <input className="form-input bg-slate-100 text-slate-600 cursor-not-allowed" disabled readOnly value={String(Number(originalRow?.revisionNo || 0) + 1)} />
-              </FieldHint>
-            )}
 
             <FieldHint required label="Döviz Türü KP">
               <select className="form-input" value={kptForm.dovizKp} onChange={(e) => setKptForm({ ...kptForm, dovizKp: e.target.value })}>
@@ -893,7 +728,6 @@ export default function KatkiPayiTemplateleri() {
               <SortHeader label="KP Template Kodu" col="kpTemplateKodu" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Adı" col="adi" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Versiyon" col="versiyon" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
-              <SortHeader label="Revizyon No" col="revisionNo" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Katkı Payı Tutarı" col="katkiPayiTutari" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Katkı Payı Tutarı (İGES)" col="katkiPayiTutariIges" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader label="Geçerlilik" col="gecerlilik" sortCol={sortCol} sortOrder={sortOrder} onSort={handleSort} />
@@ -922,7 +756,6 @@ export default function KatkiPayiTemplateleri() {
                 <td className="font-semibold text-slate-800">{row.kpTemplateKodu}</td>
                 <td>{row.adi}</td>
                 <td>{row.versiyon}</td>
-                <td>{row.revisionNo ?? 0}</td>
                 <td>{row.katkiPayiTutari}</td>
                 <td>{row.katkiPayiTutariIges || '—'}</td>
                 <td>{row.gecerlilik}</td>
@@ -949,11 +782,8 @@ export default function KatkiPayiTemplateleri() {
                   </button>
                   {menuRowId === row.id && (
                     <div className="absolute right-8 top-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1.5 text-left">
-                      <button type="button" onClick={() => { openGuncelleme(row); setMenuRowId(null) }} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                      <button type="button" onClick={() => { openEdit(row.id); setMenuRowId(null) }} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
                         <Edit2 className="w-4 h-4 mr-2 text-blue-600" /> Güncelle
-                      </button>
-                      <button type="button" onClick={() => { openVersiyonGuncelleme(row); setMenuRowId(null) }} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                        <GitBranch className="w-4 h-4 mr-2 text-violet-600" /> Versiyon ile Güncelle
                       </button>
                       <button
                         type="button"
@@ -966,146 +796,47 @@ export default function KatkiPayiTemplateleri() {
                       <button type="button" onClick={() => openLinked(row)} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
                         <LinkIcon className="w-4 h-4 mr-2 text-slate-400" /> Bağlı Planlar
                       </button>
+                      <button type="button" onClick={() => openVersions(row)} className="w-full flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <List className="w-4 h-4 mr-2 text-slate-400" /> Versiyonlar
+                      </button>
                     </div>
                   )}
                 </td>
               </tr>
             ))}
             {filteredLatest.length === 0 && (
-              <tr><td colSpan={22} className="text-center py-12 text-slate-400">Kayıt bulunamadı.</td></tr>
+              <tr><td colSpan={21} className="text-center py-12 text-slate-400">Kayıt bulunamadı.</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       <Modal
-        open={!!impactConfirm}
-        onClose={() => setImpactConfirm(null)}
-        title="Güncelleme Onayı"
-        footer={(
-          <>
-            <OutlineButton onClick={() => setImpactConfirm(null)}>Hayır</OutlineButton>
-            <PrimaryButton onClick={confirmImpactAndContinue}>Evet, devam et</PrimaryButton>
-          </>
-        )}
-      >
-        {impactConfirm && (() => {
-          const { impact, kod } = impactConfirm
-          const total = impact.teklifCount + impact.sozlesmeCount
-          const showSamples = total <= KPT_IMPACT_SAMPLE_THRESHOLD
-          return (
-            <div className="space-y-3 text-sm">
-              <p>
-                Bu template <strong>{impact.planCount}</strong> plana bağlıdır.{' '}
-                <strong>{impact.teklifCount}</strong> teklif, <strong>{impact.sozlesmeCount}</strong> sözleşme oluşmuştur.
-                Güncellemeye devam edilsin mi?
-              </p>
-              {showSamples && total > 0 && (
-                <div className="bg-slate-50 rounded-md p-3 text-xs space-y-2">
-                  {impact.teklifler?.length > 0 && (
-                    <div><span className="font-semibold">Teklifler:</span> {impact.teklifler.join(', ')}</div>
-                  )}
-                  {impact.sozlesmeler?.length > 0 && (
-                    <div><span className="font-semibold">Sözleşmeler:</span> {impact.sozlesmeler.join(', ')}</div>
-                  )}
-                </div>
-              )}
-              {!showSamples && total > 0 && (
-                <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-xs">
-                  <p className="mb-2">{total} kayıt — detay listesi oluşturuldu.</p>
-                  <button type="button" className="text-amber-800 font-medium underline" onClick={() => setImpactReportOpen({ kod, impact, reportId: `RPT-${kod}` })}>
-                    Listeyi görüntüle
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-slate-500 border-t border-slate-100 pt-2">
-                Plan kaydı değişmez. Yeni teklif ve sözleşmeler güncel template tanımından üretilir. Mevcut teklif/sözleşmeler etkilenmez.
-              </p>
-            </div>
-          )
-        })()}
-      </Modal>
-
-      <Modal
-        open={!!versionConfirm}
-        onClose={() => setVersionConfirm(null)}
-        title="Yeni Versiyon Oluştur"
-        footer={(
-          <>
-            <OutlineButton onClick={() => setVersionConfirm(null)}>Hayır</OutlineButton>
-            <PrimaryButton onClick={confirmVersionAndOpenForm}>Evet, onaylıyorum</PrimaryButton>
-          </>
-        )}
-      >
-        <p className="text-sm text-slate-700">
-          Yeni versiyon oluşturulacaktır. Mevcut teklif ve sözleşmeler oluşturuldukları versiyonda kalacaktır.
-          Yeni üretimler son versiyondan yapılacaktır. Onaylıyor musunuz?
-        </p>
-      </Modal>
-
-      <Modal
-        open={!!redirectToGuncelleme}
-        onClose={() => setRedirectToGuncelleme(null)}
-        title="Versiyon Oluşturulamaz"
-        footer={(
-          <>
-            <OutlineButton onClick={() => setRedirectToGuncelleme(null)}>İptal</OutlineButton>
-            <PrimaryButton onClick={confirmRedirectGuncelleme}>Güncellemeye devam et</PrimaryButton>
-          </>
-        )}
-      >
-        <p className="text-sm text-slate-700">
-          Bu template plana bağlı değildir. Versiyon oluşturulmadan güncelleme yapılacaktır.
-        </p>
-      </Modal>
-
-      <Modal
-        open={!!reasonModal}
-        onClose={() => { setReasonModal(null); setReasonText('') }}
-        title={reasonModal?.mode === 'version' ? 'Versiyon Gerekçesi' : 'Güncelleme Gerekçesi'}
-        footer={(
-          <>
-            <OutlineButton onClick={() => { setReasonModal(null); setReasonText('') }}>İptal</OutlineButton>
-            <PrimaryButton onClick={submitReasonAndSave}>Kaydet</PrimaryButton>
-          </>
-        )}
-      >
-        <label className="block">
-          <span className="block text-sm font-semibold text-slate-700 mb-2">Gerekçe <span className="text-red-500">*</span></span>
-          <textarea
-            className="form-input min-h-[100px]"
-            value={reasonText}
-            onChange={(e) => setReasonText(e.target.value)}
-            placeholder="Değişiklik gerekçesini giriniz..."
-          />
-        </label>
-      </Modal>
-
-      <Modal
-        open={!!impactReportOpen}
-        onClose={() => setImpactReportOpen(null)}
-        title="Etki Raporu"
+        open={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
+        title="KP Template Versiyonları"
         size="lg"
-        footer={<PrimaryButton onClick={() => setImpactReportOpen(null)}>Kapat</PrimaryButton>}
+        footer={<PrimaryButton onClick={() => setVersionsOpen(false)}>Kapat</PrimaryButton>}
       >
-        {impactReportOpen && (
-          <div className="text-sm space-y-3">
-            <p className="text-slate-600">Rapor ID: <span className="font-mono font-medium">{impactReportOpen.reportId}</span></p>
-            <table className="w-full grid-table text-xs">
-              <thead>
-                <tr><th>Teklif / Sözleşme</th><th>Plan</th><th>Statü</th></tr>
-              </thead>
-              <tbody>
-                {(impactReportOpen.impact.teklifler || []).map((t) => (
-                  <tr key={t}><td>{t}</td><td>—</td><td>Bilgi</td></tr>
-                ))}
-                {(impactReportOpen.impact.sozlesmeler || []).map((s) => (
-                  <tr key={s}><td>{s}</td><td>—</td><td>Bilgi</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <table className="w-full grid-table text-sm">
+          <thead>
+            <tr>
+              <th>Versiyon</th><th>Kod</th><th>Ad</th><th>Tutar</th><th>Geçerlilik</th><th>Güncelleme</th>
+            </tr>
+          </thead>
+          <tbody>
+            {versionRows.map((v) => (
+              <tr key={v.id}>
+                <td>{v.versiyon}</td>
+                <td>{v.kpTemplateKodu}</td>
+                <td>{v.adi}</td>
+                <td>{v.katkiPayiTutari}</td>
+                <td>{v.gecerlilik}</td>
+                <td>{v.guncellemeTarihi}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Modal>
 
       <Modal
@@ -1121,7 +852,7 @@ export default function KatkiPayiTemplateleri() {
             <tr><th>Plan No</th><th>Plan Adı</th><th>Versiyon</th><th>Durum</th></tr>
           </thead>
           <tbody>
-            {linkedRow && getBagliPlanlar(linkedRow.kpTemplateKodu).map((r) => (
+            {linkedRow && mockBagliPlanlar(linkedRow.kpTemplateKodu).map((r) => (
               <tr key={r.planNo}>
                 <td>{r.planNo}</td>
                 <td>{r.planAdi}</td>

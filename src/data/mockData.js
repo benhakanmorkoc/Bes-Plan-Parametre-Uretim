@@ -36,6 +36,13 @@ export const urunPlanlari = {
 }
 
 // --- KATKI PAYI (BES Parametreleri.html ile ayni yapi) ---
+
+/** Orijinal backup ekran (Katki Payi Templateleri) icin basit seed */
+export const katkiPayiTemplateleriLegacy = [
+  { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', katkiPayiTutari: '1000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '5000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '15.09.2025' },
+  { id: 2, kpTemplateKodu: 'KPT-002', adi: 'Yıllık KP', versiyon: '2', katkiPayiTutari: '1200', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yıllık', azamiKp: '20000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '20.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '21.09.2025' },
+]
+
 export const katkiPayiTemplateleri = [
   { id: 101, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', revisionNo: 1, aktif: false, katkiPayiTutari: '950', katkiPayiTutariIges: '', gecerlilik: 'Pasif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '4500', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '15.09.2025' },
   { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '2', revisionNo: 2, aktif: true, katkiPayiTutari: '1000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '5000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '05.01.2026', guncelleyen: 'uaktas', guncellemeTarihi: '10.01.2026' },
