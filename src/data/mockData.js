@@ -37,9 +37,100 @@ export const urunPlanlari = {
 
 // --- KATKI PAYI (BES Parametreleri.html ile ayni yapi) ---
 export const katkiPayiTemplateleri = [
-  { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', katkiPayiTutari: '1000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '5000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '15.09.2025' },
-  { id: 2, kpTemplateKodu: 'KPT-002', adi: 'Yıllık KP', versiyon: '2', katkiPayiTutari: '12000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yıllık', azamiKp: '20000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '20.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '21.09.2025' },
+  { id: 101, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '1', revisionNo: 1, aktif: false, katkiPayiTutari: '950', katkiPayiTutariIges: '', gecerlilik: 'Pasif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '4500', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '15.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '15.09.2025' },
+  { id: 1, kpTemplateKodu: 'KPT-001', adi: 'Standart KP', versiyon: '2', revisionNo: 2, aktif: true, katkiPayiTutari: '1000', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '5000', girisFonBuyuklugu: '10000', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '5000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '05.01.2026', guncelleyen: 'uaktas', guncellemeTarihi: '10.01.2026' },
+  { id: 201, kpTemplateKodu: 'KPT-002', adi: 'Yıllık KP', versiyon: '1', revisionNo: 0, aktif: false, katkiPayiTutari: '10000', katkiPayiTutariIges: '', gecerlilik: 'Pasif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yıllık', azamiKp: '18000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '20.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '20.09.2025' },
+  { id: 2, kpTemplateKodu: 'KPT-002', adi: 'Yıllık KP', versiyon: '2', revisionNo: 0, aktif: true, katkiPayiTutari: '1200', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Yıllık', azamiKp: '20000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'endeksleme', olusturulmaTarihi: '21.09.2025', guncelleyen: 'endeksleme', guncellemeTarihi: '21.09.2025' },
+  { id: 3, kpTemplateKodu: 'KPT-003', adi: 'Taslak KP Şablonu', versiyon: '1', revisionNo: 0, aktif: true, katkiPayiTutari: '750', katkiPayiTutariIges: '', gecerlilik: 'Aktif', baslangicKapitali: '0', girisFonBuyuklugu: '0', dovizKp: 'TL', odemePeriyodu: 'Aylık', azamiKp: '3000', dovizDiger: 'TL', kpHesaplamaTuru: '', kpDonemGun: '', kpDonemAy: '', yuvarlama: 'Yok', yuvarlamaDegeri: '', olusturan: 'uaktas', olusturulmaTarihi: '01.02.2026', guncelleyen: 'uaktas', guncellemeTarihi: '01.02.2026' },
 ]
+
+/** KP template koduna gore bagli planlar */
+export const kptBagliPlanlarByKod = {
+  'KPT-001': [
+    { planNo: '001', planAdi: 'LİMİTLİ PLAN', durum: 'Taslak', versiyon: '1' },
+    { planNo: '003', planAdi: 'ESNEK PLAN', durum: 'Yürürlükte', versiyon: '2' },
+  ],
+  'KPT-002': [
+    { planNo: '002', planAdi: 'Aile Planı', durum: 'Taslak', versiyon: '1' },
+  ],
+}
+
+/** Teklif / sozlesme etki ozeti (prototip) */
+export const kptTemplateImpact = {
+  'KPT-001': {
+    planCount: 2,
+    teklifCount: 3,
+    sozlesmeCount: 2,
+    teklifler: ['TEK-001', 'TEK-002', 'TEK-015'],
+    sozlesmeler: ['POL-1001', 'POL-1008'],
+  },
+  'KPT-002': {
+    planCount: 1,
+    teklifCount: 0,
+    sozlesmeCount: 0,
+    teklifler: [],
+    sozlesmeler: [],
+  },
+  'KPT-003': {
+    planCount: 0,
+    teklifCount: 0,
+    sozlesmeCount: 0,
+    teklifler: [],
+    sozlesmeler: [],
+  },
+}
+
+/** Versiyon gecmisi ozeti */
+export const kptVersionHistory = {
+  'KPT-001': [
+    { id: 101, versiyon: '1', olusturulmaTarihi: '15.09.2025', aktif: false, katkiPayiTutari: '950', adi: 'Standart KP' },
+    { id: 1, versiyon: '2', olusturulmaTarihi: '05.01.2026', aktif: true, katkiPayiTutari: '1000', adi: 'Standart KP' },
+  ],
+  'KPT-002': [
+    { id: 201, versiyon: '1', olusturulmaTarihi: '20.09.2025', aktif: false, katkiPayiTutari: '10000', adi: 'Yıllık KP' },
+    { id: 2, versiyon: '2', olusturulmaTarihi: '21.09.2025', aktif: true, katkiPayiTutari: '1200', adi: 'Yıllık KP' },
+  ],
+  'KPT-003': [
+    { id: 3, versiyon: '1', olusturulmaTarihi: '01.02.2026', aktif: true, katkiPayiTutari: '750', adi: 'Taslak KP Şablonu' },
+  ],
+}
+
+/** Revision (break-fix) gecmisi */
+export const kptTemplateRevisions = {
+  'KPT-001': [
+    {
+      revisionId: 'rev-kpt001-2',
+      templateId: 1,
+      templateKodu: 'KPT-001',
+      revisionNo: 2,
+      versionNo: '2',
+      changeType: 'GUNCELLEME',
+      reason: 'Azami KP limiti artırıldı',
+      changedBy: 'uaktas',
+      changedAt: '10.01.2026',
+      diff: [
+        { field: 'azamiKp', fieldLabel: 'Azami KP', oldValue: '4500', newValue: '5000' },
+        { field: 'katkiPayiTutari', fieldLabel: 'Katkı Payı Tutarı', oldValue: '950', newValue: '1000' },
+      ],
+      impact: { planCount: 2, teklifCount: 3, sozlesmeCount: 2, impactReportId: null },
+    },
+    {
+      revisionId: 'rev-kpt001-1',
+      templateId: 101,
+      templateKodu: 'KPT-001',
+      revisionNo: 1,
+      versionNo: '1',
+      changeType: 'GUNCELLEME',
+      reason: 'İlk yayın düzeltmesi',
+      changedBy: 'endeksleme',
+      changedAt: '16.09.2025',
+      diff: [
+        { field: 'katkiPayiTutari', fieldLabel: 'Katkı Payı Tutarı', oldValue: '900', newValue: '950' },
+      ],
+      impact: { planCount: 0, teklifCount: 0, sozlesmeCount: 0, impactReportId: null },
+    },
+  ],
+}
 
 /** Planlara bagla modali - BES Parametreleri.html initialMockPlans */
 export const kptBaglantiMockPlans = [

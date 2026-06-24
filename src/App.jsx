@@ -4,6 +4,7 @@ import { ChevronDown, Search, X, Settings } from 'lucide-react'
 const DemoScreen = lazy(() => import('./components/DemoScreen'))
 const UrunPlanTarifeTanimlari = lazy(() => import('./components/screens/UrunPlanTarifeTanimlari'))
 const KatkiPayiTemplateleri = lazy(() => import('./components/screens/KatkiPayiTemplateleri'))
+const KatkiPayiTemplateleriVersiyonRevizyon = lazy(() => import('./components/screens/KatkiPayiTemplateleriVersiyonRevizyon'))
 const GirisAidati = lazy(() => import('./components/screens/GirisAidati'))
 const KesintiRouter = lazy(() => import('./components/screens/KesintiRouter'))
 const PlanLookupRouter = lazy(() => import('./components/screens/PlanLookupRouter'))
@@ -28,7 +29,10 @@ const menu = [
   {
     id: 'katkiPayiTanimlari',
     label: 'Katki Payi Tanimlari',
-    children: [{ id: 'katkiPayiTemplateleri', label: 'Katki Payi Templateleri' }],
+    children: [
+      { id: 'katkiPayiTemplateleri', label: 'Katki Payi Templateleri' },
+      { id: 'katkiPayiTemplateleriVersiyonRevizyon', label: 'Katkı Payı Templateleri-VersiyonRevizyon' },
+    ],
   },
   {
     id: 'kesintiTanimlari',
@@ -166,6 +170,7 @@ function App() {
     }
     if (activeTab === 'urunPlanTarifeTanimlari') return <UrunPlanTarifeTanimlari />
     if (activeTab === 'katkiPayiTemplateleri') return <KatkiPayiTemplateleri />
+    if (activeTab === 'katkiPayiTemplateleriVersiyonRevizyon') return <KatkiPayiTemplateleriVersiyonRevizyon />
     if (activeTab === 'girisAidati') return <GirisAidati />
     if (activeTab === 'demo') return <DemoScreen />
     if (activeTab === 'teklifAllianz') return <TeklifAllianzWizard />
