@@ -169,6 +169,8 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
   const [redirectToGuncelleme, setRedirectToGuncelleme] = useState(null)
   const [reasonModal, setReasonModal] = useState(null)
   const [reasonText, setReasonText] = useState('')
+  const [reasonModalError, setReasonModalError] = useState('')
+  const [pendingUpdateReason, setPendingUpdateReason] = useState('')
   const [impactReportOpen, setImpactReportOpen] = useState(null)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [versionRows, setVersionRows] = useState([])
@@ -239,7 +241,10 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
   }
 
   const openGuncelleme = (row) => {
-    openEditForm(row, 'direct')
+    setReasonText('')
+    setReasonModalError('')
+    setUiError('')
+    setReasonModal({ mode: 'direct', phase: 'pre-open', row })
   }
 
   const openVersiyonGuncelleme = (row) => {
@@ -403,6 +408,8 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
     setOriginalRow(null)
     setReasonText('')
     setReasonModal(null)
+    setReasonModalError('')
+    setPendingUpdateReason('')
   }
 
   const saveForm = () => {
@@ -414,38 +421,75 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
       return
     }
 
-    const kod = kptForm.kpTemplateKodu.trim()
-    const impact = getKptImpact(kod)
-    const needsConfirm = editMode === 'direct' && (impact.teklifCount > 0 || impact.sozlesmeCount > 0)
-    const needsReason = editMode === 'direct' || editMode === 'version'
-
-    if (needsConfirm && !impactConfirm) {
-      setImpactConfirm({ kod, impact, payload: buildPayloadFromForm() })
+    if (editMode === 'version') {
+      setReasonText('')
+      setReasonModalError('')
+      setReasonModal({ mode: 'version', phase: 'save' })
       return
     }
 
-    if (needsReason) {
-      setReasonModal({ mode: editMode, payload: buildPayloadFromForm() })
+    if (editMode === 'direct') {
+      if (!pendingUpdateReason.trim()) {
+        setUiError('Güncelleme gerekçesi bulunamadı. Lütfen Güncelle akışını yeniden başlatın.')
+        return
+      }
+      finalizeSave(buildPayloadFromForm(), pendingUpdateReason)
       return
     }
 
     finalizeSave(buildPayloadFromForm(), 'Güncelleme')
   }
 
+  const closeReasonModal = () => {
+    const wasPreOpen = reasonModal?.phase === 'pre-open'
+    setReasonModal(null)
+    setReasonText('')
+    setReasonModalError('')
+    if (wasPreOpen) setPendingUpdateReason('')
+  }
+
+  const closeImpactConfirm = () => {
+    const wasPreOpen = impactConfirm?.phase === 'pre-open'
+    setImpactConfirm(null)
+    if (wasPreOpen) setPendingUpdateReason('')
+  }
+
   const confirmImpactAndContinue = () => {
     if (!impactConfirm) return
-    setImpactConfirm(null)
-    setReasonModal({ mode: 'direct', payload: impactConfirm.payload })
+    if (impactConfirm.phase === 'pre-open' && impactConfirm.row) {
+      openEditForm(impactConfirm.row, 'direct')
+      setImpactConfirm(null)
+      return
+    }
   }
 
   const submitReasonAndSave = () => {
     if (!reasonText.trim()) {
-      setUiError('Güncelleme gerekçesi zorunludur.')
+      setReasonModalError('Güncelleme gerekçesi zorunludur.')
       return
     }
-    if (!reasonModal?.payload) return
-    setUiError('')
-    finalizeSave(reasonModal.payload, reasonText.trim())
+
+    if (reasonModal?.phase === 'pre-open' && reasonModal?.row) {
+      const row = reasonModal.row
+      const reason = reasonText.trim()
+      const impact = getKptImpact(row.kpTemplateKodu)
+      setReasonModal(null)
+      setReasonText('')
+      setReasonModalError('')
+      setPendingUpdateReason(reason)
+
+      if (impact.teklifCount > 0 || impact.sozlesmeCount > 0) {
+        setImpactConfirm({ kod: row.kpTemplateKodu, impact, row, phase: 'pre-open' })
+      } else {
+        openEditForm(row, 'direct')
+      }
+      return
+    }
+
+    if (reasonModal?.phase === 'save') {
+      setReasonModalError('')
+      finalizeSave(buildPayloadFromForm(), reasonText.trim())
+    }
   }
 
   const deleteByTemplateKodu = (kod) => {
@@ -602,7 +646,7 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
         )}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <OutlineButton onClick={() => { setViewMode('list'); setUiError('') }}>
+            <OutlineButton onClick={() => { setViewMode('list'); setUiError(''); setPendingUpdateReason('') }}>
               <ArrowLeft className="w-4 h-4" /> Listeye Dön
             </OutlineButton>
             <h2 className="text-lg font-bold text-slate-800">
@@ -1016,11 +1060,11 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
 
       <Modal
         open={!!impactConfirm}
-        onClose={() => setImpactConfirm(null)}
+        onClose={closeImpactConfirm}
         title="Güncelleme Onayı"
         footer={(
           <>
-            <OutlineButton onClick={() => setImpactConfirm(null)}>Hayır</OutlineButton>
+            <OutlineButton onClick={closeImpactConfirm}>Hayır</OutlineButton>
             <PrimaryButton onClick={confirmImpactAndContinue}>Evet, devam et</PrimaryButton>
           </>
         )}
@@ -1097,21 +1141,26 @@ export default function KatkiPayiTemplateleriVersiyonRevizyon() {
 
       <Modal
         open={!!reasonModal}
-        onClose={() => { setReasonModal(null); setReasonText('') }}
+        onClose={closeReasonModal}
         title={reasonModal?.mode === 'version' ? 'Versiyon Gerekçesi' : 'Güncelleme Gerekçesi'}
         footer={(
           <>
-            <OutlineButton onClick={() => { setReasonModal(null); setReasonText('') }}>İptal</OutlineButton>
-            <PrimaryButton onClick={submitReasonAndSave}>Kaydet</PrimaryButton>
+            <OutlineButton onClick={closeReasonModal}>İptal</OutlineButton>
+            <PrimaryButton onClick={submitReasonAndSave}>
+              {reasonModal?.phase === 'pre-open' ? 'Devam et' : 'Kaydet'}
+            </PrimaryButton>
           </>
         )}
       >
+        {reasonModalError && (
+          <p className="mb-3 text-sm text-red-600">{reasonModalError}</p>
+        )}
         <label className="block">
           <span className="block text-sm font-semibold text-slate-700 mb-2">Gerekçe <span className="text-red-500">*</span></span>
           <textarea
             className="form-input min-h-[100px]"
             value={reasonText}
-            onChange={(e) => setReasonText(e.target.value)}
+            onChange={(e) => { setReasonText(e.target.value); setReasonModalError('') }}
             placeholder="Değişiklik gerekçesini giriniz..."
           />
         </label>
