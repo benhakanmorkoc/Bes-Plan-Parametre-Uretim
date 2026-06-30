@@ -6785,8 +6785,6 @@ export default function UrunPlanTarifeTanimlari() {
   const [taslagaAlModal, setTaslagaAlModal] = useState(null)
   const [taslagaAlReason, setTaslagaAlReason] = useState('')
   const [taslagaAlError, setTaslagaAlError] = useState('')
-  const [yururlugeAlModal, setYururlugeAlModal] = useState(null)
-  const [yururlugeAlReason, setYururlugeAlReason] = useState('')
   const [checkerOpen, setCheckerOpen] = useState(false)
   const [statusActionMsg, setStatusActionMsg] = useState('')
 
@@ -6893,29 +6891,6 @@ export default function UrunPlanTarifeTanimlari() {
     setStatusActionMsg('Taslağa alma talebi oluşturuldu. Durum değişikliği Checker onayı sonrası gerçekleşecektir.')
   }
 
-  const openYururlugeAl = (plan) => {
-    if (!selected || plan.durum !== 'Taslak' || hasPendingStatusRequest(plan)) return
-    setYururlugeAlReason('')
-    setYururlugeAlModal(plan)
-  }
-
-  const submitYururlugeAlRequest = () => {
-    if (!yururlugeAlModal) return
-    updatePlanRow(yururlugeAlModal.id, {
-      statusRequest: {
-        id: `REQ-${Date.now()}`,
-        changeType: 'toYururlukte',
-        fromDurum: yururlugeAlModal.durum,
-        toDurum: 'Yururlukte',
-        reason: yururlugeAlReason.trim(),
-        requestedBy: 'Maker (Plan Yöneticisi)',
-        requestedAt: normalizeDate(),
-      },
-    })
-    setYururlugeAlModal(null)
-    setStatusActionMsg('Yürürlüğe alma talebi oluşturuldu. Durum değişikliği Checker onayı sonrası gerçekleşecektir.')
-  }
-
   const cancelStatusRequest = (plan) => {
     if (!plan?.statusRequest) return
     if (!window.confirm('Bekleyen statü değişikliği talebi geri çekilsin mi?')) return
@@ -6925,17 +6900,11 @@ export default function UrunPlanTarifeTanimlari() {
   const approveStatusRequest = (plan) => {
     const req = plan?.statusRequest
     if (!req) return
-    if (req.changeType === 'toTaslak') {
-      updatePlanRow(plan.id, { durum: 'Taslak', satisKapali: false, statusRequest: null })
-      const urun = selected
-      setCheckerOpen(false)
-      setStatusActionMsg('')
-      openPlanSetupBoard({ ...plan, durum: 'Taslak', satisKapali: false, statusRequest: null }, urun, { editMode: true })
-      return
-    }
-    if (req.changeType === 'toYururlukte') {
-      updatePlanRow(plan.id, { durum: 'Yururlukte', oran: 100, satisKapali: false, statusRequest: null })
-    }
+    updatePlanRow(plan.id, { durum: 'Taslak', satisKapali: false, statusRequest: null })
+    const urun = selected
+    setCheckerOpen(false)
+    setStatusActionMsg('')
+    openPlanSetupBoard({ ...plan, durum: 'Taslak', satisKapali: false, statusRequest: null }, urun, { editMode: true })
   }
 
   const rejectStatusRequest = (plan) => {
@@ -7254,7 +7223,9 @@ export default function UrunPlanTarifeTanimlari() {
       return
     }
     if (key === 'yururlugeAl') {
-      openYururlugeAl(row)
+      if (row.durum !== 'Taslak') return
+      if (!window.confirm(`${row.ad} yürürlüğe alınsın mı?`)) return
+      updatePlanRow(row.id, { durum: 'Yururlukte', oran: 100, satisKapali: false })
       return
     }
     if (key === 'taslagaAl') {
@@ -7434,41 +7405,6 @@ export default function UrunPlanTarifeTanimlari() {
               </div>
             )
           })()}
-        </Modal>
-
-        {/* Yürürlüğe Al — opsiyonel açıklama */}
-        <Modal
-          open={!!yururlugeAlModal}
-          onClose={() => setYururlugeAlModal(null)}
-          title="Planı Yürürlüğe Al"
-          size="md"
-          footer={(
-            <>
-              <OutlineButton type="button" onClick={() => setYururlugeAlModal(null)}>Vazgeç</OutlineButton>
-              <PrimaryButton type="button" onClick={submitYururlugeAlRequest}>Onaya Gönder</PrimaryButton>
-            </>
-          )}
-        >
-          {yururlugeAlModal && (
-            <div className="space-y-4">
-              <div className="text-sm text-slate-700">
-                <span className="font-semibold">{yururlugeAlModal.id}</span> · {yururlugeAlModal.ad}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Açıklama (opsiyonel)</label>
-                <textarea
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-md text-sm p-2"
-                  placeholder="Yürürlüğe alma açıklaması"
-                  value={yururlugeAlReason}
-                  onChange={(e) => setYururlugeAlReason(e.target.value)}
-                />
-              </div>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-relaxed">
-                Durum değişikliği Checker onayı sonrası gerçekleşecektir. Bu güncelleme planın versiyonunu değiştirmez.
-              </div>
-            </div>
-          )}
         </Modal>
 
         {/* Checker paneli — bekleyen statü talepleri */}
