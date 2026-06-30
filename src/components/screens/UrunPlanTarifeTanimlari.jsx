@@ -1391,7 +1391,7 @@ function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenI
   const progressColor = Number(plan.oran) >= 100 ? 'bg-emerald-500' : 'bg-amber-500'
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all flex flex-col h-full">
+    <div className="bg-white border border-slate-200 rounded-xl hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all flex flex-col h-full">
       <div className="p-4 pb-2 flex items-start justify-between gap-2">
         <span className="inline-flex px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 text-[11px] font-semibold">{plan.id}</span>
         <div className="relative">
@@ -1459,7 +1459,7 @@ function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenI
         </div>
       </div>
 
-      <div className="mt-auto border-t border-slate-100 px-4 py-3 flex items-center justify-between bg-white">
+      <div className="mt-auto border-t border-slate-100 px-4 py-3 flex items-center justify-between bg-white rounded-b-xl">
         <span className="text-xs text-slate-400">{plan.tarih}</span>
         <button
           type="button"
