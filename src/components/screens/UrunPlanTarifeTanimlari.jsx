@@ -29,8 +29,30 @@ function isPlanSatisKapali(plan) {
   return plan?.satisKapali === true
 }
 
+/** Yürürlük↔Taslak geçişi için bekleyen maker-checker talebi var mı? */
+function hasPendingStatusRequest(plan) {
+  return !!plan?.statusRequest
+}
+
+/** Prototip: plandan üretilmiş teklif/sözleşme etkisi (mock) */
+function mockPlanUretimEtkisi(plan) {
+  if (plan?.durum !== 'Yururlukte') {
+    return { teklifCount: 0, sozlesmeCount: 0, ornekTeklifler: [], ornekSozlesmeler: [] }
+  }
+  const seed = String(plan?.id || '').length
+  const teklifCount = (seed % 4) + 1
+  const sozlesmeCount = seed % 3
+  return {
+    teklifCount,
+    sozlesmeCount,
+    ornekTeklifler: Array.from({ length: Math.min(teklifCount, 3) }, (_, i) => `TEK-${String(1001 + seed + i)}`),
+    ornekSozlesmeler: Array.from({ length: Math.min(sozlesmeCount, 3) }, (_, i) => `POL-${String(2001 + seed + i)}`),
+  }
+}
+
 function isPlanEditDisabled(plan) {
   if (isPlanSatisKapali(plan)) return true
+  if (hasPendingStatusRequest(plan)) return true
   return plan?.durum !== 'Taslak' && plan?.durum !== 'Yururlukte'
 }
 
@@ -75,8 +97,15 @@ function buildPlanVersionRowMeta(family) {
 }
 
 function planStatusLabel(plan) {
+  if (hasPendingStatusRequest(plan)) return 'Onay Bekliyor'
   if (isPlanSatisKapali(plan)) return 'Satışa Kapalı'
   return formatPlanDurum(plan?.durum)
+}
+
+function planBadgeValue(plan) {
+  if (hasPendingStatusRequest(plan)) return 'OnayBekliyor'
+  if (isPlanSatisKapali(plan)) return 'SatisaKapali'
+  return plan?.durum
 }
 
 function buildPlanVersion(plan, existingPlans) {
@@ -95,6 +124,14 @@ function buildPlanVersion(plan, existingPlans) {
 function planRowActions(plan) {
   const isTaslak = plan?.durum === 'Taslak'
   const isYururlukte = plan?.durum === 'Yururlukte'
+  const isPending = hasPendingStatusRequest(plan)
+  if (isPending) {
+    return [
+      { key: 'view', label: 'İncele', icon: 'view' },
+      { key: 'history', label: 'Versiyonlar', icon: 'history' },
+      { key: 'talebiGeriCek', label: 'Talebi Geri Çek', icon: 'delete', danger: true },
+    ]
+  }
   const actions = [
     { key: 'view', label: 'İncele', icon: 'view' },
     { key: 'edit', label: 'Düzenle', icon: 'edit', disabled: isPlanEditDisabled(plan) },
@@ -106,6 +143,7 @@ function planRowActions(plan) {
     actions.push({ key: 'yururlugeAl', label: 'Yürürlüğe Al', icon: 'version' })
   }
   if (isYururlukte) {
+    actions.push({ key: 'taslagaAl', label: 'Taslağa Al', icon: 'edit' })
     actions.push({ key: 'satisaKapa', label: 'Satışa Kapa', icon: 'link' })
     actions.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', icon: 'copy' })
   }
@@ -116,6 +154,14 @@ function planRowActions(plan) {
 function planCardMenuItems(plan) {
   const isTaslak = plan?.durum === 'Taslak'
   const isYururlukte = plan?.durum === 'Yururlukte'
+  const isPending = hasPendingStatusRequest(plan)
+  if (isPending) {
+    return [
+      { key: 'view', label: 'İncele', Icon: Eye },
+      { key: 'history', label: 'Versiyonlar', Icon: History, accent: true },
+      { key: 'talebiGeriCek', label: 'Talebi Geri Çek', Icon: Trash2, danger: true },
+    ]
+  }
   const items = [
     { key: 'view', label: 'İncele', Icon: Eye },
     { key: 'edit', label: 'Düzenle', Icon: Pencil, disabled: isPlanEditDisabled(plan) },
@@ -127,6 +173,7 @@ function planCardMenuItems(plan) {
     items.push({ key: 'yururlugeAl', label: 'Yürürlüğe Al', Icon: CheckCircle2, accent: true })
   }
   if (isYururlukte) {
+    items.push({ key: 'taslagaAl', label: 'Taslağa Al', Icon: Pencil, accent: true })
     items.push({ key: 'satisaKapa', label: 'Satışa Kapa', Icon: Ban })
     items.push({ key: 'yururluktenKaldir', label: 'Yürürlükten Kaldır', Icon: CircleOff })
   }
@@ -1390,7 +1437,7 @@ function PlanCard({ plan, urun, onDetail, onPlanAction, menuOpenId, setMenuOpenI
       </div>
 
       <div className="px-4 pb-3">
-        <StatusBadge value={isPlanSatisKapali(plan) ? 'SatisaKapali' : plan.durum}>{planStatusLabel(plan)}</StatusBadge>
+        <StatusBadge value={planBadgeValue(plan)}>{planStatusLabel(plan)}</StatusBadge>
         <h3 className="text-lg font-bold text-slate-800 mt-2 leading-snug">{plan.ad}</h3>
       </div>
 
@@ -1436,7 +1483,9 @@ function PlanList({
   onStartNewPlanFlow,
   onPlanDetail,
   onPlanEdit,
+  onOpenChecker,
 }) {
+  const pendingCount = planlar.filter((p) => hasPendingStatusRequest(p)).length
   const [planView, setPlanView] = useState('grid')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(activeOnly ? 'Yururlukte' : '')
@@ -1505,6 +1554,15 @@ function PlanList({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <OutlineButton
+            onClick={() => onOpenChecker?.()}
+            className={pendingCount > 0 ? 'border-amber-300 text-amber-700 bg-amber-50' : ''}
+          >
+            <CheckCircle2 className="w-4 h-4" /> Onay Bekleyenler
+            {pendingCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-amber-500 text-white text-[10px] rounded-full">{pendingCount}</span>
+            )}
+          </OutlineButton>
           <OutlineButton onClick={() => setPlanView('grid')} className={planView === 'grid' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><LayoutGrid className="w-4 h-4" /></OutlineButton>
           <OutlineButton onClick={() => setPlanView('list')} className={planView === 'list' ? 'border-violet-300 text-violet-700 bg-violet-50' : ''}><ListIcon className="w-4 h-4" /></OutlineButton>
           <PrimaryButton onClick={openCreate} className="bg-violet-600 hover:bg-violet-700"><Plus className="w-4 h-4" /> Yeni Plan Ekle</PrimaryButton>
@@ -1568,7 +1626,7 @@ function PlanList({
                   <tr key={p.id}>
                     <td className="font-semibold text-violet-700">{p.id}</td>
                     <td>{p.ad}</td>
-                    <td><StatusBadge value={isPlanSatisKapali(p) ? 'SatisaKapali' : p.durum}>{planStatusLabel(p)}</StatusBadge></td>
+                    <td><StatusBadge value={planBadgeValue(p)}>{planStatusLabel(p)}</StatusBadge></td>
                     <td>{p.tarih}</td>
                     <td className="text-right">
                       <RowActions
@@ -6724,6 +6782,13 @@ export default function UrunPlanTarifeTanimlari() {
   const [infoModal, setInfoModal] = useState({ open: false, title: '', body: null })
   const [menuOpenId, setMenuOpenId] = useState(null)
   const [planListActiveOnly, setPlanListActiveOnly] = useState(false)
+  const [taslagaAlModal, setTaslagaAlModal] = useState(null)
+  const [taslagaAlReason, setTaslagaAlReason] = useState('')
+  const [taslagaAlError, setTaslagaAlError] = useState('')
+  const [yururlugeAlModal, setYururlugeAlModal] = useState(null)
+  const [yururlugeAlReason, setYururlugeAlReason] = useState('')
+  const [checkerOpen, setCheckerOpen] = useState(false)
+  const [statusActionMsg, setStatusActionMsg] = useState('')
 
   const openPlanList = (urun, { activeOnly = false } = {}) => {
     setSelected(urun)
@@ -6797,6 +6862,85 @@ export default function UrunPlanTarifeTanimlari() {
     const urun = selected
     setVersionConfirmPlan(null)
     openPlanSetupBoard(versionedPlan, urun, { editMode: true })
+  }
+
+  // --- Yürürlük ↔ Taslak geçişi (Maker-Checker) ---
+  const openTaslagaAl = (plan) => {
+    if (!selected || plan.durum !== 'Yururlukte' || hasPendingStatusRequest(plan)) return
+    setTaslagaAlReason('')
+    setTaslagaAlError('')
+    setTaslagaAlModal(plan)
+  }
+
+  const submitTaslagaAlRequest = () => {
+    if (!taslagaAlModal) return
+    if (!taslagaAlReason.trim()) {
+      setTaslagaAlError('Taslağa alma gerekçesi zorunludur.')
+      return
+    }
+    updatePlanRow(taslagaAlModal.id, {
+      statusRequest: {
+        id: `REQ-${Date.now()}`,
+        changeType: 'toTaslak',
+        fromDurum: taslagaAlModal.durum,
+        toDurum: 'Taslak',
+        reason: taslagaAlReason.trim(),
+        requestedBy: 'Maker (Plan Yöneticisi)',
+        requestedAt: normalizeDate(),
+      },
+    })
+    setTaslagaAlModal(null)
+    setStatusActionMsg('Taslağa alma talebi oluşturuldu. Durum değişikliği Checker onayı sonrası gerçekleşecektir.')
+  }
+
+  const openYururlugeAl = (plan) => {
+    if (!selected || plan.durum !== 'Taslak' || hasPendingStatusRequest(plan)) return
+    setYururlugeAlReason('')
+    setYururlugeAlModal(plan)
+  }
+
+  const submitYururlugeAlRequest = () => {
+    if (!yururlugeAlModal) return
+    updatePlanRow(yururlugeAlModal.id, {
+      statusRequest: {
+        id: `REQ-${Date.now()}`,
+        changeType: 'toYururlukte',
+        fromDurum: yururlugeAlModal.durum,
+        toDurum: 'Yururlukte',
+        reason: yururlugeAlReason.trim(),
+        requestedBy: 'Maker (Plan Yöneticisi)',
+        requestedAt: normalizeDate(),
+      },
+    })
+    setYururlugeAlModal(null)
+    setStatusActionMsg('Yürürlüğe alma talebi oluşturuldu. Durum değişikliği Checker onayı sonrası gerçekleşecektir.')
+  }
+
+  const cancelStatusRequest = (plan) => {
+    if (!plan?.statusRequest) return
+    if (!window.confirm('Bekleyen statü değişikliği talebi geri çekilsin mi?')) return
+    updatePlanRow(plan.id, { statusRequest: null })
+  }
+
+  const approveStatusRequest = (plan) => {
+    const req = plan?.statusRequest
+    if (!req) return
+    if (req.changeType === 'toTaslak') {
+      updatePlanRow(plan.id, { durum: 'Taslak', satisKapali: false, statusRequest: null })
+      const urun = selected
+      setCheckerOpen(false)
+      setStatusActionMsg('')
+      openPlanSetupBoard({ ...plan, durum: 'Taslak', satisKapali: false, statusRequest: null }, urun, { editMode: true })
+      return
+    }
+    if (req.changeType === 'toYururlukte') {
+      updatePlanRow(plan.id, { durum: 'Yururlukte', oran: 100, satisKapali: false, statusRequest: null })
+    }
+  }
+
+  const rejectStatusRequest = (plan) => {
+    if (!plan?.statusRequest) return
+    updatePlanRow(plan.id, { statusRequest: null })
   }
 
   const filtered = useMemo(() => {
@@ -7110,9 +7254,15 @@ export default function UrunPlanTarifeTanimlari() {
       return
     }
     if (key === 'yururlugeAl') {
-      if (row.durum !== 'Taslak') return
-      if (!window.confirm(`${row.ad} yürürlüğe alınsın mı?`)) return
-      updatePlanRow(row.id, { durum: 'Yururlukte', oran: 100, satisKapali: false })
+      openYururlugeAl(row)
+      return
+    }
+    if (key === 'taslagaAl') {
+      openTaslagaAl(row)
+      return
+    }
+    if (key === 'talebiGeriCek') {
+      cancelStatusRequest(row)
       return
     }
     if (key === 'satisaKapa') {
@@ -7216,6 +7366,7 @@ export default function UrunPlanTarifeTanimlari() {
           onStartNewPlanFlow={startExistingProductPlanFlow}
           onPlanDetail={openPlanDetail}
           onPlanEdit={openPlanEdit}
+          onOpenChecker={() => setCheckerOpen(true)}
         />
         <Modal
           open={!!versionConfirmPlan}
@@ -7232,6 +7383,143 @@ export default function UrunPlanTarifeTanimlari() {
           <p className="text-sm text-slate-700 leading-relaxed">
             Yeni versiyon oluşturulduktan sonra güncelleme yapılabilir. Yeni versiyon oluşturmak ister misiniz?
           </p>
+        </Modal>
+
+        {/* Taslağa Al — açıklama + üretim etkisi bilgilendirme */}
+        <Modal
+          open={!!taslagaAlModal}
+          onClose={() => setTaslagaAlModal(null)}
+          title="Planı Taslağa Al"
+          size="lg"
+          footer={(
+            <>
+              <OutlineButton type="button" onClick={() => setTaslagaAlModal(null)}>Vazgeç</OutlineButton>
+              <PrimaryButton type="button" onClick={submitTaslagaAlRequest}>Onaya Gönder</PrimaryButton>
+            </>
+          )}
+        >
+          {taslagaAlModal && (() => {
+            const etki = mockPlanUretimEtkisi(taslagaAlModal)
+            return (
+              <div className="space-y-4">
+                <div className="text-sm text-slate-700">
+                  <span className="font-semibold">{taslagaAlModal.id}</span> · {taslagaAlModal.ad}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Taslağa Alma Gerekçesi <span className="text-red-500">*</span></label>
+                  <textarea
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-md text-sm p-2"
+                    placeholder="Planı neden Taslağa alıyorsunuz?"
+                    value={taslagaAlReason}
+                    onChange={(e) => { setTaslagaAlReason(e.target.value); if (taslagaAlError) setTaslagaAlError('') }}
+                  />
+                  {taslagaAlError && <p className="text-xs text-red-600 mt-1">{taslagaAlError}</p>}
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <p className="font-semibold text-slate-700 mb-2">Üretim Etkisi (Bilgilendirme)</p>
+                  <div className="flex flex-wrap gap-4 text-slate-600">
+                    <span>Bağlı Teklif: <span className="font-semibold tabular-nums">{etki.teklifCount}</span></span>
+                    <span>Bağlı Sözleşme: <span className="font-semibold tabular-nums">{etki.sozlesmeCount}</span></span>
+                  </div>
+                  {(etki.ornekTeklifler.length > 0 || etki.ornekSozlesmeler.length > 0) && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Örnek: {[...etki.ornekTeklifler, ...etki.ornekSozlesmeler].join(', ')}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-relaxed">
+                  Plan Taslağa alındığında üretim ekranlarında listelenmeyecektir. Devam eden teklif/sözleşme işlemleri kesintiye uğramaz. Durum değişikliği Checker onayı sonrası gerçekleşecektir. Bu işlem planın versiyonunu değiştirmez.
+                </div>
+              </div>
+            )
+          })()}
+        </Modal>
+
+        {/* Yürürlüğe Al — opsiyonel açıklama */}
+        <Modal
+          open={!!yururlugeAlModal}
+          onClose={() => setYururlugeAlModal(null)}
+          title="Planı Yürürlüğe Al"
+          size="md"
+          footer={(
+            <>
+              <OutlineButton type="button" onClick={() => setYururlugeAlModal(null)}>Vazgeç</OutlineButton>
+              <PrimaryButton type="button" onClick={submitYururlugeAlRequest}>Onaya Gönder</PrimaryButton>
+            </>
+          )}
+        >
+          {yururlugeAlModal && (
+            <div className="space-y-4">
+              <div className="text-sm text-slate-700">
+                <span className="font-semibold">{yururlugeAlModal.id}</span> · {yururlugeAlModal.ad}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Açıklama (opsiyonel)</label>
+                <textarea
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-md text-sm p-2"
+                  placeholder="Yürürlüğe alma açıklaması"
+                  value={yururlugeAlReason}
+                  onChange={(e) => setYururlugeAlReason(e.target.value)}
+                />
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-relaxed">
+                Durum değişikliği Checker onayı sonrası gerçekleşecektir. Bu güncelleme planın versiyonunu değiştirmez.
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Checker paneli — bekleyen statü talepleri */}
+        <Modal
+          open={checkerOpen}
+          onClose={() => setCheckerOpen(false)}
+          title="Onay Bekleyen Statü Talepleri (Checker)"
+          size="lg"
+          footer={<OutlineButton type="button" onClick={() => setCheckerOpen(false)}>Kapat</OutlineButton>}
+        >
+          {(() => {
+            const pending = getPlans(selected.id).filter((p) => hasPendingStatusRequest(p))
+            if (pending.length === 0) {
+              return <p className="text-sm text-slate-500 py-6 text-center">Bekleyen statü değişikliği talebi bulunmuyor.</p>
+            }
+            return (
+              <div className="space-y-3">
+                {pending.map((p) => {
+                  const req = p.statusRequest
+                  return (
+                    <div key={p.id} className="rounded-lg border border-slate-200 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800">{p.id} · {p.ad}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {formatPlanDurum(req.fromDurum)} → {formatPlanDurum(req.toDurum)} · {req.requestedBy} · {req.requestedAt}
+                          </div>
+                          {req.reason && <div className="text-sm text-slate-700 mt-1">Gerekçe: {req.reason}</div>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <OutlineButton small type="button" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => rejectStatusRequest(p)}>Reddet</OutlineButton>
+                          <PrimaryButton small type="button" onClick={() => approveStatusRequest(p)}>Onayla</PrimaryButton>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </Modal>
+
+        {/* Talep oluşturuldu bilgilendirme */}
+        <Modal
+          open={!!statusActionMsg}
+          onClose={() => setStatusActionMsg('')}
+          title="Talep Alındı"
+          size="md"
+          footer={<PrimaryButton type="button" onClick={() => { setStatusActionMsg(''); setCheckerOpen(true) }}>Onay Bekleyenleri Aç</PrimaryButton>}
+        >
+          <p className="text-sm text-slate-700 leading-relaxed">{statusActionMsg}</p>
         </Modal>
       </>
     )

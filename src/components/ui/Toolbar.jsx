@@ -42,7 +42,7 @@ export function StatusBadge({ value, status, children }) {
   let cls = 'bg-amber-50 text-amber-700 border-amber-200'
   if (v.includes('yururlukte') || v.includes('aktif') || v.includes('onayli') || v.includes('sozlesmelesti')) cls = 'bg-green-50 text-green-700 border-green-200'
   else if (v.includes('kapali') || v.includes('pasif') || v.includes('iptal')) cls = 'bg-slate-100 text-slate-600 border-slate-200'
-  else if (v.includes('taslak') || v.includes('onayda') || v.includes('bekleniyor')) cls = 'bg-amber-50 text-amber-700 border-amber-200'
+  else if (v.includes('taslak') || v.includes('onayda') || v.includes('bekleniyor') || v.includes('bekliyor')) cls = 'bg-amber-50 text-amber-700 border-amber-200'
   else if (v.includes('kaldirildi') || v.includes('reddi')) cls = 'bg-red-50 text-red-700 border-red-200'
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${cls}`}>{display}</span>
